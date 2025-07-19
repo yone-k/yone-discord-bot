@@ -1,0 +1,40 @@
+{
+  "name": "discord-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/ scripts/ --ext .ts",
+    "lint:fix": "eslint src/ scripts/ --ext .ts --fix",
+    "check": "npm run typecheck && npm run lint",
+    "build": "npm run check && tsc && npm run build-commands",
+    "build-only": "tsc",
+    "build-commands": "tsx scripts/build-commands.ts",
+    "build-commands:prod": "tsx scripts/build-commands.ts --production",
+    "build-commands:check": "tsx scripts/build-commands.ts --check",
+    "build-commands:dry": "tsx scripts/build-commands.ts --dry-run",
+    "test-discovery": "npx tsx scripts/test-discovery.ts",
+    "test": "vitest run",
+    "dev": "npm run check && tsx src/index.ts",
+    "deploy-commands": "tsx scripts/deploy-commands.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "discord.js": "^14.21.0",
+    "eslint": "^8.57.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.15",
+    "dotenv": "^17.2.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

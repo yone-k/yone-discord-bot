@@ -1,0 +1,14 @@
+.idea
+.claude
+CLAUDE.md
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.production

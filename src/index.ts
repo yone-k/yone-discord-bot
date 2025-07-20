@@ -3,8 +3,8 @@ import { Client, GatewayIntentBits, Events } from 'discord.js';
 import { Config, ConfigError } from './utils/config';
 import { Logger, LogLevel } from './utils/logger';
 import { CommandManager } from './utils/CommandManager';
-import { PingCommand } from './commands/PingCommand';
 import { CommandExecutionContext } from './base/BaseCommand';
+import { registerAllCommands } from './registry/RegisterCommands';
 
 class DiscordBot {
   private client: Client;
@@ -36,8 +36,7 @@ class DiscordBot {
 
   private registerCommands(): void {
     try {
-      this.commandManager.register(new PingCommand(this.logger));
-      this.logger.info('All commands registered successfully');
+      registerAllCommands(this.commandManager, this.logger);
     } catch (error) {
       this.logger.error('Failed to register commands', { error });
       throw error;

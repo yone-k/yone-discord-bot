@@ -45,7 +45,7 @@ export class CommandAutoDiscovery {
       return files
         .filter(file => file.endsWith('.ts') && !file.endsWith('.test.ts'))
         .map(file => path.join(this.commandsDir, file));
-    } catch (error) {
+    } catch {
       this.logger.warn(`Commands directory ${this.commandsDir} not found or inaccessible`);
       return [];
     }
@@ -68,9 +68,8 @@ export class CommandAutoDiscovery {
             if (instance instanceof BaseCommand) {
               return instance;
             }
-          } catch (error) {
+          } catch {
             // インスタンス化に失敗した場合はスキップ
-            continue;
           }
         }
       }
@@ -96,7 +95,7 @@ export class CommandAutoDiscovery {
     try {
       const stats = await fs.stat(filePath);
       return stats.mtime.getTime();
-    } catch (error) {
+    } catch {
       return 0;
     }
   }

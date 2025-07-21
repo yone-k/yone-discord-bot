@@ -103,7 +103,8 @@ export class InitListCommand extends BaseCommand {
       context.channelId,
       embed,
       listTitle,
-      context.interaction.client
+      context.interaction.client,
+      'init-list'
     );
 
     if (!messageResult.success) {
@@ -191,7 +192,7 @@ export class InitListCommand extends BaseCommand {
     
     for (let i = startIndex; i < data.length; i++) {
       const row = data[i];
-      if (row.length >= 4 && row[0]) { // name必須、最低限のデータがある行のみ
+      if (row.length >= 3 && row[0]) { // name必須、最低限のデータ（name, quantity, category）がある行のみ
         try {
           const name = row[0].trim();
           
@@ -205,12 +206,26 @@ export class InitListCommand extends BaseCommand {
           }
           seenNames.add(name);
           
+          // added_at の安全な処理
+          let addedAt: Date | null = null;
+          if (row[3] && row[3].trim() !== '') {
+            const dateValue = new Date(row[3].trim());
+            addedAt = !isNaN(dateValue.getTime()) ? dateValue : null;
+          }
+
+          // until の安全な処理
+          let until: Date | null = null;
+          if (row[4] && row[4].trim() !== '') {
+            const dateValue = new Date(row[4].trim());
+            until = !isNaN(dateValue.getTime()) ? dateValue : null;
+          }
+
           const item: ListItem = {
             name,
             quantity: row[1]?.trim() || '',
             category: normalizeCategory(row[2] || 'その他'),
-            addedAt: row[3] ? new Date(row[3]) : null,
-            until: row[4] ? new Date(row[4]) : null
+            addedAt,
+            until
           };
           
           items.push(item);

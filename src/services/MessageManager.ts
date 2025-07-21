@@ -1,6 +1,7 @@
-import { EmbedBuilder, TextChannel, Message, ChannelType, Client } from 'discord.js';
+import { EmbedBuilder, TextChannel, Message, ChannelType, Client, ActionRowBuilder, ButtonBuilder } from 'discord.js';
 import { MetadataManager, MetadataOperationResult } from './MetadataManager';
 import { ChannelMetadata } from '../models/ChannelMetadata';
+import { ButtonConfigManager } from './ButtonConfigManager';
 
 export enum MessageManagerErrorType {
   CHANNEL_NOT_FOUND = 'CHANNEL_NOT_FOUND',
@@ -60,12 +61,14 @@ export interface MessageOperationResult {
 
 export class MessageManager {
   private metadataManager: MetadataManager;
+  private buttonConfigManager: ButtonConfigManager;
   // チャンネル単位での並行処理制御用のロックMap
   private readonly channelLocks = new Map<string, Promise<any>>(); // eslint-disable-line @typescript-eslint/no-explicit-any
   private readonly lockTimeout = 30000; // 30秒のタイムアウト
 
   constructor() {
     this.metadataManager = new MetadataManager();
+    this.buttonConfigManager = ButtonConfigManager.getInstance();
   }
 
   /**
@@ -102,6 +105,42 @@ export class MessageManager {
     } finally {
       // ロックを削除
       this.channelLocks.delete(lockKey);
+    }
+  }
+
+  /**
+   * メッセージにボタンを自動追加
+   */
+  private createButtonActionRow(commandName: string): ActionRowBuilder<ButtonBuilder> | null {
+    try {
+      if (!this.buttonConfigManager.isButtonEnabled(commandName)) {
+        return null;
+      }
+
+      const buttons = this.buttonConfigManager.getCommandButtons(commandName);
+      if (buttons.length === 0) {
+        return null;
+      }
+
+      const actionRow = new ActionRowBuilder<ButtonBuilder>();
+
+      for (const buttonConfig of buttons) {
+        const button = new ButtonBuilder()
+          .setCustomId(buttonConfig.customId)
+          .setLabel(buttonConfig.label)
+          .setStyle(buttonConfig.style);
+
+        if (buttonConfig.emoji) {
+          button.setEmoji(buttonConfig.emoji);
+        }
+
+        actionRow.addComponents(button);
+      }
+
+      return actionRow;
+    } catch (error) {
+      console.warn(`Failed to create button action row for command ${commandName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return null;
     }
   }
 
@@ -191,7 +230,8 @@ export class MessageManager {
     channelId: string,
     messageId: string,
     embed: EmbedBuilder,
-    client: Client
+    client: Client,
+    commandName?: string
   ): Promise<MessageOperationResult> {
     try {
       // メッセージを取得
@@ -204,8 +244,20 @@ export class MessageManager {
         );
       }
       
+      // ボタンを作成（コマンド名が指定されている場合）
+      const components = [];
+      if (commandName) {
+        const buttonActionRow = this.createButtonActionRow(commandName);
+        if (buttonActionRow) {
+          components.push(buttonActionRow);
+        }
+      }
+      
       // メッセージを更新
-      const updatedMessage = await getResult.message.edit({ embeds: [embed] });
+      const updatedMessage = await getResult.message.edit({ 
+        embeds: [embed],
+        components
+      });
       
       return {
         success: true,
@@ -233,7 +285,8 @@ export class MessageManager {
   public async createMessage(
     channelId: string,
     embed: EmbedBuilder,
-    client: Client
+    client: Client,
+    commandName?: string
   ): Promise<MessageOperationResult> {
     try {
       // チャンネルを取得
@@ -255,8 +308,20 @@ export class MessageManager {
       
       const textChannel = channel as TextChannel;
       
+      // ボタンを作成（コマンド名が指定されている場合）
+      const components = [];
+      if (commandName) {
+        const buttonActionRow = this.createButtonActionRow(commandName);
+        if (buttonActionRow) {
+          components.push(buttonActionRow);
+        }
+      }
+      
       // メッセージを送信
-      const message = await textChannel.send({ embeds: [embed] });
+      const message = await textChannel.send({ 
+        embeds: [embed],
+        components
+      });
       
       return {
         success: true,
@@ -325,7 +390,8 @@ export class MessageManager {
     channelId: string,
     embed: EmbedBuilder,
     listTitle: string,
-    client: Client
+    client: Client,
+    commandName?: string
   ): Promise<MessageOperationResult> {
     return this.withChannelLock(channelId, async () => {
       try {
@@ -341,17 +407,18 @@ export class MessageManager {
             channelId,
             metadataResult.metadata.messageId,
             embed,
-            client
+            client,
+            commandName
           );
           
           // 更新に失敗した場合は新規作成にフォールバック
           if (!messageResult.success) {
             console.warn(`Failed to update message ${metadataResult.metadata.messageId}, creating new message`);
-            messageResult = await this.createMessage(channelId, embed, client);
+            messageResult = await this.createMessage(channelId, embed, client, commandName);
           }
         } else {
           // 新規メッセージ作成
-          messageResult = await this.createMessage(channelId, embed, client);
+          messageResult = await this.createMessage(channelId, embed, client, commandName);
         }
         
         // ステップ3: メッセージ作成が成功した場合のみメタデータを更新
@@ -372,6 +439,7 @@ export class MessageManager {
           // メッセージ作成は成功しているので、警告のみ出力して処理は継続
         }
         
+        // ボタンは既にメッセージ作成・更新時に追加済み
         return messageResult;
         
       } catch (error) {

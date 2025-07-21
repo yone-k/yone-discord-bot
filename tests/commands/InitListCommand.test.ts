@@ -292,6 +292,82 @@ describe('InitListCommand', () => {
     })
   })
 
+  describe('データ処理テスト', () => {
+    it('added_atがnullのアイテムも正常に処理される', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      }
+
+      // added_atがnullまたは空のデータを設定
+      const testData = [
+        ['牛乳', '1本', 'その他'],  // added_at なし（3列のみ）
+        ['パン', '1個', 'その他', ''],  // added_at 空文字列
+        ['卵', '6個', 'その他', '2025-01-21'],  // added_at あり
+        ['バター', '1個', 'その他', '  '],  // added_at 空白のみ
+        ['チーズ', '200g', 'その他', 'invalid-date']  // 無効な日付
+      ]
+
+      mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true)
+      mockGoogleSheetsService.getSheetData.mockResolvedValue(testData)
+      mockGoogleSheetsService.validateData.mockReturnValue({ isValid: true, errors: [] })
+      mockGoogleSheetsService.normalizeData.mockReturnValue(testData)
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue({
+        existed: false,
+        created: true
+      })
+      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        message: { id: 'test-message-id' }
+      })
+
+      await initListCommand.execute(context)
+      
+      // データが正常に処理されて、メッセージが5件取得されたことを確認
+      expect(mockInteraction.editReply).toHaveBeenCalledWith({
+        content: '✅ スプレッドシートから5件のアイテムを取得し、このチャンネルに表示しました'
+      })
+    })
+
+    it('added_atが有効な場合は適切にDate型で処理される', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      }
+
+      // 有効なadded_atを持つデータ
+      const testData = [
+        ['リンゴ', '5個', 'その他', '2025-01-21T10:00:00']
+      ]
+
+      mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true)
+      mockGoogleSheetsService.getSheetData.mockResolvedValue(testData)
+      mockGoogleSheetsService.validateData.mockReturnValue({ isValid: true, errors: [] })
+      mockGoogleSheetsService.normalizeData.mockReturnValue(testData)
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue({
+        existed: false,
+        created: true
+      })
+      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        message: { id: 'test-message-id' }
+      })
+
+      await initListCommand.execute(context)
+      
+      // 1件のアイテムが処理されたことを確認
+      expect(mockInteraction.editReply).toHaveBeenCalledWith({
+        content: '✅ スプレッドシートから1件のアイテムを取得し、このチャンネルに表示しました'
+      })
+    })
+  })
+
   describe('統合テスト', () => {
     it('完全な初期化フローが正常に動作する', async () => {
       const context: CommandExecutionContext = {

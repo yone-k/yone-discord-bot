@@ -186,7 +186,8 @@ describe('InitList Command Duplicate Execution Tests', () => {
         'test-channel-id',
         expect.any(Object), // embed
         'test-channel-idリスト', // channel name + リスト
-        expect.any(Object) // client
+        expect.any(Object), // client
+        'init-list' // commandName
       );
     });
 

@@ -1,0 +1,290 @@
+import { describe, it, expect, vi, beforeEach, MockedFunction } from 'vitest'
+import { InitListCommand } from '../../src/commands/InitListCommand'
+import { Logger, LogLevel } from '../../src/utils/logger'
+import { CommandExecutionContext } from '../../src/base/BaseCommand'
+import { GoogleSheetsService } from '../../src/services/GoogleSheetsService'
+import { ChannelSheetManager } from '../../src/services/ChannelSheetManager'
+import { ListFormatter } from '../../src/ui/ListFormatter'
+import { CommandError, CommandErrorType } from '../../src/utils/CommandError'
+
+// モック設定
+vi.mock('../../src/services/GoogleSheetsService')
+vi.mock('../../src/services/ChannelSheetManager')
+vi.mock('../../src/ui/ListFormatter')
+
+describe('InitListCommand', () => {
+  let logger: Logger
+  let loggerInfoSpy: MockedFunction<typeof logger.info>
+  let loggerDebugSpy: MockedFunction<typeof logger.debug>
+  let loggerErrorSpy: MockedFunction<typeof logger.error>
+  let initListCommand: InitListCommand
+  let mockGoogleSheetsService: any
+  let mockChannelSheetManager: any
+  let mockInteraction: any
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    
+    logger = new Logger(LogLevel.DEBUG)
+    loggerInfoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
+    loggerDebugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {})
+    loggerErrorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
+    
+    // GoogleSheetsServiceのモック
+    mockGoogleSheetsService = {
+      checkSpreadsheetExists: vi.fn(),
+      createChannelSheet: vi.fn()
+    }
+    
+    // ChannelSheetManagerのモック
+    mockChannelSheetManager = {
+      getOrCreateChannelSheet: vi.fn(),
+      verifySheetAccess: vi.fn().mockResolvedValue(true) // デフォルトは成功
+    }
+    
+    // Discordインタラクションのモック
+    mockInteraction = {
+      reply: vi.fn(),
+      deferReply: vi.fn(),
+      editReply: vi.fn(),
+      user: { id: 'test-user-id' },
+      guildId: 'test-guild-id',
+      channelId: 'test-channel-id'
+    }
+    
+    initListCommand = new InitListCommand(logger, mockChannelSheetManager)
+  })
+
+  describe('コンストラクタ', () => {
+    it('名前が"init-list"に設定される', () => {
+      expect(initListCommand.getName()).toBe('init-list')
+    })
+
+    it('説明が適切に設定される', () => {
+      expect(initListCommand.getDescription()).toBe('リストの初期化を行います')
+    })
+  })
+
+  describe('execute メソッド - 基本動作', () => {
+    it('コンテキストなしでも実行できる', async () => {
+      await initListCommand.execute()
+      
+      expect(loggerDebugSpy).toHaveBeenCalledWith(
+        'Init list command started',
+        expect.objectContaining({
+          userId: undefined,
+          guildId: undefined
+        })
+      )
+    })
+
+    it('チャンネルIDが提供された場合、シート初期化処理を実行する', async () => {
+      const context: CommandExecutionContext = {
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      }
+
+      // モック設定
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue({
+        existed: false,
+        created: true
+      })
+
+      await initListCommand.execute(context)
+      
+      expect(loggerDebugSpy).toHaveBeenCalledWith(
+        'Init list command started',
+        expect.objectContaining({
+          userId: 'test-user-id',
+          guildId: 'test-guild-id'
+        })
+      )
+    })
+  })
+
+  describe('execute メソッド - Google Sheets連携', () => {
+    it('Google Sheetsサービスとの連携でシート初期化を実行する', async () => {
+      const context: CommandExecutionContext = {
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      }
+
+      // ChannelSheetManagerのモック設定
+      const mockResult = { existed: false, created: true }
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue(mockResult)
+
+      await initListCommand.execute(context)
+      
+      // シート初期化処理が呼ばれることを期待
+      expect(loggerInfoSpy).toHaveBeenCalledWith(
+        expect.stringContaining('List initialization completed'),
+        expect.objectContaining({
+          userId: 'test-user-id'
+        })
+      )
+    })
+
+    it('既存シートが存在する場合は適切なメッセージを表示する', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      }
+
+      // 既存シートありのモック設定
+      const mockResult = { existed: true, data: [['項目名', '説明', '日付', '状態']] }
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue(mockResult)
+
+      await initListCommand.execute(context)
+      
+      expect(mockInteraction.editReply).toHaveBeenCalledWith({
+        content: expect.stringContaining('既存のリスト')
+      })
+    })
+
+    it('新規シートを作成した場合は適切なメッセージを表示する', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      }
+
+      // 新規シート作成のモック設定
+      const mockResult = { existed: false, created: true }
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue(mockResult)
+
+      await initListCommand.execute(context)
+      
+      expect(mockInteraction.editReply).toHaveBeenCalledWith({
+        content: expect.stringContaining('新しいリスト')
+      })
+    })
+  })
+
+  describe('execute メソッド - エラーハンドリング', () => {
+    it('チャンネルIDが未提供の場合はエラーをスローする', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+        // channelId なし
+      }
+
+      await expect(initListCommand.execute(context)).rejects.toThrow(CommandError)
+    })
+
+    it('Google Sheetsサービスエラー時は適切にハンドリングする', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      }
+
+      // Google Sheetsエラーのモック設定
+      mockChannelSheetManager.getOrCreateChannelSheet.mockRejectedValue(
+        new Error('Google Sheets API Error')
+      )
+
+      await expect(initListCommand.execute(context)).rejects.toThrow()
+    })
+
+    it('アクセス権限エラー時は適切なメッセージでエラーをスローする', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      }
+
+      // アクセス権限エラーのモック設定
+      mockChannelSheetManager.verifySheetAccess.mockResolvedValue(false)
+
+      await expect(initListCommand.execute(context)).rejects.toThrow(CommandError)
+    })
+  })
+
+  describe('execute メソッド - Discord連携', () => {
+    it('interactionが提供された場合はDeferredReplyを使用する', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      }
+
+      // 正常なシート作成のモック設定
+      const mockResult = { existed: false, created: true }
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue(mockResult)
+
+      await initListCommand.execute(context)
+      
+      expect(mockInteraction.deferReply).toHaveBeenCalled()
+      expect(mockInteraction.editReply).toHaveBeenCalled()
+    })
+
+    it('長時間処理の場合は進行状況を適切に報告する', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      }
+
+      // 遅延処理のモック設定
+      mockChannelSheetManager.getOrCreateChannelSheet.mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve({ existed: false, created: true }), 100))
+      )
+
+      await initListCommand.execute(context)
+      
+      expect(mockInteraction.deferReply).toHaveBeenCalled()
+      expect(loggerDebugSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Initializing sheet for channel'),
+        expect.any(Object)
+      )
+    })
+  })
+
+  describe('統合テスト', () => {
+    it('完全な初期化フローが正常に動作する', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      }
+
+      // 全依存関係の正常モック設定
+      mockChannelSheetManager.verifySheetAccess.mockResolvedValue(true)
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue({
+        existed: false,
+        created: true
+      })
+
+      await initListCommand.execute(context)
+      
+      // 実行ログの確認
+      expect(loggerDebugSpy).toHaveBeenCalledWith(
+        'Init list command started',
+        expect.objectContaining({
+          userId: 'test-user-id',
+          guildId: 'test-guild-id'
+        })
+      )
+      
+      expect(loggerInfoSpy).toHaveBeenCalledWith(
+        'List initialization completed',
+        expect.objectContaining({
+          userId: 'test-user-id'
+        })
+      )
+      
+      expect(loggerDebugSpy).toHaveBeenCalledWith('Init list command completed')
+    })
+  })
+})

@@ -1,9 +1,16 @@
+export interface GoogleSheetsConfig {
+  spreadsheetId: string
+  serviceAccountEmail: string
+  privateKey: string
+}
+
 export interface BotConfig {
   discordToken: string
   clientId: string
   guildId?: string
   nodeEnv: string
   logLevel: string
+  googleSheets?: GoogleSheetsConfig
 }
 
 export class ConfigError extends Error {
@@ -51,6 +58,9 @@ export class Config {
     const nodeEnv = process.env.NODE_ENV || 'development';
     const logLevel = process.env.LOG_LEVEL || 'info';
 
+    // Google Sheets設定の読み込み（オプショナル）
+    const googleSheetsConfig = this.loadGoogleSheetsConfig();
+
     if (discordToken.trim() === '') {
       throw new ConfigError('DISCORD_BOT_TOKEN cannot be empty');
     }
@@ -64,7 +74,8 @@ export class Config {
       clientId,
       guildId,
       nodeEnv,
-      logLevel
+      logLevel,
+      googleSheets: googleSheetsConfig
     };
   }
 
@@ -98,5 +109,30 @@ export class Config {
 
   public isProduction(): boolean {
     return this.config.nodeEnv === 'production';
+  }
+
+  private loadGoogleSheetsConfig(): GoogleSheetsConfig | undefined {
+    const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+    const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+
+    // いずれかが未設定または空文字の場合はundefinedを返す
+    if (!spreadsheetId || !serviceAccountEmail || !privateKey ||
+        spreadsheetId.trim() === '' || serviceAccountEmail.trim() === '' || privateKey.trim() === '') {
+      return undefined;
+    }
+
+    // PRIVATE_KEYの改行文字を正しく処理
+    const processedPrivateKey = privateKey.replace(/\\n/g, '\n');
+
+    return {
+      spreadsheetId: spreadsheetId.trim(),
+      serviceAccountEmail: serviceAccountEmail.trim(),
+      privateKey: processedPrivateKey
+    };
+  }
+
+  public getGoogleSheetsConfig(): GoogleSheetsConfig | undefined {
+    return this.config.googleSheets;
   }
 }

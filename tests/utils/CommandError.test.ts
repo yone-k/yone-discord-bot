@@ -86,6 +86,24 @@ describe('CommandError', () => {
       )
       expect(error.userMessage).toBe('レート制限により、しばらく時間を置いてから再試行してください。')
     })
+
+    it('should return correct message for CONFIG_MISSING', () => {
+      const error = new CommandError(
+        CommandErrorType.CONFIG_MISSING,
+        'test',
+        'message'
+      )
+      expect(error.userMessage).toBe('必要な設定が見つかりません。環境変数を確認してください。')
+    })
+
+    it('should return correct message for SERVICE_UNAVAILABLE', () => {
+      const error = new CommandError(
+        CommandErrorType.SERVICE_UNAVAILABLE,
+        'test',
+        'message'
+      )
+      expect(error.userMessage).toBe('サービスが利用できません。しばらく時間を置いてから再試行してください。')
+    })
   })
 
   describe('getErrorDetails', () => {

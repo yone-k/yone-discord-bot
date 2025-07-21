@@ -40,7 +40,7 @@ export class Config {
     const missingVars: string[] = [];
 
     for (const envVar of requiredEnvVars) {
-      if (!process.env[envVar]) {
+      if (!process.env[envVar] || process.env[envVar]!.trim() === '') {
         missingVars.push(envVar);
       }
     }
@@ -60,14 +60,6 @@ export class Config {
 
     // Google Sheets設定の読み込み（オプショナル）
     const googleSheetsConfig = this.loadGoogleSheetsConfig();
-
-    if (discordToken.trim() === '') {
-      throw new ConfigError('DISCORD_BOT_TOKEN cannot be empty');
-    }
-
-    if (clientId.trim() === '') {
-      throw new ConfigError('CLIENT_ID cannot be empty');
-    }
 
     return {
       discordToken,

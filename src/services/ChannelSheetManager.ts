@@ -58,7 +58,7 @@ export interface DataOperationResult {
 
 export class ChannelSheetManager {
   private googleSheetsService: GoogleSheetsService;
-  private readonly defaultHeaders = ['項目名', '説明', '日付', '状態'];
+  private readonly defaultHeaders = ['id', 'name', 'quantity', 'category', 'added_at'];
 
   constructor() {
     this.googleSheetsService = GoogleSheetsService.getInstance();
@@ -98,7 +98,7 @@ export class ChannelSheetManager {
         return createResult;
       }
 
-      // ヘッダー行を追加
+      // ヘッダー行を追加（太字フォーマット付き）
       const headers = customHeaders || this.defaultHeaders;
       const headerResult = await this.googleSheetsService.appendSheetData(channelId, [headers]);
       
@@ -118,11 +118,17 @@ export class ChannelSheetManager {
   /**
    * シートアクセス権限の検証
    */
-  public async verifySheetAccess(): Promise<boolean> {
+  public async verifySheetAccess(channelId: string): Promise<boolean> {
     try {
       // スプレッドシートの存在確認（権限確認を兼ねる）
       const spreadsheetExists = await this.googleSheetsService.checkSpreadsheetExists();
-      return spreadsheetExists;
+      if (!spreadsheetExists) {
+        return false;
+      }
+      
+      // シートデータへのアクセス確認
+      await this.googleSheetsService.getSheetData(channelId);
+      return true;
     } catch {
       return false;
     }

@@ -28,7 +28,7 @@ export function validateListItem(item: ListItem): void {
     throw new Error('商品名は必須です');
   }
   
-  if (item.quantity <= 0) {
+  if (typeof item.quantity !== 'number' || item.quantity <= 0) {
     throw new Error('数量は1以上である必要があります');
   }
   

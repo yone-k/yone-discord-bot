@@ -1,6 +1,7 @@
-import { google } from 'googleapis';
+import { google, sheets_v4 } from 'googleapis';
 import { GoogleAuth } from 'google-auth-library';
 import { Config } from '../utils/config';
+import { normalizeCategory } from '../models/CategoryType';
 
 export enum GoogleSheetsErrorType {
   CONFIG_MISSING = 'CONFIG_MISSING',
@@ -80,6 +81,10 @@ export class GoogleSheetsService {
   private config: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   private readonly maxRetries = 3;
   private readonly retryDelay = 1000;
+  
+  // Atomic操作用のロックメカニズム
+  private readonly operationLocks = new Map<string, Promise<void>>();
+  private readonly lockTimeout = 30000; // 30秒のタイムアウト
 
   private constructor() {
     const configInstance = Config.getInstance();
@@ -202,6 +207,14 @@ export class GoogleSheetsService {
         spreadsheetId: this.config.spreadsheetId
       });
 
+      return this.getSheetDataByName(sheetName);
+    });
+  }
+
+  public async getSheetDataByName(sheetName: string): Promise<string[][]> {
+    return this.executeWithRetry(async () => {
+      await this.getAuthClient();
+
       try {
         const response = await this.sheets.spreadsheets.values.get({
           spreadsheetId: this.config.spreadsheetId,
@@ -217,7 +230,6 @@ export class GoogleSheetsService {
       } catch (error) {
         const gaxiosError = error as { code?: number; status?: number; message: string };
         console.error('Failed to get sheet data:', {
-          channelId,
           sheetName,
           errorMessage: gaxiosError.message,
           errorCode: gaxiosError.code,
@@ -235,14 +247,56 @@ export class GoogleSheetsService {
     });
   }
 
-  public async appendSheetData(channelId: string, data: string[][]): Promise<OperationResult> {
+  public async appendSheetData(sheetNameOrChannelId: string, data: string[][], isHeader = false): Promise<OperationResult> {
     try {
       await this.getAuthClient();
-      const sheetName = this.getSheetNameForChannel(channelId);
+      // sheetNameOrChannelIdが既にシート名（'metadata'等）の場合はそのまま使用、
+      // channelIDらしき場合はgetSheetNameForChannelを呼ぶ
+      const sheetName = sheetNameOrChannelId.includes('!') 
+        ? sheetNameOrChannelId.split('!')[0]
+        : (sheetNameOrChannelId === 'metadata' || sheetNameOrChannelId.startsWith('list_'))
+          ? sheetNameOrChannelId
+          : this.getSheetNameForChannel(sheetNameOrChannelId);
       
       await this.sheets.spreadsheets.values.append({
         spreadsheetId: this.config.spreadsheetId,
         range: `${sheetName}!A:Z`,
+        valueInputOption: 'RAW',
+        resource: {
+          values: data
+        }
+      });
+
+      // ヘッダー行の場合は太字フォーマットを適用
+      if (isHeader && data.length > 0) {
+        await this.applyHeaderFormatting(sheetNameOrChannelId, data[0].length);
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: (error as Error).message };
+    }
+  }
+
+  /**
+   * 特定範囲のシートデータを更新
+   */
+  public async updateSheetData(
+    sheetNameOrChannelId: string, 
+    data: string[][], 
+    range?: string
+  ): Promise<OperationResult> {
+    try {
+      await this.getAuthClient();
+      const sheetName = sheetNameOrChannelId.includes('!') 
+        ? sheetNameOrChannelId.split('!')[0]
+        : this.getSheetNameForChannel(sheetNameOrChannelId);
+      
+      const updateRange = range || `${sheetName}!A:Z`;
+      
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: this.config.spreadsheetId,
+        range: updateRange,
         valueInputOption: 'RAW',
         resource: {
           values: data
@@ -255,26 +309,356 @@ export class GoogleSheetsService {
     }
   }
 
+  /**
+   * 操作に対するロックを取得（atomic操作保証用）
+   */
+  private async acquireOperationLock(lockKey: string): Promise<() => void> {
+    const existingLock = this.operationLocks.get(lockKey);
+    
+    if (existingLock) {
+      // 既存のロックが完了するまで待機
+      await existingLock.catch(() => {
+        // エラーが発生しても待機を続行
+      });
+    }
+
+    let releaseLock: () => void;
+    const lockPromise = new Promise<void>((resolve) => {
+      releaseLock = (): void => {
+        this.operationLocks.delete(lockKey);
+        resolve();
+      };
+    });
+
+    // タイムアウト設定
+    const timeoutId = setTimeout(() => {
+      releaseLock();
+    }, this.lockTimeout);
+
+    this.operationLocks.set(lockKey, lockPromise);
+
+    return () => {
+      clearTimeout(timeoutId);
+      releaseLock();
+    };
+  }
+
+  /**
+   * スプレッドシートのバックアップを作成（ロールバック用）
+   */
+  private async createDataBackup(sheetName: string): Promise<string[][]> {
+    try {
+      return await this.getSheetDataByName(sheetName);
+    } catch (error) {
+      // バックアップ作成に失敗した場合は空配列を返す
+      console.warn(`Failed to create backup for sheet ${sheetName}:`, (error as Error).message);
+      return [];
+    }
+  }
+
+  /**
+   * データのロールバックを実行
+   */
+  private async rollbackData(sheetName: string, backupData: string[][]): Promise<boolean> {
+    try {
+      if (backupData.length === 0) {
+        console.warn(`No backup data available for rollback of sheet ${sheetName}`);
+        return false;
+      }
+
+      // シート全体をクリア
+      await this.sheets.spreadsheets.values.clear({
+        spreadsheetId: this.config.spreadsheetId,
+        range: `${sheetName}!A:Z`
+      });
+
+      // バックアップデータを復元
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: this.config.spreadsheetId,
+        range: `${sheetName}!A1`,
+        valueInputOption: 'RAW',
+        resource: {
+          values: backupData
+        }
+      });
+
+      return true;
+    } catch (error) {
+      console.error(`Failed to rollback data for sheet ${sheetName}:`, (error as Error).message);
+      return false;
+    }
+  }
+
+  /**
+   * 条件付きデータ追加（真のatomic操作）
+   */
+  private async conditionalAppend(
+    sheetName: string,
+    data: string[][],
+    checkColumnIndex: number,
+    expectedDataLength: number
+  ): Promise<{ success: boolean; currentData?: string[][]; message?: string }> {
+    try {
+      // 現在のデータを再取得して長さを確認
+      const currentData = await this.getSheetDataByName(sheetName);
+      
+      if (currentData.length !== expectedDataLength) {
+        return {
+          success: false,
+          currentData,
+          message: `Data length mismatch. Expected: ${expectedDataLength}, Actual: ${currentData.length}`
+        };
+      }
+
+      // 重複チェック
+      for (const newRow of data) {
+        const checkValue = newRow[checkColumnIndex];
+        const duplicate = currentData.some((existingRow: string[]) => 
+          existingRow[checkColumnIndex] === checkValue
+        );
+        
+        if (duplicate) {
+          return {
+            success: false,
+            currentData,
+            message: `重複データが検出されました: ${checkValue}`
+          };
+        }
+      }
+
+      // データ追加
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId: this.config.spreadsheetId,
+        range: `${sheetName}!A:Z`,
+        valueInputOption: 'RAW',
+        resource: {
+          values: data
+        }
+      });
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Conditional append failed: ${(error as Error).message}`
+      };
+    }
+  }
+
+  /**
+   * 重複チェック付きでシートにデータを追加（atomic操作強化版）
+   */
+  public async appendSheetDataWithDuplicateCheck(
+    sheetNameOrChannelId: string, 
+    data: string[][], 
+    checkColumnIndex: number,
+    isHeader = false
+  ): Promise<OperationResult> {
+    const lockKey = `append_${sheetNameOrChannelId}`;
+    let releaseLock: (() => void) | null = null;
+    let backupData: string[][] = [];
+    let operationStarted = false;
+
+    try {
+      await this.getAuthClient();
+      const sheetName = sheetNameOrChannelId.includes('!') 
+        ? sheetNameOrChannelId.split('!')[0]
+        : this.getSheetNameForChannel(sheetNameOrChannelId);
+
+      // ロックを取得してatomic操作を保証
+      releaseLock = await this.acquireOperationLock(lockKey);
+
+      // バックアップを作成（ロールバック用）
+      backupData = await this.createDataBackup(sheetName);
+      const initialDataLength = backupData.length;
+
+      // 最大リトライ回数でatomic操作を試行
+      let lastError: Error | null = null;
+      for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+        try {
+          // 条件付き追加を実行
+          const result = await this.conditionalAppend(
+            sheetName,
+            data,
+            checkColumnIndex,
+            initialDataLength
+          );
+
+          if (result.success) {
+            operationStarted = true;
+
+            // ヘッダー行の場合は太字フォーマットを適用
+            if (isHeader && data.length > 0) {
+              try {
+                await this.applyHeaderFormatting(sheetNameOrChannelId, data[0].length);
+              } catch (formatError) {
+                console.warn(`Failed to apply header formatting: ${(formatError as Error).message}`);
+                // フォーマット失敗はデータ追加の成功に影響しないため、警告のみ
+              }
+            }
+
+            return { success: true };
+          } else {
+            // 重複エラーの場合はリトライしない
+            if (result.message?.includes('重複データが検出されました')) {
+              return {
+                success: false,
+                message: result.message
+              };
+            }
+
+            // データ長不一致の場合は別のプロセスが同時実行している可能性
+            if (result.message?.includes('Data length mismatch')) {
+              if (attempt === this.maxRetries) {
+                return {
+                  success: false,
+                  message: '同時実行により操作が競合しました。しばらく時間をおいて再試行してください。'
+                };
+              }
+
+              // 短時間待機してリトライ
+              await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
+              continue;
+            }
+
+            lastError = new Error(result.message || 'Unknown error');
+          }
+        } catch (error) {
+          lastError = error as Error;
+          
+          // レート制限エラーの場合は待機してリトライ
+          if (lastError.message.includes('429') || lastError.message.includes('quota')) {
+            if (attempt < this.maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
+              continue;
+            }
+          }
+          
+          // その他のエラーは即座に失敗
+          break;
+        }
+      }
+
+      // 全ての試行が失敗した場合
+      return {
+        success: false,
+        message: `操作が失敗しました: ${lastError?.message || 'Unknown error'}`
+      };
+
+    } catch (error) {
+      // 予期しないエラーが発生した場合
+      const errorMessage = (error as Error).message;
+      
+      // ロールバックを試行
+      if (operationStarted && backupData.length > 0) {
+        try {
+          const sheetName = sheetNameOrChannelId.includes('!') 
+            ? sheetNameOrChannelId.split('!')[0]
+            : this.getSheetNameForChannel(sheetNameOrChannelId);
+          
+          const rollbackSuccess = await this.rollbackData(sheetName, backupData);
+          if (rollbackSuccess) {
+            console.log(`Successfully rolled back data for sheet ${sheetName}`);
+          }
+        } catch (rollbackError) {
+          console.error(`Failed to rollback data: ${(rollbackError as Error).message}`);
+        }
+      }
+
+      return { 
+        success: false, 
+        message: `操作中に予期しないエラーが発生しました: ${errorMessage}` 
+      };
+    } finally {
+      // ロックを解放
+      if (releaseLock) {
+        releaseLock();
+      }
+    }
+  }
+
+  /**
+   * ヘッダー行に太字フォーマットを適用
+   */
+  private async applyHeaderFormatting(sheetNameOrChannelId: string, columnCount: number): Promise<void> {
+    try {
+      await this.getAuthClient();
+      // sheetNameOrChannelIdが既にシート名（'metadata'等）の場合はそのまま使用、
+      // channelIDらしき場合はgetSheetNameForChannelを呼ぶ
+      const sheetName = sheetNameOrChannelId.includes('!') 
+        ? sheetNameOrChannelId.split('!')[0]
+        : (sheetNameOrChannelId === 'metadata' || sheetNameOrChannelId.startsWith('list_'))
+          ? sheetNameOrChannelId
+          : this.getSheetNameForChannel(sheetNameOrChannelId);
+      
+      // シート情報を取得してsheetIdを特定
+      const spreadsheetResponse = await this.sheets.spreadsheets.get({
+        spreadsheetId: this.config.spreadsheetId
+      });
+      
+      const sheet = spreadsheetResponse.data.sheets?.find(
+        (s: sheets_v4.Schema$Sheet) => s.properties?.title === sheetName
+      );
+      
+      if (!sheet?.properties?.sheetId) {
+        throw new Error(`Sheet ${sheetName} not found`);
+      }
+      
+      const sheetId = sheet.properties.sheetId;
+      
+      // ヘッダー行（1行目）に太字フォーマットを適用
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: this.config.spreadsheetId,
+        requestBody: {
+          requests: [{
+            repeatCell: {
+              range: {
+                sheetId: sheetId,
+                startRowIndex: 0,
+                endRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: columnCount
+              },
+              cell: {
+                userEnteredFormat: {
+                  textFormat: {
+                    bold: true
+                  }
+                }
+              },
+              fields: 'userEnteredFormat.textFormat.bold'
+            }
+          }]
+        }
+      });
+    } catch (error) {
+      console.error('Failed to apply header formatting:', error);
+      // フォーマット適用に失敗してもデータ追加は成功として扱う
+    }
+  }
+
   public validateData(data: string[][]): DataValidationResult {
     const errors: string[] = [];
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       
-      // 最低3列必要（項目名、説明、日付）
+      // 最低3列必要
       if (row.length < 3) {
         errors.push(`行 ${i + 1}: 必要な列数が不足しています`);
         continue;
       }
 
-      // 項目名のチェック
+      // 1列目が空の場合
       if (!row[0] || row[0].trim() === '') {
-        errors.push(`行 ${i + 1}: 項目名が空です`);
+        errors.push(`行 ${i + 1}: 1列目が空です`);
       }
 
-      // 日付のチェック
-      if (row[2] && !this.isValidDate(row[2])) {
-        errors.push(`行 ${i + 1}: 日付の形式が正しくありません`);
+      // 日付っぽい列があれば検証
+      for (let j = 0; j < row.length; j++) {
+        if (row[j] && this.isDateLike(row[j]) && !this.isValidDate(row[j])) {
+          errors.push(`行 ${i + 1}: 列 ${j + 1} の日付形式が正しくありません`);
+        }
       }
     }
 
@@ -285,18 +669,67 @@ export class GoogleSheetsService {
   }
 
   public normalizeData(data: string[][]): string[][] {
-    return data.map(row => row.map(cell => {
+    return data.map(row => row.map((cell, columnIndex) => {
       if (typeof cell !== 'string') return cell;
       
       // 前後の空白を削除
-      let normalized = cell.trim();
+      const normalized = cell.trim();
       
-      // 日付形式の正規化 (YYYY/MM/DD → YYYY-MM-DD)
-      if (this.isDateLike(normalized)) {
-        normalized = normalized.replace(/\//g, '-');
+      // 空白文字列の適切な処理
+      if (normalized === '') {
+        return normalized;
       }
       
-      return normalized;
+      // 日付形式の正規化（YYYY/MM/DD -> YYYY-MM-DD）
+      if (this.isDateLike(normalized) && normalized.includes('/')) {
+        try {
+          const date = new Date(normalized);
+          if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+          }
+        } catch {
+          // 日付変換に失敗した場合は元の値をそのまま返す
+        }
+      }
+      
+      // 列に応じた追加の正規化処理
+      switch (columnIndex) {
+      case 0: { // id列：数値ID正規化
+        const numericId = parseInt(normalized, 10);
+        return isNaN(numericId) ? normalized : numericId.toString();
+      }
+          
+      case 3: // category列：カテゴリー正規化
+        return normalizeCategory(normalized).toString();
+          
+      case 4: // added_at列：詳細な日時フォーマット正規化（JST固定）
+        if (this.isDateLike(normalized)) {
+          try {
+            const date = new Date(normalized);
+            if (!isNaN(date.getTime())) {
+              // JST固定でYYYY-MM-DD HH:mm:ss形式に変換
+              const jstOffset = 9 * 60; // JST is UTC+9
+              const jstDate = new Date(date.getTime() + (jstOffset * 60 * 1000));
+              const year = jstDate.getUTCFullYear();
+              const month = String(jstDate.getUTCMonth() + 1).padStart(2, '0');
+              const day = String(jstDate.getUTCDate()).padStart(2, '0');
+              const hours = String(jstDate.getUTCHours()).padStart(2, '0');
+              const minutes = String(jstDate.getUTCMinutes()).padStart(2, '0');
+              const seconds = String(jstDate.getUTCSeconds()).padStart(2, '0');
+              return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            }
+          } catch {
+            // 日付変換に失敗した場合は元の値をそのまま返す
+          }
+        }
+        return normalized;
+          
+      default:
+        return normalized;
+      }
     }));
   }
 

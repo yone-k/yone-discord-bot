@@ -20,6 +20,8 @@ describe('InitListCommand', () => {
   let initListCommand: InitListCommand
   let mockGoogleSheetsService: any
   let mockChannelSheetManager: any
+  let mockMessageManager: any
+  let mockMetadataManager: any
   let mockInteraction: any
 
   beforeEach(() => {
@@ -32,14 +34,48 @@ describe('InitListCommand', () => {
     
     // GoogleSheetsServiceのモック
     mockGoogleSheetsService = {
-      checkSpreadsheetExists: vi.fn(),
-      createChannelSheet: vi.fn()
+      checkSpreadsheetExists: vi.fn().mockResolvedValue(true),
+      createChannelSheet: vi.fn(),
+      getSheetData: vi.fn().mockResolvedValue([]),
+      validateData: vi.fn().mockReturnValue({ isValid: true, errors: [] }),
+      normalizeData: vi.fn().mockReturnValue([])
     }
     
     // ChannelSheetManagerのモック
     mockChannelSheetManager = {
       getOrCreateChannelSheet: vi.fn(),
       verifySheetAccess: vi.fn().mockResolvedValue(true) // デフォルトは成功
+    }
+    
+    // MessageManagerのモック
+    mockMessageManager = {
+      createOrUpdateMessage: vi.fn().mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        updated: false
+      }),
+      createOrUpdateMessageWithMetadata: vi.fn().mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        updated: false
+      })
+    }
+    
+    // MetadataManagerのモック
+    mockMetadataManager = {
+      getChannelMetadata: vi.fn().mockResolvedValue({
+        success: true,
+        metadata: {
+          channelId: 'test-channel-id',
+          messageId: 'test-message-id',
+          listTitle: 'Test List',
+          listType: 'shopping',
+          lastSyncTime: new Date()
+        }
+      }),
+      updateChannelMetadata: vi.fn().mockResolvedValue({
+        success: true
+      })
     }
     
     // Discordインタラクションのモック
@@ -49,10 +85,17 @@ describe('InitListCommand', () => {
       editReply: vi.fn(),
       user: { id: 'test-user-id' },
       guildId: 'test-guild-id',
-      channelId: 'test-channel-id'
+      channelId: 'test-channel-id',
+      client: {}
     }
     
-    initListCommand = new InitListCommand(logger, mockChannelSheetManager)
+    initListCommand = new InitListCommand(
+      logger, 
+      mockChannelSheetManager, 
+      mockMessageManager,
+      mockMetadataManager,
+      mockGoogleSheetsService
+    )
   })
 
   describe('コンストラクタ', () => {
@@ -141,7 +184,7 @@ describe('InitListCommand', () => {
       await initListCommand.execute(context)
       
       expect(mockInteraction.editReply).toHaveBeenCalledWith({
-        content: expect.stringContaining('既存のリスト')
+        content: expect.stringContaining('スプレッドシートから')
       })
     })
 
@@ -160,7 +203,7 @@ describe('InitListCommand', () => {
       await initListCommand.execute(context)
       
       expect(mockInteraction.editReply).toHaveBeenCalledWith({
-        content: expect.stringContaining('新しいリスト')
+        content: expect.stringContaining('スプレッドシートから')
       })
     })
   })
@@ -202,7 +245,7 @@ describe('InitListCommand', () => {
       }
 
       // アクセス権限エラーのモック設定
-      mockChannelSheetManager.verifySheetAccess.mockResolvedValue(false)
+      mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(false)
 
       await expect(initListCommand.execute(context)).rejects.toThrow(CommandError)
     })
@@ -244,7 +287,7 @@ describe('InitListCommand', () => {
       
       expect(mockInteraction.deferReply).toHaveBeenCalled()
       expect(loggerDebugSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Initializing sheet for channel'),
+        expect.stringContaining('Init list command started'),
         expect.any(Object)
       )
     })
@@ -260,10 +303,18 @@ describe('InitListCommand', () => {
       }
 
       // 全依存関係の正常モック設定
-      mockChannelSheetManager.verifySheetAccess.mockResolvedValue(true)
+      mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true)
+      mockGoogleSheetsService.getSheetData.mockResolvedValue([])
+      mockGoogleSheetsService.validateData.mockReturnValue({ isValid: true, errors: [] })
+      mockGoogleSheetsService.normalizeData.mockReturnValue([])
       mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue({
         existed: false,
         created: true
+      })
+      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        message: { id: 'test-message-id' }
       })
 
       await initListCommand.execute(context)
@@ -278,7 +329,7 @@ describe('InitListCommand', () => {
       )
       
       expect(loggerInfoSpy).toHaveBeenCalledWith(
-        'List initialization completed',
+        'Completion message sent',
         expect.objectContaining({
           userId: 'test-user-id'
         })

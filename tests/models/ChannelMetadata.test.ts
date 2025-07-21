@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ChannelMetadata, createChannelMetadata, validateChannelMetadata, updateSyncTime } from '../../src/models/ChannelMetadata'
+import { ChannelMetadata, createChannelMetadata, validateChannelMetadata, updateSyncTime, generateListTitle } from '../../src/models/ChannelMetadata'
 
 describe('ChannelMetadata', () => {
   describe('interface validation', () => {
@@ -9,14 +9,12 @@ describe('ChannelMetadata', () => {
         channelId: '123456789012345678',
         messageId: '987654321098765432',
         listTitle: '買い物リスト',
-        listType: 'shopping',
         lastSyncTime: now
       }
 
       expect(metadata.channelId).toBe('123456789012345678')
       expect(metadata.messageId).toBe('987654321098765432')
       expect(metadata.listTitle).toBe('買い物リスト')
-      expect(metadata.listType).toBe('shopping')
       expect(metadata.lastSyncTime).toBe(now)
     })
 
@@ -26,14 +24,12 @@ describe('ChannelMetadata', () => {
         channelId: '123456789012345678',
         messageId: '987654321098765432',
         listTitle: 'テストリスト',
-        listType: 'todo',
         lastSyncTime: now
       }
 
       expect(metadata).toHaveProperty('channelId')
       expect(metadata).toHaveProperty('messageId')
       expect(metadata).toHaveProperty('listTitle')
-      expect(metadata).toHaveProperty('listType')
       expect(metadata).toHaveProperty('lastSyncTime')
     })
   })
@@ -43,14 +39,12 @@ describe('ChannelMetadata', () => {
       const result = createChannelMetadata(
         '123456789012345678',
         '987654321098765432',
-        '今日の買い物',
-        'shopping'
+        '今日の買い物'
       )
 
       expect(result.channelId).toBe('123456789012345678')
       expect(result.messageId).toBe('987654321098765432')
       expect(result.listTitle).toBe('今日の買い物')
-      expect(result.listType).toBe('shopping')
       expect(result.lastSyncTime).toBeInstanceOf(Date)
       expect(Math.abs(result.lastSyncTime.getTime() - Date.now())).toBeLessThan(1000)
     })
@@ -59,8 +53,7 @@ describe('ChannelMetadata', () => {
       const result = createChannelMetadata(
         '123456789012345678',
         '987654321098765432',
-        '  タスクリスト  ',
-        'todo'
+        '  タスクリスト  '
       )
 
       expect(result.listTitle).toBe('タスクリスト')
@@ -73,7 +66,6 @@ describe('ChannelMetadata', () => {
         channelId: '123456789012345678',
         messageId: '987654321098765432',
         listTitle: '買い物リスト',
-        listType: 'shopping',
         lastSyncTime: new Date()
       }
 
@@ -85,7 +77,6 @@ describe('ChannelMetadata', () => {
         channelId: '',
         messageId: '987654321098765432',
         listTitle: 'テストリスト',
-        listType: 'shopping',
         lastSyncTime: new Date()
       }
 
@@ -97,7 +88,6 @@ describe('ChannelMetadata', () => {
         channelId: '123456789012345678',
         messageId: '',
         listTitle: 'テストリスト',
-        listType: 'shopping',
         lastSyncTime: new Date()
       }
 
@@ -109,24 +99,12 @@ describe('ChannelMetadata', () => {
         channelId: '123456789012345678',
         messageId: '987654321098765432',
         listTitle: '',
-        listType: 'shopping',
         lastSyncTime: new Date()
       }
 
       expect(() => validateChannelMetadata(invalidMetadata)).toThrow('リストタイトルは必須です')
     })
 
-    it('should throw error for invalid listType', () => {
-      const invalidMetadata: ChannelMetadata = {
-        channelId: '123456789012345678',
-        messageId: '987654321098765432',
-        listTitle: 'テストリスト',
-        listType: 'invalid-type' as any,
-        lastSyncTime: new Date()
-      }
-
-      expect(() => validateChannelMetadata(invalidMetadata)).toThrow('無効なリストタイプです')
-    })
   })
 
   describe('updateSyncTime helper', () => {
@@ -136,7 +114,6 @@ describe('ChannelMetadata', () => {
         channelId: '123456789012345678',
         messageId: '987654321098765432',
         listTitle: 'テストリスト',
-        listType: 'shopping',
         lastSyncTime: originalTime
       }
 
@@ -145,9 +122,35 @@ describe('ChannelMetadata', () => {
       expect(updated.channelId).toBe(metadata.channelId)
       expect(updated.messageId).toBe(metadata.messageId)
       expect(updated.listTitle).toBe(metadata.listTitle)
-      expect(updated.listType).toBe(metadata.listType)
       expect(updated.lastSyncTime).not.toBe(originalTime)
       expect(Math.abs(updated.lastSyncTime.getTime() - Date.now())).toBeLessThan(1000)
+    })
+  })
+
+  describe('generateListTitle helper', () => {
+    it('should generate title with channel name', () => {
+      const result = generateListTitle('買い物', '123456789012345678')
+      expect(result).toBe('買い物リスト')
+    })
+
+    it('should trim channel name before generating title', () => {
+      const result = generateListTitle('  買い物  ', '123456789012345678')
+      expect(result).toBe('買い物リスト')
+    })
+
+    it('should use channel ID when channel name is null', () => {
+      const result = generateListTitle(null, '123456789012345678')
+      expect(result).toBe('123456789012345678')
+    })
+
+    it('should use channel ID when channel name is empty', () => {
+      const result = generateListTitle('', '123456789012345678')
+      expect(result).toBe('123456789012345678')
+    })
+
+    it('should use channel ID when channel name is whitespace only', () => {
+      const result = generateListTitle('   ', '123456789012345678')
+      expect(result).toBe('123456789012345678')
     })
   })
 })

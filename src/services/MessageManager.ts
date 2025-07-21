@@ -285,7 +285,6 @@ export class MessageManager {
     channelId: string,
     messageId: string,
     listTitle: string,
-    listType: 'shopping' | 'todo' | 'other',
     existingMetadata?: ChannelMetadata
   ): Promise<MetadataOperationResult> {
     try {
@@ -295,7 +294,6 @@ export class MessageManager {
           ...existingMetadata,
           messageId,
           listTitle,
-          listType,
           lastSyncTime: new Date()
         };
         
@@ -306,28 +304,10 @@ export class MessageManager {
           channelId,
           messageId,
           listTitle,
-          listType,
           lastSyncTime: new Date()
         };
         
-        const createResult = await this.metadataManager.createChannelMetadata(channelId, newMetadata);
-        
-        // 重複エラーの場合は再度取得して更新処理を実行
-        if (!createResult.success && createResult.message?.includes('重複データが検出されました')) {
-          const retryResult = await this.metadataManager.getChannelMetadata(channelId);
-          if (retryResult.success && retryResult.metadata) {
-            const updatedMetadata: ChannelMetadata = {
-              ...retryResult.metadata,
-              messageId,
-              listTitle,
-              listType,
-              lastSyncTime: new Date()
-            };
-            return await this.metadataManager.updateChannelMetadata(channelId, updatedMetadata);
-          }
-        }
-        
-        return createResult;
+        return await this.metadataManager.createChannelMetadata(channelId, newMetadata);
       }
       
     } catch (error) {
@@ -345,7 +325,6 @@ export class MessageManager {
     channelId: string,
     embed: EmbedBuilder,
     listTitle: string,
-    listType: 'shopping' | 'todo' | 'other',
     client: Client
   ): Promise<MessageOperationResult> {
     return this.withChannelLock(channelId, async () => {
@@ -385,13 +364,12 @@ export class MessageManager {
           channelId,
           messageResult.message.id,
           listTitle,
-          listType,
           metadataResult.success ? metadataResult.metadata : undefined
         );
         
         if (!metadataUpdateResult.success) {
           console.warn(`Failed to update metadata: ${metadataUpdateResult.message}`);
-          // メッセージ作成は成功しているので、警告のみ
+          // メッセージ作成は成功しているので、警告のみ出力して処理は継続
         }
         
         return messageResult;
@@ -412,8 +390,7 @@ export class MessageManager {
   public async updateMessageMetadata(
     channelId: string,
     messageId: string,
-    listTitle: string,
-    listType: 'shopping' | 'todo' | 'other'
+    listTitle: string
   ): Promise<MetadataOperationResult> {
     // 既存メタデータを取得して内部関数に委譲
     const existingResult = await this.metadataManager.getChannelMetadata(channelId);
@@ -421,7 +398,6 @@ export class MessageManager {
       channelId,
       messageId,
       listTitle,
-      listType,
       existingResult.success ? existingResult.metadata : undefined
     );
   }

@@ -80,7 +80,7 @@ describe('ChannelSheetManager', () => {
   describe('シート作成機能', () => {
     it('新規シート作成時にデフォルトヘッダー行が設定される', async () => {
       const channelId = '123456789';
-      const expectedHeaders = ['id', 'name', 'quantity', 'category', 'added_at'];
+      const expectedHeaders = ['name', 'quantity', 'category', 'added_at', 'until'];
       
       mockGoogleSheetsService.createChannelSheet.mockResolvedValue({ 
         success: true, 

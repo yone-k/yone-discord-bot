@@ -86,6 +86,7 @@ describe('InitListCommand', () => {
       user: { id: 'test-user-id' },
       guildId: 'test-guild-id',
       channelId: 'test-channel-id',
+      channel: { name: 'test-channel' },
       client: {}
     }
     
@@ -266,7 +267,6 @@ describe('InitListCommand', () => {
 
       await initListCommand.execute(context)
       
-      expect(mockInteraction.deferReply).toHaveBeenCalled()
       expect(mockInteraction.editReply).toHaveBeenCalled()
     })
 
@@ -285,7 +285,6 @@ describe('InitListCommand', () => {
 
       await initListCommand.execute(context)
       
-      expect(mockInteraction.deferReply).toHaveBeenCalled()
       expect(loggerDebugSpy).toHaveBeenCalledWith(
         expect.stringContaining('Init list command started'),
         expect.any(Object)

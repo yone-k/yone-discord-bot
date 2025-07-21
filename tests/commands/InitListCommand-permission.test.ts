@@ -176,7 +176,6 @@ describe('InitListCommand Permission Error Tests', () => {
       await expect(command.execute(mockContext)).resolves.not.toThrow();
 
       expect(mockGoogleSheetsService.checkSpreadsheetExists).toHaveBeenCalled();
-      expect(mockContext.interaction?.deferReply).toHaveBeenCalled();
       expect(mockContext.interaction?.editReply).toHaveBeenCalledWith({
         content: '✅ スプレッドシートから0件のアイテムを取得し、このチャンネルに表示しました'
       });
@@ -231,8 +230,9 @@ describe('InitListCommand Permission Error Tests', () => {
     });
 
     test('予期しないエラー発生時に汎用エラーメッセージが生成される', async () => {
-      // deferReplyで予期しないエラーを発生させる
-      mockContext.interaction!.deferReply = vi.fn().mockRejectedValue(new Error('Unexpected error'));
+      // checkSpreadsheetExistsは成功させ、MessageManagerでエラーを発生させる
+      mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true);
+      mockMessageManager.createOrUpdateMessageWithMetadata.mockRejectedValue(new Error('Unexpected error'));
 
       await expect(command.execute(mockContext)).rejects.toThrow(CommandError);
 

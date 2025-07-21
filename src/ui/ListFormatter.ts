@@ -1,80 +1,63 @@
 import { EmbedBuilder } from 'discord.js';
 import { ListItem } from '../models/ListItem';
-import { CategoryType } from '../models/CategoryType';
+import { CategoryType, getCategoryEmoji, DEFAULT_CATEGORY } from '../models/CategoryType';
+import { TemplateManager } from '../services/TemplateManager';
 
 export class ListFormatter {
   private static readonly MAX_FIELD_LENGTH = 800;
   private static readonly EMBED_COLOR = 0x4CAF50; // 緑色
+  private static templateManager = new TemplateManager();
 
   /**
    * 空リスト用のEmbedを生成
    */
-  public static formatEmptyList(title: string): EmbedBuilder {
-    return new EmbedBuilder()
+  public static formatEmptyList(title: string, categories?: CategoryType[]): EmbedBuilder {
+    const embed = new EmbedBuilder()
       .setTitle(`📝 ${title}`)
       .setColor(this.EMBED_COLOR)
-      .addFields(
-        {
-          name: '🔥 重要',
-          value: 'まだアイテムがありません',
-          inline: true
-        },
-        {
-          name: '📝 通常',
-          value: 'まだアイテムがありません',
-          inline: true
-        },
-        {
-          name: '📦 その他',
-          value: 'まだアイテムがありません',
-          inline: true
-        }
-      )
       .setFooter({
         text: '合計: 0項目 | 最終更新: 未更新'
       })
       .setTimestamp();
-  }
 
-  /**
-   * データありリスト用のEmbedを生成
-   */
-  public static formatDataList(title: string, items: ListItem[]): EmbedBuilder {
-    const embed = new EmbedBuilder()
-      .setTitle(`📝 ${title}`)
-      .setColor(this.EMBED_COLOR);
-
-    // カテゴリー別にグルーピング
-    const categorizedItems = this.groupItemsByCategory(items);
-
-    // 各カテゴリーのフィールドを追加
-    this.addCategoryField(embed, '🔥 重要', categorizedItems.primary);
-    this.addCategoryField(embed, '📝 通常', categorizedItems.secondary);
-    this.addCategoryField(embed, '📦 その他', categorizedItems.other);
-
-    // フッター情報を設定
-    const latestUpdate = this.getLatestUpdateTime(items);
-    embed.setFooter({
-      text: `合計: ${items.length}項目 | 最終更新: ${latestUpdate}`
+    // カテゴリが指定されていない場合はデフォルトカテゴリを表示
+    const displayCategories = categories && categories.length > 0 ? categories : [DEFAULT_CATEGORY];
+    
+    displayCategories.forEach(category => {
+      embed.addFields({
+        name: `${getCategoryEmoji(category)} ${category}`,
+        value: 'まだアイテムがありません',
+        inline: true
+      });
     });
-    embed.setTimestamp();
 
     return embed;
   }
 
   /**
+   * データありリスト用のEmbedを生成
+   */
+  public static async formatDataList(title: string, items: ListItem[]): Promise<EmbedBuilder> {
+    const template = await this.templateManager.loadTemplate('list');
+    const variables = this.buildTemplateVariables(title, items);
+    const renderedContent = this.templateManager.renderTemplate(template, variables);
+    return this.buildEmbedFromTemplate(renderedContent);
+  }
+
+  /**
    * アイテムをカテゴリー別にグルーピング
    */
-  private static groupItemsByCategory(items: ListItem[]): {
-    primary: ListItem[];
-    secondary: ListItem[];
-    other: ListItem[];
-  } {
-    return {
-      primary: items.filter(item => item.category === CategoryType.PRIMARY),
-      secondary: items.filter(item => item.category === CategoryType.SECONDARY),
-      other: items.filter(item => item.category === CategoryType.OTHER)
-    };
+  private static groupItemsByCategory(items: ListItem[]): Record<CategoryType, ListItem[]> {
+    const grouped: Record<CategoryType, ListItem[]> = {};
+    
+    items.forEach(item => {
+      if (!grouped[item.category]) {
+        grouped[item.category] = [];
+      }
+      grouped[item.category].push(item);
+    });
+    
+    return grouped;
   }
 
   /**
@@ -94,7 +77,9 @@ export class ListFormatter {
     let displayedCount = 0;
 
     for (const item of items) {
-      const itemText = `• ${item.name} (${item.quantity})\n`;
+      const itemText = (item.quantity === '' || item.quantity.trim() === '') 
+        ? `• ${item.name}\n`
+        : `• ${item.name} ${item.quantity}\n`;
       
       // 文字数制限チェック
       if (fieldValue.length + itemText.length > this.MAX_FIELD_LENGTH) {
@@ -127,9 +112,16 @@ export class ListFormatter {
       return '未更新';
     }
 
-    const latestDate = items.reduce((latest, item) => {
-      return item.addedAt > latest ? item.addedAt : latest;
-    }, items[0].addedAt);
+    // addedAtがnullではないアイテムのみをフィルタリング
+    const datedItems = items.filter(item => item.addedAt !== null);
+    
+    if (datedItems.length === 0) {
+      return '未更新';
+    }
+
+    const latestDate = datedItems.reduce((latest, item) => {
+      return item.addedAt! > latest ? item.addedAt! : latest;
+    }, datedItems[0].addedAt!);
 
     return latestDate.toLocaleString('ja-JP', {
       year: 'numeric',
@@ -138,6 +130,81 @@ export class ListFormatter {
       hour: '2-digit',
       minute: '2-digit'
     });
+  }
+
+  /**
+   * テンプレート変数を構築
+   */
+  private static buildTemplateVariables(title: string, items: ListItem[]): Record<string, string> {
+    const categorizedItems = this.groupItemsByCategory(items);
+    const categorySections = this.buildCategorySections(categorizedItems);
+    
+    return {
+      list_title: title,
+      category_sections: categorySections,
+      total_count: items.length.toString(),
+      last_update: this.getLatestUpdateTime(items)
+    };
+  }
+
+  /**
+   * カテゴリーのアイテムをテキスト形式でフォーマット
+   */
+  private static formatCategoryItems(items: ListItem[]): string {
+    if (items.length === 0) {
+      return 'アイテムなし';
+    }
+
+    return items.map(item => {
+      let itemText = `• ${item.name}`;
+      
+      // 数量がある場合は追加
+      if (item.quantity && item.quantity.trim() !== '') {
+        itemText += ` ${item.quantity}`;
+      }
+      
+      // 期限がある場合は追加
+      if (item.until) {
+        const untilDate = this.formatDateShort(item.until);
+        itemText += ` (期限: ${untilDate})`;
+      }
+      
+      return itemText;
+    }).join('\n');
+  }
+
+  /**
+   * カテゴリーセクションを構築
+   */
+  private static buildCategorySections(categorizedItems: Record<CategoryType, ListItem[]>): string {
+    const sections: string[] = [];
+    
+    // カテゴリをソート（デフォルトカテゴリを最後に）
+    const sortedCategories = Object.keys(categorizedItems).sort((a, b) => {
+      if (a === DEFAULT_CATEGORY) return 1;
+      if (b === DEFAULT_CATEGORY) return -1;
+      return a.localeCompare(b, 'ja');
+    });
+    
+    sortedCategories.forEach(category => {
+      const items = categorizedItems[category];
+      const emoji = getCategoryEmoji(category);
+      const formattedItems = this.formatCategoryItems(items);
+      
+      sections.push(`## ${emoji} ${category}\n${formattedItems}`);
+    });
+    
+    return sections.join('\n\n');
+  }
+
+  /**
+   * テンプレートからEmbedBuilderを構築
+   */
+  private static buildEmbedFromTemplate(renderedContent: string): EmbedBuilder {
+    return new EmbedBuilder()
+      .setDescription(renderedContent)
+      .setColor(this.EMBED_COLOR)
+      .setTimestamp();
   }
 
   /**
@@ -164,9 +231,10 @@ export class ListFormatter {
   private static formatItemValue(item: ListItem): string {
     const quantity = `📦 数量: ${item.quantity}`;
     const category = `📂 カテゴリ: ${item.category}`;
-    const date = `📅 追加日: ${this.formatDate(item.addedAt)}`;
+    const date = item.addedAt ? `📅 追加日: ${this.formatDate(item.addedAt)}` : '📅 追加日: 未設定';
+    const until = item.until ? `⏰ 期限: ${this.formatDate(item.until)}` : '';
     
-    return `${quantity}\n${category}\n${date}`;
+    return until ? `${quantity}\n${category}\n${date}\n${until}` : `${quantity}\n${category}\n${date}`;
   }
 
   /**
@@ -177,5 +245,14 @@ export class ListFormatter {
     const month = date.getMonth() + 1;
     const day = date.getDate();
     return `${year}/${month}/${day}`;
+  }
+
+  /**
+   * 日付をM/D形式でフォーマット（短縮版）
+   */
+  private static formatDateShort(date: Date): string {
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${month}/${day}`;
   }
 }

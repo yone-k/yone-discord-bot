@@ -63,9 +63,9 @@ describe('InitList Command Execution Flow Tests', () => {
     
     // MessageManagerのモック
     mockMessageManager = {
-      createOrUpdateMessageWithMetadata: vi.fn().mockImplementation((channelId, embed, listTitle, listType, client) => {
+      createOrUpdateMessageWithMetadata: vi.fn().mockImplementation((channelId, embed, listTitle, client) => {
         console.log('[MOCK] createOrUpdateMessageWithMetadata called with:', {
-          channelId, listTitle, listType
+          channelId, listTitle
         });
         return Promise.resolve({
           success: true,
@@ -106,6 +106,7 @@ describe('InitList Command Execution Flow Tests', () => {
       user: { id: 'test-user-id' },
       guildId: 'test-guild-id',
       channelId: 'test-channel-id',
+      channel: { name: 'test-channel-id' },
       client: {}
     };
     

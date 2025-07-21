@@ -8,11 +8,11 @@ describe('ListFormatter', () => {
     it('should format single item to Discord embed', () => {
       const items: ListItem[] = [
         {
-          id: '1',
           name: 'Test Item',
-          quantity: 5,
-          category: CategoryType.PRIMARY,
-          addedAt: new Date('2024-01-01')
+          quantity: '5',
+          category: '重要',
+          addedAt: new Date('2024-01-01'),
+          until: null
         }
       ];
 
@@ -23,24 +23,24 @@ describe('ListFormatter', () => {
       expect(result.fields).toHaveLength(1);
       expect(result.fields[0].name).toBe('Test Item');
       expect(result.fields[0].value).toContain('📦 数量: 5');
-      expect(result.fields[0].value).toContain('📂 カテゴリ: primary');
+      expect(result.fields[0].value).toContain('📂 カテゴリ: 重要');
     });
 
     it('should format multiple items to Discord embed', () => {
       const items: ListItem[] = [
         {
-          id: '1',
           name: 'Item 1',
-          quantity: 3,
-          category: CategoryType.PRIMARY,
-          addedAt: new Date('2024-01-01')
+          quantity: '3',
+          category: '重要',
+          addedAt: new Date('2024-01-01'),
+          until: null
         },
         {
-          id: '2',
           name: 'Item 2',
-          quantity: 7,
-          category: CategoryType.SECONDARY,
-          addedAt: new Date('2024-01-02')
+          quantity: '7',
+          category: '通常',
+          addedAt: new Date('2024-01-02'),
+          until: new Date('2024-01-10')
         }
       ];
 
@@ -49,6 +49,7 @@ describe('ListFormatter', () => {
       expect(result.fields).toHaveLength(2);
       expect(result.fields[0].name).toBe('Item 1');
       expect(result.fields[1].name).toBe('Item 2');
+      expect(result.fields[1].value).toContain('⏰ 期限:');
     });
 
     it('should handle empty list', () => {
@@ -63,28 +64,28 @@ describe('ListFormatter', () => {
     it('should include category in field value', () => {
       const items: ListItem[] = [
         {
-          id: '1',
           name: 'Tech Item',
-          quantity: 2,
-          category: CategoryType.SECONDARY,
-          addedAt: new Date('2024-01-01')
+          quantity: '2',
+          category: '通常',
+          addedAt: new Date('2024-01-01'),
+          until: null
         }
       ];
 
       const result = ListFormatter.formatToDiscordEmbed(items);
 
-      expect(result.fields[0].value).toContain('secondary');
+      expect(result.fields[0].value).toContain('通常');
     });
 
     it('should include quantity and date in field value', () => {
       const testDate = new Date('2024-01-01');
       const items: ListItem[] = [
         {
-          id: '1',
           name: 'Test Item',
-          quantity: 10,
-          category: CategoryType.PRIMARY,
-          addedAt: testDate
+          quantity: '10',
+          category: '重要',
+          addedAt: testDate,
+          until: null
         }
       ];
 
@@ -92,6 +93,23 @@ describe('ListFormatter', () => {
 
       expect(result.fields[0].value).toContain('📦 数量: 10');
       expect(result.fields[0].value).toContain('📅 追加日: 2024/1/1');
+    });
+
+    it('should handle null addedAt', () => {
+      const items: ListItem[] = [
+        {
+          name: 'Test Item',
+          quantity: '10',
+          category: '重要',
+          addedAt: null,
+          until: null
+        }
+      ];
+
+      const result = ListFormatter.formatToDiscordEmbed(items);
+
+      expect(result.fields[0].value).toContain('📦 数量: 10');
+      expect(result.fields[0].value).toContain('📅 追加日: 未設定');
     });
   });
 });

@@ -23,6 +23,7 @@ export class InitListCommand extends BaseCommand {
     googleSheetsService?: GoogleSheetsService
   ) {
     super('init-list', 'リストの初期化を行います', logger);
+    this.deleteOnSuccess = true;
     this.channelSheetManager = channelSheetManager || new ChannelSheetManager();
     this.messageManager = messageManager || new MessageManager();
     this.metadataManager = metadataManager || new MetadataManager();
@@ -39,10 +40,6 @@ export class InitListCommand extends BaseCommand {
     try {
       // ステップ1: バリデーション
       this.validateExecutionContext(context);
-      
-      if (context?.interaction) {
-        await context.interaction.deferReply();
-      }
 
       // ステップ2: スプレッドシートアクセス検証
       await this.verifySheetAccess();
@@ -91,16 +88,21 @@ export class InitListCommand extends BaseCommand {
       itemCount: items.length
     });
 
+    // ステップ4: チャンネル名を取得してリストタイトルを動的生成
+    const channelName = (context.interaction.channel && 'name' in context.interaction.channel) 
+      ? context.interaction.channel.name 
+      : 'リスト';
+    const listTitle = `${channelName}リスト`;
+
     // ステップ4: Embed形式変換と固定メッセージ処理
     const embed = items.length > 0 
-      ? ListFormatter.formatDataList('ショッピングリスト', items)
-      : ListFormatter.formatEmptyList('ショッピングリスト');
+      ? await ListFormatter.formatDataList(listTitle, items)
+      : ListFormatter.formatEmptyList(listTitle);
 
     const messageResult = await this.messageManager.createOrUpdateMessageWithMetadata(
       context.channelId,
       embed,
-      'ショッピングリスト',
-      'shopping',
+      listTitle,
       context.interaction.client
     );
 
@@ -182,20 +184,33 @@ export class InitListCommand extends BaseCommand {
 
   private convertToListItems(data: string[][]): ListItem[] {
     const items: ListItem[] = [];
+    const seenNames = new Set<string>();
     
     // ヘッダー行をスキップ（存在する場合）
     const startIndex = data.length > 0 && this.isHeaderRow(data[0]) ? 1 : 0;
     
     for (let i = startIndex; i < data.length; i++) {
       const row = data[i];
-      if (row.length >= 5 && row[0] && row[1]) { // 最低限のデータがある行のみ
+      if (row.length >= 4 && row[0]) { // name必須、最低限のデータがある行のみ
         try {
+          const name = row[0].trim();
+          
+          // nameでユニーク性をチェック
+          if (seenNames.has(name)) {
+            this.logger.warn('Duplicate name found, skipping', {
+              rowIndex: i,
+              name
+            });
+            continue;
+          }
+          seenNames.add(name);
+          
           const item: ListItem = {
-            id: row[0]?.trim() || `legacy-${Date.now()}-${i}`,
-            name: row[1].trim(),
-            quantity: parseInt(row[2], 10) || 1,
-            category: normalizeCategory(row[3] || 'other'),
-            addedAt: row[4] ? new Date(row[4]) : new Date()
+            name,
+            quantity: row[1]?.trim() || '',
+            category: normalizeCategory(row[2] || 'その他'),
+            addedAt: row[3] ? new Date(row[3]) : null,
+            until: row[4] ? new Date(row[4]) : null
           };
           
           items.push(item);
@@ -213,7 +228,7 @@ export class InitListCommand extends BaseCommand {
   }
 
   private isHeaderRow(row: string[]): boolean {
-    const headers = ['id', 'name', 'quantity', 'category', 'added_at'];
+    const headers = ['name', 'quantity', 'category', 'added_at', 'until'];
     return headers.some(header => 
       row.some(cell => cell.toLowerCase().includes(header))
     );

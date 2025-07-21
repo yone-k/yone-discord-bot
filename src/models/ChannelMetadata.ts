@@ -2,21 +2,18 @@ export interface ChannelMetadata {
   channelId: string;
   messageId: string;
   listTitle: string;
-  listType: 'shopping' | 'todo' | 'other';
   lastSyncTime: Date;
 }
 
 export function createChannelMetadata(
   channelId: string,
   messageId: string,
-  listTitle: string,
-  listType: 'shopping' | 'todo' | 'other'
+  listTitle: string
 ): ChannelMetadata {
   return {
     channelId,
     messageId,
     listTitle: listTitle.trim(),
-    listType,
     lastSyncTime: new Date()
   };
 }
@@ -34,11 +31,6 @@ export function validateChannelMetadata(metadata: ChannelMetadata): void {
     throw new Error('リストタイトルは必須です');
   }
   
-  const validListTypes = ['shopping', 'todo', 'other'];
-  if (!validListTypes.includes(metadata.listType)) {
-    throw new Error('無効なリストタイプです');
-  }
-  
   if (!(metadata.lastSyncTime instanceof Date) || isNaN(metadata.lastSyncTime.getTime())) {
     throw new Error('同期時間が無効です');
   }
@@ -49,4 +41,18 @@ export function updateSyncTime(metadata: ChannelMetadata): ChannelMetadata {
     ...metadata,
     lastSyncTime: new Date()
   };
+}
+
+/**
+ * チャンネル名からリストタイトルを動的生成
+ * @param channelName チャンネル名
+ * @param channelId フォールバック用のチャンネルID
+ * @returns 生成されたリストタイトル
+ */
+export function generateListTitle(channelName: string | null, channelId: string): string {
+  if (!channelName || channelName.trim() === '') {
+    return channelId;
+  }
+  
+  return `${channelName.trim()}リスト`;
 }

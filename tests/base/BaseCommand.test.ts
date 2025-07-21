@@ -7,8 +7,10 @@ class TestCommand extends BaseCommand {
   public shouldThrowError = false
   public customError: Error | null = null
 
-  constructor(logger: Logger) {
+  constructor(logger: Logger, deleteOnSuccess = false, useThread = false) {
     super('test', 'Test command description', logger)
+    this.deleteOnSuccess = deleteOnSuccess
+    this.useThread = useThread
   }
 
   async execute(context?: CommandExecutionContext): Promise<void> {
@@ -138,6 +140,88 @@ describe('BaseCommand', () => {
       const command = new TestCommand(logger)
       
       expect(command.getDescription()).toBe('Test command description')
+    })
+  })
+
+  describe('deleteOnSuccess 機能', () => {
+    it('deleteOnSuccessがfalseの場合は削除処理を実行しない', async () => {
+      const command = new TestCommand(logger, false, false)
+      const mockInteraction = {
+        fetchReply: vi.fn(),
+        replied: false
+      }
+      const mockThread = {
+        delete: vi.fn()
+      }
+      const context = {
+        interaction: mockInteraction as any,
+        thread: mockThread as any,
+        userId: 'test-user'
+      }
+
+      const result = await command.safeExecute(context)
+
+      expect(result.success).toBe(true)
+      expect(mockThread.delete).not.toHaveBeenCalled()
+      expect(mockInteraction.fetchReply).not.toHaveBeenCalled()
+    })
+
+    it('deleteOnSuccessがtrueでuseThreadがtrueの場合は削除処理を実行する', async () => {
+      const command = new TestCommand(logger, true, true)
+      const mockMessage = { delete: vi.fn() }
+      const mockInteraction = {
+        fetchReply: vi.fn().mockResolvedValue(mockMessage),
+        replied: false,
+        deferReply: vi.fn().mockResolvedValue(undefined)
+      }
+      const mockThread = {
+        delete: vi.fn()
+      }
+      const mockStartThread = vi.fn().mockResolvedValue(mockThread)
+      mockMessage.startThread = mockStartThread
+
+      const context = {
+        interaction: mockInteraction as any,
+        userId: 'test-user'
+      }
+
+      const result = await command.safeExecute(context)
+
+      expect(result.success).toBe(true)
+      expect(mockThread.delete).toHaveBeenCalled()
+      expect(mockInteraction.fetchReply).toHaveBeenCalledTimes(2) // createThread と削除処理で2回
+      expect(mockMessage.delete).toHaveBeenCalled()
+    })
+
+    it('削除処理でエラーが発生してもコマンドは成功として扱う', async () => {
+      const command = new TestCommand(logger, true, true)
+      const mockMessage = { 
+        delete: vi.fn(),
+        startThread: vi.fn().mockResolvedValue({ delete: vi.fn() })
+      }
+      const mockInteraction = {
+        fetchReply: vi.fn().mockResolvedValue(mockMessage),
+        replied: false,
+        deferReply: vi.fn().mockResolvedValue(undefined)
+      }
+
+      // 削除処理でエラーを発生させる
+      mockMessage.delete.mockRejectedValue(new Error('Delete failed'))
+
+      const context = {
+        interaction: mockInteraction as any,
+        userId: 'test-user'
+      }
+
+      const loggerWarnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+
+      const result = await command.safeExecute(context)
+
+      expect(result.success).toBe(true)
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        'Failed to delete thread or message for command "test"',
+        expect.objectContaining({ error: 'Delete failed' })
+      )
     })
   })
 })

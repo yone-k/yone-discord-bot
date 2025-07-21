@@ -14,11 +14,19 @@ describe('MetadataManager Duplicate Detection Tests', () => {
     // GoogleSheetsServiceのモック
     mockGoogleSheetsService = {
       getSheetData: vi.fn(),
+      getSheetDataByName: vi.fn(),
       appendSheetDataWithDuplicateCheck: vi.fn(),
       createChannelSheet: vi.fn(),
       appendSheetData: vi.fn(),
       updateSheetData: vi.fn()
     };
+    
+    // デフォルトのモック設定（各テストで上書き可能）
+    mockGoogleSheetsService.getSheetDataByName.mockResolvedValue([['channel_id', 'message_id', 'list_title', 'last_sync_time']]);
+    mockGoogleSheetsService.createChannelSheet.mockResolvedValue({ success: true });
+    mockGoogleSheetsService.appendSheetData.mockResolvedValue({ success: true });
+    mockGoogleSheetsService.appendSheetDataWithDuplicateCheck.mockResolvedValue({ success: true });
+    mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
     
     // GoogleSheetsService.getInstanceのモック
     vi.spyOn(GoogleSheetsService, 'getInstance').mockReturnValue(mockGoogleSheetsService);
@@ -32,7 +40,6 @@ describe('MetadataManager Duplicate Detection Tests', () => {
       channelId: testChannelId,
       messageId: 'test-message-123',
       listTitle: 'Test List',
-      listType: 'shopping',
       lastSyncTime: new Date()
     };
 
@@ -41,8 +48,8 @@ describe('MetadataManager Duplicate Detection Tests', () => {
       // 重複エラーが発生しにくくなっている
       
       // シンプルなモック設定
-      mockGoogleSheetsService.getSheetData
-        .mockResolvedValue([['channel_id', 'message_id', 'list_title', 'list_type', 'last_sync_time']]);
+      mockGoogleSheetsService.getSheetDataByName
+        .mockResolvedValue([['channel_id', 'message_id', 'list_title', 'last_sync_time']]);
 
       mockGoogleSheetsService.createChannelSheet
         .mockResolvedValue({ success: true });
@@ -66,8 +73,8 @@ describe('MetadataManager Duplicate Detection Tests', () => {
 
     it('タイミングによって2つとも成功してしまう場合がある（race condition）', async () => {
       // metadataシートが存在することをモック
-      mockGoogleSheetsService.getSheetData
-        .mockResolvedValue([['channel_id', 'message_id', 'list_title', 'list_type', 'last_sync_time']]);
+      mockGoogleSheetsService.getSheetDataByName
+        .mockResolvedValue([['channel_id', 'message_id', 'list_title', 'last_sync_time']]);
 
       // 両方とも成功してしまうケース（重複チェックのタイミング問題）
       mockGoogleSheetsService.appendSheetDataWithDuplicateCheck
@@ -88,8 +95,8 @@ describe('MetadataManager Duplicate Detection Tests', () => {
 
     it('既存データがない場合の初回作成は成功する', async () => {
       // metadataシートが存在することをモック
-      mockGoogleSheetsService.getSheetData
-        .mockResolvedValue([['channel_id', 'message_id', 'list_title', 'list_type', 'last_sync_time']]);
+      mockGoogleSheetsService.getSheetDataByName
+        .mockResolvedValue([['channel_id', 'message_id', 'list_title', 'last_sync_time']]);
 
       // 重複チェックで重複なしの結果
       mockGoogleSheetsService.appendSheetDataWithDuplicateCheck
@@ -102,10 +109,50 @@ describe('MetadataManager Duplicate Detection Tests', () => {
       expect(result.metadata?.channelId).toBe(testChannelId);
     });
 
+    it('重複エラーが発生した場合は直接更新処理に移行する', async () => {
+      // getOrCreateMetadataSheetの中でのシート存在確認のモック（1回目：シート確認、2回目：ヘッダー確認）
+      mockGoogleSheetsService.getSheetDataByName
+        .mockResolvedValueOnce([['channel_id', 'message_id', 'list_title', 'last_sync_time']]) // シート存在確認用
+        .mockResolvedValueOnce([['channel_id', 'message_id', 'list_title', 'last_sync_time']]) // ヘッダー確認用
+        // 重複更新処理で呼ばれる場合（既存データ含む）
+        .mockResolvedValueOnce([
+          ['channel_id', 'message_id', 'list_title', 'last_sync_time'],
+          [testChannelId, 'old-message-id', 'Old Title', '2023-01-01 00:00:00']
+        ]);
+
+      // シート作成とヘッダー追加用のモック
+      mockGoogleSheetsService.createChannelSheet
+        .mockResolvedValue({ success: true });
+      
+      mockGoogleSheetsService.appendSheetData
+        .mockResolvedValue({ success: true });
+
+      // 最初に重複エラーが発生
+      mockGoogleSheetsService.appendSheetDataWithDuplicateCheck
+        .mockResolvedValue({ 
+          success: false, 
+          message: '重複データが検出されました' 
+        });
+
+      // 直接更新は成功
+      mockGoogleSheetsService.updateSheetData
+        .mockResolvedValue({ success: true });
+
+      const result = await metadataManager.createChannelMetadata(testChannelId, testMetadata);
+
+      expect(result.success).toBe(true);
+      expect(result.metadata).toBeDefined();
+      expect(result.metadata?.channelId).toBe(testChannelId);
+      
+      // 重複チェック付き追加が1回、直接更新が1回呼ばれることを確認
+      expect(mockGoogleSheetsService.appendSheetDataWithDuplicateCheck).toHaveBeenCalledTimes(1);
+      expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledTimes(1);
+    });
+
     it('appendSheetDataWithDuplicateCheckが呼ばれる回数を確認', async () => {
       // metadataシートが存在することをモック
-      mockGoogleSheetsService.getSheetData
-        .mockResolvedValue([['channel_id', 'message_id', 'list_title', 'list_type', 'last_sync_time']]);
+      mockGoogleSheetsService.getSheetDataByName
+        .mockResolvedValue([['channel_id', 'message_id', 'list_title', 'last_sync_time']]);
 
       mockGoogleSheetsService.appendSheetDataWithDuplicateCheck
         .mockResolvedValue({ success: true });

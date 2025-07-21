@@ -57,7 +57,7 @@ export interface MetadataOperationResult {
 export class MetadataManager {
   private googleSheetsService: GoogleSheetsService;
   private readonly METADATA_SHEET_NAME = 'metadata';
-  private readonly metadataHeaders = ['channel_id', 'message_id', 'list_title', 'list_type', 'last_sync_time'];
+  private readonly metadataHeaders = ['channel_id', 'message_id', 'list_title', 'last_sync_time'];
 
   constructor() {
     this.googleSheetsService = GoogleSheetsService.getInstance();
@@ -68,7 +68,7 @@ export class MetadataManager {
    */
   public async metadataSheetExists(): Promise<boolean> {
     try {
-      await this.googleSheetsService.getSheetData(this.METADATA_SHEET_NAME);
+      await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
       return true;
     } catch {
       return false;
@@ -80,7 +80,7 @@ export class MetadataManager {
    */
   public async metadataHeaderExists(): Promise<boolean> {
     try {
-      const data = await this.googleSheetsService.getSheetData(this.METADATA_SHEET_NAME);
+      const data = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
       
       if (data.length === 0) {
         return false;
@@ -199,7 +199,7 @@ export class MetadataManager {
       }
 
       // metadataシートからデータを取得
-      const data = await this.googleSheetsService.getSheetData(this.METADATA_SHEET_NAME);
+      const data = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
       
       // ヘッダー行をスキップして検索
       for (let i = 1; i < data.length; i++) {
@@ -210,8 +210,7 @@ export class MetadataManager {
             channelId: row[0],
             messageId: row[1] || '',
             listTitle: row[2] || '',
-            listType: this.parseListType(row[3]),
-            lastSyncTime: this.parseDate(row[4])
+            lastSyncTime: this.parseDate(row[3])
           };
           
           return {
@@ -258,7 +257,7 @@ export class MetadataManager {
       }
 
       // 既存データの検索と更新
-      const data = await this.googleSheetsService.getSheetData(this.METADATA_SHEET_NAME);
+      const data = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
       
       // 更新対象行を検索
       let targetRowIndex = -1;
@@ -281,7 +280,6 @@ export class MetadataManager {
         updatedMetadata.channelId,
         updatedMetadata.messageId,
         updatedMetadata.listTitle,
-        updatedMetadata.listType,
         this.formatDate(updatedMetadata.lastSyncTime)
       ];
 
@@ -290,7 +288,7 @@ export class MetadataManager {
       const updateResult = await this.googleSheetsService.updateSheetData(
         this.METADATA_SHEET_NAME,
         [updateRow],
-        `A${rowNumber}:E${rowNumber}`
+        `A${rowNumber}:D${rowNumber}`
       );
       
       if (!updateResult.success) {
@@ -335,19 +333,11 @@ export class MetadataManager {
         };
       }
 
-      // 既存データのチェック（重複回避）
-      const existingResult = await this.getChannelMetadata(channelId);
-      if (existingResult.success) {
-        // 既存データがある場合は直接更新処理に移行
-        return await this.updateChannelMetadata(channelId, newMetadata);
-      }
-
       // データを追加形式に変換
       const newRow = [
         newMetadata.channelId,
         newMetadata.messageId,
         newMetadata.listTitle,
-        newMetadata.listType,
         this.formatDate(newMetadata.lastSyncTime)
       ];
 
@@ -359,9 +349,10 @@ export class MetadataManager {
       );
       
       if (!appendResult.success) {
-        // 重複エラーの場合は更新処理に移行
+        // 重複エラーの場合は更新処理に移行（再帰を避けて直接データベース操作）
         if (appendResult.message?.includes('重複データが検出されました')) {
-          return await this.updateChannelMetadata(channelId, newMetadata);
+          // 直接更新処理を実行（getChannelMetadata の再帰呼び出しを回避）
+          return await this.updateChannelMetadataDirectly(channelId, newMetadata);
         }
         return {
           success: false,
@@ -382,12 +373,80 @@ export class MetadataManager {
   }
 
   /**
+   * チャンネルメタデータを直接更新（再帰呼び出しを回避）
+   */
+  private async updateChannelMetadataDirectly(
+    channelId: string, 
+    metadata: ChannelMetadata
+  ): Promise<MetadataOperationResult> {
+    try {
+      // バリデーション
+      validateChannelMetadata(metadata);
+
+      // 同期時間を更新
+      const updatedMetadata = updateSyncTime(metadata);
+
+      // metadataシートから直接データを取得（getChannelMetadataを使わない）
+      const data = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+      
+      // 更新対象行を検索
+      let targetRowIndex = -1;
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === channelId) {
+          targetRowIndex = i;
+          break;
+        }
+      }
+
+      if (targetRowIndex === -1) {
+        return {
+          success: false,
+          message: '更新対象のメタデータが見つかりません'
+        };
+      }
+
+      // データを更新形式に変換
+      const updateRow = [
+        updatedMetadata.channelId,
+        updatedMetadata.messageId,
+        updatedMetadata.listTitle,
+        this.formatDate(updatedMetadata.lastSyncTime)
+      ];
+
+      // 特定行のみを更新（行番号は1-based、targetRowIndexは0-basedなので+1）
+      const rowNumber = targetRowIndex + 1;
+      const updateResult = await this.googleSheetsService.updateSheetData(
+        this.METADATA_SHEET_NAME,
+        [updateRow],
+        `A${rowNumber}:D${rowNumber}`
+      );
+      
+      if (!updateResult.success) {
+        return {
+          success: false,
+          message: updateResult.message
+        };
+      }
+
+      return {
+        success: true,
+        metadata: updatedMetadata
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to update channel metadata directly: ${(error as Error).message}`
+      };
+    }
+  }
+
+  /**
    * metadataシートをクリア（ヘッダー行は残す）
    */
   private async clearMetadataSheet(): Promise<void> {
     // Google Sheets APIの制限により、シートを削除して再作成
     // 実際の実装では、より効率的な方法が必要な場合があります
-    const data = await this.googleSheetsService.getSheetData(this.METADATA_SHEET_NAME);
+    const data = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
     if (data.length <= 1) {
       return; // ヘッダー行のみまたは空の場合はクリア不要
     }
@@ -395,13 +454,6 @@ export class MetadataManager {
     // この実装は簡素化されています。実際にはGoogle Sheets APIのclear機能を使用することが推奨されます。
   }
 
-  /**
-   * リストタイプを解析
-   */
-  private parseListType(value: string): 'shopping' | 'todo' | 'other' {
-    const validTypes = ['shopping', 'todo', 'other'];
-    return validTypes.includes(value) ? value as 'shopping' | 'todo' | 'other' : 'other';
-  }
 
   /**
    * 日付文字列を解析

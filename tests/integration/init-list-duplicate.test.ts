@@ -46,10 +46,10 @@ describe('InitList Command Duplicate Execution Tests', () => {
     // MessageManagerのモック - 複数回実行での重複問題を再現
     let messageCallCount = 0;
     mockMessageManager = {
-      createOrUpdateMessageWithMetadata: vi.fn().mockImplementation(async (channelId, embed, listTitle, listType, client) => {
+      createOrUpdateMessageWithMetadata: vi.fn().mockImplementation(async (channelId, embed, listTitle, client) => {
         messageCallCount++;
         console.log('[MOCK] createOrUpdateMessageWithMetadata called with:', {
-          channelId, listTitle, listType, callCount: messageCallCount
+          channelId, listTitle, callCount: messageCallCount
         });
         // 各呼び出しで異なるメッセージIDを返すことで、重複作成を再現
         return {
@@ -91,6 +91,7 @@ describe('InitList Command Duplicate Execution Tests', () => {
       user: { id: 'test-user-id' },
       guildId: 'test-guild-id',
       channelId: 'test-channel-id',
+      channel: { name: 'test-channel-id' },
       client: {}
     };
     
@@ -184,8 +185,7 @@ describe('InitList Command Duplicate Execution Tests', () => {
       expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
         'test-channel-id',
         expect.any(Object), // embed
-        'ショッピングリスト',
-        'shopping',
+        'test-channel-idリスト', // channel name + リスト
         expect.any(Object) // client
       );
     });
@@ -235,8 +235,7 @@ describe('InitList Command Duplicate Execution Tests', () => {
       const calls = mockMessageManager.createOrUpdateMessageWithMetadata.mock.calls;
       expect(calls.length).toBe(1);
       expect(calls[0][0]).toBe('test-channel-id'); // channelId
-      expect(calls[0][2]).toBe('ショッピングリスト'); // listTitle
-      expect(calls[0][3]).toBe('shopping'); // listType
+      expect(calls[0][2]).toBe('test-channel-idリスト'); // listTitle (channel name + リスト)
 
       logSpy.mockRestore();
     });

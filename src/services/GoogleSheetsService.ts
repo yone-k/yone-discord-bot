@@ -290,7 +290,9 @@ export class GoogleSheetsService {
       await this.getAuthClient();
       const sheetName = sheetNameOrChannelId.includes('!') 
         ? sheetNameOrChannelId.split('!')[0]
-        : this.getSheetNameForChannel(sheetNameOrChannelId);
+        : (sheetNameOrChannelId === 'metadata' || sheetNameOrChannelId.startsWith('list_'))
+          ? sheetNameOrChannelId
+          : this.getSheetNameForChannel(sheetNameOrChannelId);
       
       const updateRange = range || `${sheetName}!A:Z`;
       
@@ -463,7 +465,9 @@ export class GoogleSheetsService {
       await this.getAuthClient();
       const sheetName = sheetNameOrChannelId.includes('!') 
         ? sheetNameOrChannelId.split('!')[0]
-        : this.getSheetNameForChannel(sheetNameOrChannelId);
+        : (sheetNameOrChannelId === 'metadata' || sheetNameOrChannelId.startsWith('list_'))
+          ? sheetNameOrChannelId
+          : this.getSheetNameForChannel(sheetNameOrChannelId);
 
       // ロックを取得してatomic操作を保証
       releaseLock = await this.acquireOperationLock(lockKey);
@@ -554,7 +558,9 @@ export class GoogleSheetsService {
         try {
           const sheetName = sheetNameOrChannelId.includes('!') 
             ? sheetNameOrChannelId.split('!')[0]
-            : this.getSheetNameForChannel(sheetNameOrChannelId);
+            : (sheetNameOrChannelId === 'metadata' || sheetNameOrChannelId.startsWith('list_'))
+              ? sheetNameOrChannelId
+              : this.getSheetNameForChannel(sheetNameOrChannelId);
           
           const rollbackSuccess = await this.rollbackData(sheetName, backupData);
           if (rollbackSuccess) {
@@ -697,15 +703,35 @@ export class GoogleSheetsService {
       
       // 列に応じた追加の正規化処理
       switch (columnIndex) {
-      case 0: { // id列：数値ID正規化
-        const numericId = parseInt(normalized, 10);
-        return isNaN(numericId) ? normalized : numericId.toString();
-      }
+      case 0: // name列：文字列のトリミングのみ
+        return normalized;
           
-      case 3: // category列：カテゴリー正規化
+      case 2: // category列：カテゴリー正規化
         return normalizeCategory(normalized).toString();
           
-      case 4: // added_at列：詳細な日時フォーマット正規化（JST固定）
+      case 3: // added_at列：詳細な日時フォーマット正規化（JST固定）
+        if (this.isDateLike(normalized)) {
+          try {
+            const date = new Date(normalized);
+            if (!isNaN(date.getTime())) {
+              // JST固定でYYYY-MM-DD HH:mm:ss形式に変換
+              const jstOffset = 9 * 60; // JST is UTC+9
+              const jstDate = new Date(date.getTime() + (jstOffset * 60 * 1000));
+              const year = jstDate.getUTCFullYear();
+              const month = String(jstDate.getUTCMonth() + 1).padStart(2, '0');
+              const day = String(jstDate.getUTCDate()).padStart(2, '0');
+              const hours = String(jstDate.getUTCHours()).padStart(2, '0');
+              const minutes = String(jstDate.getUTCMinutes()).padStart(2, '0');
+              const seconds = String(jstDate.getUTCSeconds()).padStart(2, '0');
+              return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            }
+          } catch {
+            // 日付変換に失敗した場合は元の値をそのまま返す
+          }
+        }
+        return normalized;
+      
+      case 4: // until列：詳細な日時フォーマット正規化（JST固定）
         if (this.isDateLike(normalized)) {
           try {
             const date = new Date(normalized);

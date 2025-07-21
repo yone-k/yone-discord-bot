@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction } from 'discord.js';
+import { ChatInputCommandInteraction, ThreadChannel } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { CommandError, CommandErrorType } from '../utils/CommandError';
 
@@ -7,6 +7,7 @@ export interface CommandExecutionContext {
   userId?: string
   guildId?: string
   channelId?: string
+  thread?: ThreadChannel
 }
 
 export interface CommandExecutionResult {
@@ -19,6 +20,12 @@ export abstract class BaseCommand {
   protected readonly name: string;
   protected readonly description: string;
   protected readonly logger: Logger;
+  protected useThread: boolean = true;
+  protected deleteOnSuccess: boolean = false;
+  protected threadConfig?: {
+    name?: string;
+    autoArchiveDuration?: number;
+  };
 
   constructor(name: string, description: string, logger: Logger) {
     this.name = name;
@@ -38,7 +45,32 @@ export abstract class BaseCommand {
         channelId: context?.channelId
       });
 
-      await this.execute(context);
+      let executionContext = context;
+      
+      if (this.useThread && context?.interaction) {
+        const thread = await this.createThread(context.interaction);
+        executionContext = { ...context, thread };
+      }
+
+      await this.execute(executionContext);
+      
+      // コマンド成功時、削除オプションが有効な場合はスレッド全体と初期メッセージを削除
+      if (this.deleteOnSuccess && this.useThread && context?.interaction) {
+        try {
+          // スレッドがある場合はスレッドを削除
+          if (executionContext?.thread) {
+            await executionContext.thread.delete();
+          }
+          
+          // 初期応答メッセージも削除
+          const message = await context.interaction.fetchReply();
+          await message.delete();
+        } catch (deleteError) {
+          this.logger.warn(`Failed to delete thread or message for command "${this.name}"`, {
+            error: deleteError instanceof Error ? deleteError.message : String(deleteError)
+          });
+        }
+      }
       
       const executionTime = performance.now() - startTime;
       
@@ -94,5 +126,21 @@ export abstract class BaseCommand {
 
   getDescription(): string {
     return this.description;
+  }
+
+  private async createThread(interaction: ChatInputCommandInteraction): Promise<ThreadChannel> {
+    const threadName = this.threadConfig?.name || `${this.name}実行結果`;
+    const autoArchiveDuration = this.threadConfig?.autoArchiveDuration || 60;
+    
+    // まず初期応答をdefer
+    await interaction.deferReply();
+    
+    // 返信メッセージを取得してスレッドを作成
+    const message = await interaction.fetchReply();
+    
+    return await message.startThread({
+      name: threadName,
+      autoArchiveDuration: autoArchiveDuration as 60 | 1440 | 4320 | 10080
+    });
   }
 }

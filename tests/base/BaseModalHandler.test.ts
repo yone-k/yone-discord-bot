@@ -10,7 +10,7 @@ class TestModalHandler extends BaseModalHandler {
     this.deleteOnSuccess = deleteOnSuccess;
   }
 
-  protected async executeAction(context: ModalHandlerContext): Promise<void> {
+  protected async executeAction(_context: ModalHandlerContext): Promise<void> {
     // テスト用の最小実装
   }
 

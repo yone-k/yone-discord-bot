@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MessageReaction, User } from 'discord.js';
 import { Logger } from '../../src/utils/logger';
 import { ReactionManager } from '../../src/services/ReactionManager';
-import { BaseReactionHandler, ReactionHandlerContext } from '../../src/base/BaseReactionHandler';
+import { BaseReactionHandler } from '../../src/base/BaseReactionHandler';
 
 class TestReactionHandler extends BaseReactionHandler {
   constructor(emojiName: string, logger: Logger) {
@@ -139,7 +139,7 @@ describe('ReactionManager', () => {
       const error = new Error('First handler error');
       
       vi.spyOn(handler1, 'handle').mockRejectedValue(error);
-      const handle3Spy = vi.spyOn(handler3, 'handle').mockResolvedValue(undefined);
+      const _handle3Spy = vi.spyOn(handler3, 'handle').mockResolvedValue(undefined);
       
       manager.registerHandler(handler1);
       

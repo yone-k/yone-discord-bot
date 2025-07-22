@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ModalSubmitInteraction } from 'discord.js';
 import { Logger } from '../../src/utils/logger';
 import { ModalManager } from '../../src/services/ModalManager';
-import { BaseModalHandler, ModalHandlerContext } from '../../src/base/BaseModalHandler';
+import { BaseModalHandler } from '../../src/base/BaseModalHandler';
 
 class TestModalHandler extends BaseModalHandler {
   constructor(customId: string, logger: Logger) {

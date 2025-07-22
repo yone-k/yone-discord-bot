@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 import { InitListCommand } from '../../src/commands/InitListCommand';
 import { Logger, LogLevel } from '../../src/utils/logger';
 import { CommandExecutionContext } from '../../src/base/BaseCommand';
@@ -6,9 +6,9 @@ import { CommandExecutionContext } from '../../src/base/BaseCommand';
 // init-listコマンドの実行フロー詳細確認テスト
 describe('InitList Command Execution Flow Tests', () => {
   let logger: Logger;
-  let loggerDebugSpy: any;
-  let loggerInfoSpy: any;
-  let loggerErrorSpy: any;
+  let _loggerDebugSpy: any;
+  let _loggerInfoSpy: any;
+  let _loggerErrorSpy: any;
   let initListCommand: InitListCommand;
   let mockGoogleSheetsService: any;
   let mockChannelSheetManager: any;
@@ -20,13 +20,13 @@ describe('InitList Command Execution Flow Tests', () => {
     vi.clearAllMocks();
     
     logger = new Logger(LogLevel.DEBUG);
-    loggerDebugSpy = vi.spyOn(logger, 'debug').mockImplementation((...args) => {
+    _loggerDebugSpy = vi.spyOn(logger, 'debug').mockImplementation((...args) => {
       console.log('[DEBUG]', ...args);
     });
-    loggerInfoSpy = vi.spyOn(logger, 'info').mockImplementation((...args) => {
+    _loggerInfoSpy = vi.spyOn(logger, 'info').mockImplementation((...args) => {
       console.log('[INFO]', ...args);
     });
-    loggerErrorSpy = vi.spyOn(logger, 'error').mockImplementation((...args) => {
+    _loggerErrorSpy = vi.spyOn(logger, 'error').mockImplementation((...args) => {
       console.log('[ERROR]', ...args);
     });
     
@@ -63,7 +63,7 @@ describe('InitList Command Execution Flow Tests', () => {
     
     // MessageManagerのモック
     mockMessageManager = {
-      createOrUpdateMessageWithMetadata: vi.fn().mockImplementation((channelId, embed, listTitle, client) => {
+      createOrUpdateMessageWithMetadata: vi.fn().mockImplementation((channelId, embed, listTitle, _client) => {
         console.log('[MOCK] createOrUpdateMessageWithMetadata called with:', {
           channelId, listTitle
         });

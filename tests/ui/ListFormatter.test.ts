@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ListFormatter } from '../../src/ui/ListFormatter';
 import { ListItem } from '../../src/models/ListItem';
-import { CategoryType } from '../../src/models/CategoryType';
 
 describe('ListFormatter', () => {
   describe('formatToDiscordEmbed', () => {

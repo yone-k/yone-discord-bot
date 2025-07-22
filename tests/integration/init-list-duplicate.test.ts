@@ -1,9 +1,7 @@
-import { describe, it, expect, vi, beforeEach, MockedFunction } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { InitListCommand } from '../../src/commands/InitListCommand';
 import { Logger, LogLevel } from '../../src/utils/logger';
 import { CommandExecutionContext } from '../../src/base/BaseCommand';
-import { MessageManager } from '../../src/services/MessageManager';
-import { MetadataManager } from '../../src/services/MetadataManager';
 
 // init-listコマンドの重複実行テスト
 describe('InitList Command Duplicate Execution Tests', () => {
@@ -46,7 +44,7 @@ describe('InitList Command Duplicate Execution Tests', () => {
     // MessageManagerのモック - 複数回実行での重複問題を再現
     let messageCallCount = 0;
     mockMessageManager = {
-      createOrUpdateMessageWithMetadata: vi.fn().mockImplementation(async (channelId, embed, listTitle, client) => {
+      createOrUpdateMessageWithMetadata: vi.fn().mockImplementation(async (channelId, embed, listTitle, _client) => {
         messageCallCount++;
         console.log('[MOCK] createOrUpdateMessageWithMetadata called with:', {
           channelId, listTitle, callCount: messageCallCount
@@ -201,7 +199,7 @@ describe('InitList Command Duplicate Execution Tests', () => {
       };
       
       // わずかな遅延を挟んで連続実行
-      const executeWithDelay = async (delay: number) => {
+      const executeWithDelay = async (delay: number): Promise<void> => {
         await new Promise(resolve => setTimeout(resolve, delay));
         return initListCommand.execute(context);
       };
@@ -267,7 +265,7 @@ describe('InitList Command Duplicate Execution Tests', () => {
 
       mockMessageManager.createOrUpdateMessageWithMetadata.mockImplementation(async () => {
         // メッセージは作成するが、メタデータ作成で失敗
-        const metadataResult = await mockMetadataManager.createChannelMetadata();
+        const _metadataResult = await mockMetadataManager.createChannelMetadata();
         return {
           success: true,
           message: { id: 'test-message-id' }

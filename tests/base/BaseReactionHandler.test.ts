@@ -8,7 +8,7 @@ class TestReactionHandler extends BaseReactionHandler {
     super('test-emoji', logger);
   }
 
-  protected async createModal(context: ReactionHandlerContext): Promise<ModalBuilder> {
+  protected async createModal(_context: ReactionHandlerContext): Promise<ModalBuilder> {
     const modal = new ModalBuilder()
       .setCustomId('test-modal')
       .setTitle('Test Modal');

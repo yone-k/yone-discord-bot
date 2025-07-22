@@ -152,7 +152,7 @@ describe('ChannelConfigurationManager', () => {
     it('同期時間を更新できる', async () => {
       await manager.saveConfiguration(testMetadata);
       
-      const newSyncTime = new Date('2025-01-03T12:00:00Z');
+      const _newSyncTime = new Date('2025-01-03T12:00:00Z');
       await manager.updateSyncTime('test-channel-123');
       
       const updatedConfig = await manager.getConfiguration('test-channel-123');

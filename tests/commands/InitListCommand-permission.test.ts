@@ -216,7 +216,7 @@ describe('InitListCommand Permission Error Tests', () => {
 
       try {
         await command.execute(mockContext);
-      } catch (error) {
+      } catch (_error) {
         // エラーは期待通り
       }
 

@@ -1,0 +1,24 @@
+name: Deploy to GCE (Placeholder)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    # Manual deployment trigger
+
+jobs:
+  placeholder-job:
+    name: Placeholder Deployment
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Placeholder step
+      run: |
+        echo "This is a placeholder deployment workflow"
+        echo "Current branch: ${{ github.ref }}"
+        echo "Commit SHA: ${{ github.sha }}"
+        echo "Deployment workflow will be implemented later"

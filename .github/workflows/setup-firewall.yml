@@ -1,0 +1,31 @@
+name: Setup GCP Firewall
+
+on:
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
+jobs:
+  setup-firewall:
+    name: Setup Firewall Rules
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - id: 'auth'
+      name: 'Authenticate to Google Cloud'
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}'
+
+    - name: Create firewall rule for Discord Bot
+      run: |-
+        # ポート3000を開放（ヘルスチェック用）
+        gcloud compute firewall-rules create allow-discord-bot-health \
+          --allow tcp:3000 \
+          --source-ranges 0.0.0.0/0 \
+          --target-tags discord-bot \
+          --description "Allow health check access to Discord Bot" || echo "Firewall rule already exists"

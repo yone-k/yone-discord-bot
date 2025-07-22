@@ -1,0 +1,107 @@
+name: Deploy to GCE
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCE_INSTANCE: discord-bot-instance
+  GCE_INSTANCE_ZONE: us-central1-a
+  IMAGE_NAME: discord-bot
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests
+      run: npm test
+
+    - name: Build application
+      run: npm run build
+
+    - id: 'auth'
+      name: 'Authenticate to Google Cloud'
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}'
+
+    - name: Configure Docker to use gcloud as a credential helper
+      run: |-
+        gcloud auth configure-docker
+
+    - name: Build Docker image
+      run: |-
+        docker build -t "gcr.io/$PROJECT_ID/$IMAGE_NAME:$GITHUB_SHA" .
+        docker tag "gcr.io/$PROJECT_ID/$IMAGE_NAME:$GITHUB_SHA" "gcr.io/$PROJECT_ID/$IMAGE_NAME:latest"
+
+    - name: Push Docker image to GCR
+      run: |-
+        docker push "gcr.io/$PROJECT_ID/$IMAGE_NAME:$GITHUB_SHA"
+        docker push "gcr.io/$PROJECT_ID/$IMAGE_NAME:latest"
+
+    - name: Deploy to GCE
+      run: |-
+        # GCE インスタンスが存在しない場合は作成
+        gcloud compute instances describe $GCE_INSTANCE --zone=$GCE_INSTANCE_ZONE || {
+          echo "Creating new GCE instance..."
+          gcloud compute instances create $GCE_INSTANCE \
+            --zone=$GCE_INSTANCE_ZONE \
+            --machine-type=e2-micro \
+            --boot-disk-size=10GB \
+            --boot-disk-type=pd-standard \
+            --boot-disk-device-name=$GCE_INSTANCE \
+            --image-family=cos-stable \
+            --image-project=cos-cloud \
+            --tags=http-server,https-server,discord-bot \
+            --scopes=https://www.googleapis.com/auth/cloud-platform \
+            --metadata="startup-script=$(cat gce-startup-script.sh | sed 's/PROJECT_ID/${{ env.PROJECT_ID }}/g')" \
+            --metadata-from-file=startup-script=gce-startup-script.sh
+        }
+
+        # 環境変数を更新
+        gcloud compute instances add-metadata $GCE_INSTANCE \
+          --zone=$GCE_INSTANCE_ZONE \
+          --metadata="DISCORD_BOT_TOKEN=${{ secrets.DISCORD_BOT_TOKEN }},CLIENT_ID=${{ secrets.CLIENT_ID }},GOOGLE_SERVICE_ACCOUNT_EMAIL=${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }},GOOGLE_PRIVATE_KEY=${{ secrets.GOOGLE_PRIVATE_KEY }},GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }}"
+
+        # スタートアップスクリプトを更新してインスタンスを再起動
+        gcloud compute instances add-metadata $GCE_INSTANCE \
+          --zone=$GCE_INSTANCE_ZONE \
+          --metadata-from-file=startup-script=<(cat gce-startup-script.sh | sed "s/PROJECT_ID/$PROJECT_ID/g")
+        
+        # インスタンスを再起動して新しいコンテナをデプロイ
+        gcloud compute instances reset $GCE_INSTANCE --zone=$GCE_INSTANCE_ZONE
+
+    - name: Wait for deployment
+      run: |-
+        echo "Waiting for instance to be ready..."
+        sleep 60
+        
+        # ヘルスチェック
+        INSTANCE_IP=$(gcloud compute instances describe $GCE_INSTANCE --zone=$GCE_INSTANCE_ZONE --format="get(networkInterfaces[0].accessConfigs[0].natIP)")
+        
+        for i in {1..30}; do
+          if curl -f "http://$INSTANCE_IP:3000/health"; then
+            echo "Deployment successful!"
+            break
+          else
+            echo "Health check failed, retrying in 10 seconds... ($i/30)"
+            sleep 10
+          fi
+        done

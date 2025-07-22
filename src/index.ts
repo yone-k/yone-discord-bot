@@ -9,6 +9,8 @@ import { ReactionManager } from './services/ReactionManager';
 import { ModalManager } from './services/ModalManager';
 import { ButtonManager } from './services/ButtonManager';
 import { InitListButtonHandler } from './buttons/InitListButtonHandler';
+import { EditListButtonHandler } from './buttons/EditListButtonHandler';
+import { EditListModalHandler } from './modals/EditListModalHandler';
 
 class DiscordBot {
   private client: Client;
@@ -59,10 +61,14 @@ class DiscordBot {
       this.buttonManager = new ButtonManager(this.logger);
 
       const initListButtonHandler = new InitListButtonHandler(this.logger);
+      const editListButtonHandler = new EditListButtonHandler(this.logger);
+      const editListModalHandler = new EditListModalHandler(this.logger);
 
       this.buttonManager.registerHandler(initListButtonHandler);
+      this.buttonManager.registerHandler(editListButtonHandler);
+      this.modalManager.registerHandler(editListModalHandler);
 
-      this.logger.info('Button handlers registered successfully');
+      this.logger.info('Button and modal handlers registered successfully');
     } catch (error) {
       this.logger.error('Failed to register button handlers', { error });
       throw error;

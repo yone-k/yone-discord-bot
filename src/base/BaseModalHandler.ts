@@ -8,6 +8,8 @@ export interface ModalHandlerContext {
 export abstract class BaseModalHandler {
   protected readonly customId: string;
   protected readonly logger: Logger;
+  protected ephemeral: boolean = true;
+  protected deleteOnSuccess: boolean = false;
 
   constructor(customId: string, logger: Logger) {
     this.customId = customId;
@@ -20,13 +22,34 @@ export abstract class BaseModalHandler {
         return;
       }
 
-      await context.interaction.deferReply({ ephemeral: true });
+      await context.interaction.deferReply({ ephemeral: this.ephemeral });
 
       await this.executeAction(context);
 
-      await context.interaction.editReply({
-        content: this.getSuccessMessage()
-      });
+      // 成功時にメッセージを削除
+      if (this.deleteOnSuccess) {
+        try {
+          await context.interaction.editReply({ content: '処理が完了しました。' });
+          try {
+            const reply = await context.interaction.fetchReply();
+            await reply.delete();
+          } catch (delayedDeleteError) {
+            this.logger.warn('Failed to delete success message', {
+              error: delayedDeleteError instanceof Error ? delayedDeleteError.message : 'Unknown error',
+              customId: this.customId
+            });
+          }
+        } catch (deleteError) {
+          this.logger.warn('Failed to delete success message', {
+            error: deleteError instanceof Error ? deleteError.message : 'Unknown error',
+            customId: this.customId
+          });
+        }
+      } else {
+        await context.interaction.editReply({
+          content: this.getSuccessMessage()
+        });
+      }
     } catch (error) {
       this.logger.error(
         `Failed to handle modal submission for customId "${this.customId}"`,

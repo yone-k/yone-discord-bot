@@ -7,10 +7,11 @@ class TestCommand extends BaseCommand {
   public shouldThrowError = false
   public customError: Error | null = null
 
-  constructor(logger: Logger, deleteOnSuccess = false, useThread = false) {
+  constructor(logger: Logger, deleteOnSuccess = false, useThread = false, ephemeral = false) {
     super('test', 'Test command description', logger)
     this.deleteOnSuccess = deleteOnSuccess
     this.useThread = useThread
+    this.ephemeral = ephemeral
   }
 
   async execute(context?: CommandExecutionContext): Promise<void> {
@@ -41,6 +42,14 @@ describe('BaseCommand', () => {
       
       expect(command.getName()).toBe('test')
       expect(command.getDescription()).toBe('Test command description')
+    })
+
+    it('ephemeralオプションを正しく設定する', () => {
+      const commandDefault = new TestCommand(logger)
+      expect(commandDefault.getEphemeral()).toBe(false)
+
+      const commandEphemeralTrue = new TestCommand(logger, false, false, true)
+      expect(commandEphemeralTrue.getEphemeral()).toBe(true)
     })
   })
 

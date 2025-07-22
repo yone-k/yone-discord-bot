@@ -26,7 +26,7 @@ export interface ButtonSettings {
 // ボタン設定
 export const buttonSettings: ButtonSettings = {
   commands: {
-    'init-list': {
+    'list': {
       enabled: true,
       buttons: [
         {
@@ -43,7 +43,7 @@ export const buttonSettings: ButtonSettings = {
           style: ButtonStyle.Secondary,
           emoji: '📝',
           description: 'リスト編集',
-          handler: null
+          handler: 'EditListButtonHandler'
         }
       ]
     },

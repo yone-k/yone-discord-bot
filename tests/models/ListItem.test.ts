@@ -22,11 +22,11 @@ describe('ListItem', () => {
       expect(listItem.until).toBe(until)
     })
 
-    it('should allow null values for addedAt and until', () => {
+    it('should allow null values for quantity, category, addedAt and until', () => {
       const listItem: ListItem = {
         name: 'テスト',
-        quantity: '1',
-        category: 'その他',
+        quantity: null,
+        category: null,
         addedAt: null,
         until: null
       }
@@ -36,6 +36,8 @@ describe('ListItem', () => {
       expect(listItem).toHaveProperty('category')
       expect(listItem).toHaveProperty('addedAt')
       expect(listItem).toHaveProperty('until')
+      expect(listItem.quantity).toBeNull()
+      expect(listItem.category).toBeNull()
       expect(listItem.addedAt).toBeNull()
       expect(listItem.until).toBeNull()
     })
@@ -53,10 +55,32 @@ describe('ListItem', () => {
       expect(Math.abs(result.addedAt!.getTime() - Date.now())).toBeLessThan(1000)
     })
 
+    it('should create ListItem with name only', () => {
+      const result = createListItem('ミニマルテスト')
+
+      expect(result.name).toBe('ミニマルテスト')
+      expect(result.quantity).toBeNull()
+      expect(result.category).toBeNull()
+      expect(result.addedAt).toBeInstanceOf(Date)
+      expect(result.until).toBeNull()
+    })
+
+    it('should create ListItem with until date', () => {
+      const until = new Date('2024-12-31')
+      const result = createListItem('期限テスト', '1個', 'テスト', until)
+
+      expect(result.name).toBe('期限テスト')
+      expect(result.quantity).toBe('1個')
+      expect(result.category).toBe('テスト')
+      expect(result.until).toBe(until)
+    })
+
     it('should trim whitespace from name', () => {
       const result = createListItem('  牛乳  ', '2', '通常')
 
       expect(result.name).toBe('牛乳')
+      expect(result.quantity).toBe('2')
+      expect(result.category).toBe('通常')
     })
   })
 
@@ -73,12 +97,24 @@ describe('ListItem', () => {
       expect(() => validateListItem(validItem)).not.toThrow()
     })
 
-    it('should validate ListItem with null addedAt and until', () => {
+    it('should validate ListItem with null values', () => {
+      const validItem: ListItem = {
+        name: 'バナナ',
+        quantity: null,
+        category: null,
+        addedAt: null,
+        until: null
+      }
+
+      expect(() => validateListItem(validItem)).not.toThrow()
+    })
+
+    it('should validate ListItem with partial null values', () => {
       const validItem: ListItem = {
         name: 'バナナ',
         quantity: '3',
-        category: '重要',
-        addedAt: null,
+        category: null,
+        addedAt: new Date(),
         until: null
       }
 
@@ -102,6 +138,30 @@ describe('ListItem', () => {
         name: 'テスト商品',
         quantity: '0',
         category: '重要',
+        addedAt: new Date(),
+        until: null
+      }
+
+      expect(() => validateListItem(validItem)).not.toThrow()
+    })
+
+    it('should validate null quantity', () => {
+      const validItem: ListItem = {
+        name: 'テスト商品',
+        quantity: null,
+        category: '重要',
+        addedAt: new Date(),
+        until: null
+      }
+
+      expect(() => validateListItem(validItem)).not.toThrow()
+    })
+
+    it('should validate null category', () => {
+      const validItem: ListItem = {
+        name: 'テスト商品',
+        quantity: '1',
+        category: null,
         addedAt: new Date(),
         until: null
       }

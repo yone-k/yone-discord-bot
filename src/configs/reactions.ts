@@ -22,7 +22,7 @@ export interface ReactionSettings {
 // リアクション設定
 export const reactionSettings: ReactionSettings = {
   commands: {
-    'init-list': {
+    'list': {
       enabled: true,
       reactions: [
         {

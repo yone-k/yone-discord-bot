@@ -9,11 +9,13 @@ export class InitListButtonHandler extends BaseButtonHandler {
 
   constructor(logger: Logger, initListCommand?: InitListCommand) {
     super('init-list-button', logger);
+    this.deleteOnSuccess = true;
+    this.ephemeral = false;
     this.initListCommand = initListCommand || new InitListCommand(logger);
   }
 
   protected async executeAction(context: ButtonHandlerContext): Promise<void> {
-    await context.interaction.deferReply({ ephemeral: true });
+    await context.interaction.deferReply({ ephemeral: this.ephemeral });
 
     const commandContext: CommandExecutionContext = {
       interaction: context.interaction as unknown as ChatInputCommandInteraction,

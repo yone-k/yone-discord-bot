@@ -107,6 +107,10 @@ describe('InitListCommand', () => {
     it('説明が適切に設定される', () => {
       expect(initListCommand.getDescription()).toBe('リストの初期化を行います')
     })
+
+    it('ephemeralオプションがtrueに設定される', () => {
+      expect(initListCommand.getEphemeral()).toBe(true)
+    })
   })
 
   describe('execute メソッド - 基本動作', () => {

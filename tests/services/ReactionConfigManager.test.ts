@@ -21,7 +21,7 @@ describe('ReactionConfigManager', () => {
 
   describe('コマンドリアクション取得', () => {
     it('有効なコマンドのリアクション設定を取得できる', () => {
-      const reactions = manager.getCommandReactions('init-list');
+      const reactions = manager.getCommandReactions('list');
       
       expect(reactions).toHaveLength(2);
       expect(reactions[0]).toEqual({
@@ -49,7 +49,7 @@ describe('ReactionConfigManager', () => {
 
   describe('リアクション有効性チェック', () => {
     it('有効なコマンドでtrueを返す', () => {
-      expect(manager.isReactionEnabled('init-list')).toBe(true);
+      expect(manager.isReactionEnabled('list')).toBe(true);
     });
 
     it('無効なコマンドでfalseを返す', () => {
@@ -94,7 +94,7 @@ describe('ReactionConfigManager', () => {
       expect(settings).toHaveProperty('default');
       expect(settings).toHaveProperty('emojis');
       
-      expect(settings.commands['init-list']).toEqual({
+      expect(settings.commands['list']).toEqual({
         enabled: true,
         reactions: [
           {

@@ -51,10 +51,11 @@ export class ListFormatter {
     const grouped: Record<CategoryType, ListItem[]> = {};
     
     items.forEach(item => {
-      if (!grouped[item.category]) {
-        grouped[item.category] = [];
+      const category = item.category || DEFAULT_CATEGORY;
+      if (!grouped[category]) {
+        grouped[category] = [];
       }
-      grouped[item.category].push(item);
+      grouped[category].push(item);
     });
     
     return grouped;
@@ -77,7 +78,7 @@ export class ListFormatter {
     let displayedCount = 0;
 
     for (const item of items) {
-      const itemText = (item.quantity === '' || item.quantity.trim() === '') 
+      const itemText = (!item.quantity || item.quantity === '' || item.quantity.trim() === '') 
         ? `• ${item.name}\n`
         : `• ${item.name} ${item.quantity}\n`;
       
@@ -229,8 +230,8 @@ export class ListFormatter {
    * アイテムの詳細情報をフォーマット
    */
   private static formatItemValue(item: ListItem): string {
-    const quantity = `📦 数量: ${item.quantity}`;
-    const category = `📂 カテゴリ: ${item.category}`;
+    const quantity = `📦 数量: ${item.quantity || '未設定'}`;
+    const category = `📂 カテゴリ: ${item.category || DEFAULT_CATEGORY}`;
     const date = item.addedAt ? `📅 追加日: ${this.formatDate(item.addedAt)}` : '📅 追加日: 未設定';
     const until = item.until ? `⏰ 期限: ${this.formatDate(item.until)}` : '';
     

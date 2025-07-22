@@ -90,4 +90,28 @@ describe('PingCommand', () => {
       expect(typeof pingCommand.execute).toBe('function')
     })
   })
+
+  describe('interaction対応', () => {
+    it('interactionがある場合はレスポンスを送信する（ephemeral: false）', async () => {
+      const mockInteraction = {
+        reply: vi.fn().mockResolvedValue(undefined)
+      }
+      const context = { 
+        interaction: mockInteraction,
+        userId: 'test-user-123',
+        guildId: 'test-guild-456'
+      }
+
+      await pingCommand.execute(context)
+
+      expect(mockInteraction.reply).toHaveBeenCalledWith({
+        content: expect.stringMatching(/^🏓 Pong! レスポンス時間: \d+(\.\d+)?ms$/),
+        ephemeral: false
+      })
+    })
+
+    it('ephemeralオプションが正しく適用される', () => {
+      expect(pingCommand.getEphemeral()).toBe(false)
+    })
+  })
 })

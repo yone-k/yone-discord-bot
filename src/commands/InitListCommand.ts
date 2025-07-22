@@ -24,6 +24,7 @@ export class InitListCommand extends BaseCommand {
   ) {
     super('init-list', 'リストの初期化を行います', logger);
     this.deleteOnSuccess = true;
+    this.ephemeral = true;
     this.channelSheetManager = channelSheetManager || new ChannelSheetManager();
     this.messageManager = messageManager || new MessageManager();
     this.metadataManager = metadataManager || new MetadataManager();
@@ -104,7 +105,7 @@ export class InitListCommand extends BaseCommand {
       embed,
       listTitle,
       context.interaction.client,
-      'init-list'
+      'list'
     );
 
     if (!messageResult.success) {
@@ -286,7 +287,7 @@ export class InitListCommand extends BaseCommand {
     if (context?.interaction) {
       await context.interaction.reply({
         content: '📋 リストの初期化が完了しました！',
-        ephemeral: false
+        ephemeral: this.ephemeral
       });
     }
   }

@@ -22,7 +22,7 @@ describe('ButtonConfigManager', () => {
 
   describe('コマンドボタン取得', () => {
     it('有効なコマンドのボタン設定を取得できる', () => {
-      const buttons = manager.getCommandButtons('init-list');
+      const buttons = manager.getCommandButtons('list');
       
       expect(buttons).toHaveLength(2);
       expect(buttons[0]).toEqual({
@@ -39,7 +39,7 @@ describe('ButtonConfigManager', () => {
         style: ButtonStyle.Secondary,
         emoji: '📝',
         description: 'リスト編集',
-        handler: null
+        handler: 'EditListButtonHandler'
       });
     });
 
@@ -56,7 +56,7 @@ describe('ButtonConfigManager', () => {
 
   describe('ボタン有効性チェック', () => {
     it('有効なコマンドでtrueを返す', () => {
-      expect(manager.isButtonEnabled('init-list')).toBe(true);
+      expect(manager.isButtonEnabled('list')).toBe(true);
     });
 
     it('無効なコマンドでfalseを返す', () => {
@@ -87,7 +87,7 @@ describe('ButtonConfigManager', () => {
       expect(settings).toHaveProperty('default');
       expect(settings).toHaveProperty('styles');
       
-      expect(settings.commands['init-list']).toEqual({
+      expect(settings.commands['list']).toEqual({
         enabled: true,
         buttons: [
           {
@@ -104,7 +104,7 @@ describe('ButtonConfigManager', () => {
             style: ButtonStyle.Secondary,
             emoji: '📝',
             description: 'リスト編集',
-            handler: null
+            handler: 'EditListButtonHandler'
           }
         ]
       });

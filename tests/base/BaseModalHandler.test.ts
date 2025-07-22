@@ -4,8 +4,10 @@ import { Logger } from '../../src/utils/logger';
 import { BaseModalHandler, ModalHandlerContext } from '../../src/base/BaseModalHandler';
 
 class TestModalHandler extends BaseModalHandler {
-  constructor(logger: Logger) {
+  constructor(logger: Logger, ephemeral = true, deleteOnSuccess = false) {
     super('test-modal', logger);
+    this.ephemeral = ephemeral;
+    this.deleteOnSuccess = deleteOnSuccess;
   }
 
   protected async executeAction(context: ModalHandlerContext): Promise<void> {
@@ -111,6 +113,53 @@ describe('BaseModalHandler', () => {
   describe('getCustomId', () => {
     it('should return the customId', () => {
       expect(handler.getCustomId()).toBe('test-modal');
+    });
+  });
+
+  describe('ephemeral option', () => {
+    it('should use ephemeral: false when set to false', async () => {
+      const handler = new TestModalHandler(logger, false, false);
+      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(undefined);
+      
+      await handler.handle(context);
+
+      expect(mockInteraction.deferReply).toHaveBeenCalledWith({ ephemeral: false });
+    });
+
+    it('should use ephemeral: true by default', async () => {
+      const handler = new TestModalHandler(logger);
+      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(undefined);
+      
+      await handler.handle(context);
+
+      expect(mockInteraction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+    });
+  });
+
+  describe('deleteOnSuccess option', () => {
+    beforeEach(() => {
+      const mockMessage = { delete: vi.fn().mockResolvedValue(undefined) };
+      mockInteraction.fetchReply = vi.fn().mockResolvedValue(mockMessage);
+    });
+
+    it('should delete message when deleteOnSuccess is true', async () => {
+      const handler = new TestModalHandler(logger, true, true);
+      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(undefined);
+      
+      await handler.handle(context);
+
+      expect(mockInteraction.editReply).toHaveBeenCalledWith({ content: '処理が完了しました。' });
+      expect(mockInteraction.fetchReply).toHaveBeenCalled();
+    });
+
+    it('should not delete message when deleteOnSuccess is false', async () => {
+      const handler = new TestModalHandler(logger, true, false);
+      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(undefined);
+      
+      await handler.handle(context);
+
+      expect(mockInteraction.editReply).toHaveBeenCalledWith({ content: '✅ テストが完了しました' });
+      expect(mockInteraction.fetchReply).not.toHaveBeenCalled();
     });
   });
 });

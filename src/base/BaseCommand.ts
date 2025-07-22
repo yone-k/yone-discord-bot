@@ -22,6 +22,7 @@ export abstract class BaseCommand {
   protected readonly logger: Logger;
   protected useThread: boolean = true;
   protected deleteOnSuccess: boolean = false;
+  protected ephemeral: boolean = false;
   protected threadConfig?: {
     name?: string;
     autoArchiveDuration?: number;
@@ -126,6 +127,10 @@ export abstract class BaseCommand {
 
   getDescription(): string {
     return this.description;
+  }
+
+  getEphemeral(): boolean {
+    return this.ephemeral;
   }
 
   private async createThread(interaction: ChatInputCommandInteraction): Promise<ThreadChannel> {

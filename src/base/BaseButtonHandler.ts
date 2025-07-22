@@ -8,6 +8,8 @@ export interface ButtonHandlerContext {
 export abstract class BaseButtonHandler {
   protected readonly customId: string;
   protected readonly logger: Logger;
+  protected ephemeral: boolean = true;
+  protected deleteOnSuccess: boolean = false;
 
   constructor(customId: string, logger: Logger) {
     this.customId = customId;
@@ -21,6 +23,28 @@ export abstract class BaseButtonHandler {
       }
 
       await this.executeAction(context);
+
+      // 成功時にメッセージを削除
+      if (this.deleteOnSuccess) {
+        try {
+          // 既にreplyしている場合は削除
+          if (context.interaction.replied) {
+            const reply = await context.interaction.fetchReply();
+            await reply.delete();
+          }
+          // deferReplyしている場合はeditReplyして削除
+          else if (context.interaction.deferred) {
+            await context.interaction.editReply({ content: '処理が完了しました。', components: [] });
+            const reply = await context.interaction.fetchReply();
+            await reply.delete();
+          }
+        } catch (deleteError) {
+          this.logger.warn('Failed to delete success message', {
+            error: deleteError instanceof Error ? deleteError.message : 'Unknown error',
+            customId: this.customId
+          });
+        }
+      }
     } catch (error) {
       this.logger.error(
         `Failed to handle button interaction for customId "${this.customId}"`,
@@ -35,7 +59,7 @@ export abstract class BaseButtonHandler {
         if (!context.interaction.replied && !context.interaction.deferred) {
           await context.interaction.reply({
             content: 'エラーが発生しました。もう一度お試しください。',
-            ephemeral: true
+            ephemeral: this.ephemeral
           });
         }
       } catch (replyError) {

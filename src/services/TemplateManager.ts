@@ -1,14 +1,11 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import { Logger } from '../utils/logger';
+import { templates } from '../templates/embed/templates';
 
 export class TemplateManager {
   private templateCache: Map<string, string> = new Map();
-  private readonly templatesDir: string;
   private readonly logger: Logger;
 
   constructor() {
-    this.templatesDir = path.join(process.cwd(), 'templates', 'embed');
     this.logger = new Logger();
   }
 
@@ -21,8 +18,11 @@ export class TemplateManager {
     }
 
     try {
-      const templatePath = path.join(this.templatesDir, `${templateName}.md`);
-      const templateContent = await fs.readFile(templatePath, 'utf-8');
+      const templateContent = templates[templateName as keyof typeof templates];
+      
+      if (!templateContent) {
+        throw new Error(`Template "${templateName}" not found`);
+      }
       
       this.cacheTemplate(cacheKey, templateContent);
       this.logger.info(`Template "${templateName}" loaded and cached`);

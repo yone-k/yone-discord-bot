@@ -114,13 +114,10 @@ export class Config {
       return undefined;
     }
 
-    // PRIVATE_KEYの改行文字を正しく処理
-    const processedPrivateKey = privateKey.replace(/\\n/g, '\n');
-
     return {
       spreadsheetId: spreadsheetId.trim(),
       serviceAccountEmail: serviceAccountEmail.trim(),
-      privateKey: processedPrivateKey
+      privateKey: privateKey
     };
   }
 

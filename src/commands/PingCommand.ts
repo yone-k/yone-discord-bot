@@ -4,6 +4,8 @@ import { Logger } from '../utils/logger';
 export class PingCommand extends BaseCommand {
   constructor(logger: Logger) {
     super('ping', 'Bot の疎通確認を行います（レスポンス時間測定付き）', logger);
+    this.useThread = false;  // pingコマンドはスレッドを使用しない
+    this.ephemeral = true;   // 応答を本人にのみ表示
   }
 
   async execute(context?: CommandExecutionContext): Promise<void> {

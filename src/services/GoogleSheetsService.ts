@@ -114,6 +114,9 @@ export class GoogleSheetsService {
       // プライベートキーの形式を正規化（PEMヘッダー/フッターを自動追加）
       const normalizedPrivateKey = this.normalizePrivateKey(this.config.privateKey);
       
+      console.log('Creating GoogleAuth with normalized private key');
+      console.log('Service account email:', this.config.serviceAccountEmail);
+      
       this.auth = new GoogleAuth({
         credentials: {
           client_email: this.config.serviceAccountEmail,
@@ -122,18 +125,46 @@ export class GoogleSheetsService {
         scopes: ['https://www.googleapis.com/auth/spreadsheets']
       });
 
+      // 認証をテスト
+      console.log('Testing authentication...');
+      await this.auth.getClient();
+      console.log('Authentication test successful');
+
       this.sheets = google.sheets({ version: 'v4', auth: this.auth });
       return this.auth;
     } catch (error) {
+      const err = error as any; // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error('Google Sheets authentication error details:', {
         hasServiceAccountEmail: !!this.config.serviceAccountEmail,
         serviceAccountEmailLength: this.config.serviceAccountEmail?.length || 0,
+        serviceAccountEmail: this.config.serviceAccountEmail?.substring(0, 30) + '...',
         hasPrivateKey: !!this.config.privateKey,
         privateKeyLength: this.config.privateKey?.length || 0,
-        privateKeyStart: this.config.privateKey?.substring(0, 50) || 'null',
-        errorMessage: (error as Error).message,
-        errorStack: (error as Error).stack
+        privateKeyStart: this.config.privateKey?.substring(0, 100) || 'null',
+        privateKeyEnd: this.config.privateKey?.substring(this.config.privateKey.length - 100) || 'null',
+        errorMessage: err.message,
+        errorCode: err.code,
+        errorStack: err.stack,
+        errorDetails: err.details || 'No details',
+        errorType: err.constructor.name
       });
+      
+      // OpenSSLエラーの場合は特別な処理
+      if (err.code === 'ERR_OSSL_UNSUPPORTED' || err.message.includes('DECODER routines')) {
+        console.error('OpenSSL error detected. This usually means the private key format is incorrect.');
+        console.error('Common causes:');
+        console.error('1. Private key is not properly formatted (missing headers/footers)');
+        console.error('2. Line breaks are not properly encoded in environment variable');
+        console.error('3. Private key is corrupted or truncated');
+        
+        throw new GoogleSheetsError(
+          GoogleSheetsErrorType.AUTHENTICATION_FAILED,
+          'Private key format is not supported. Please check the private key encoding and format.',
+          '秘密鍵の形式がサポートされていません。環境変数の設定を確認してください。\n' +
+          'ヒント: 環境変数設定時に改行文字が正しくエンコードされているか確認してください。',
+          error as Error
+        );
+      }
       
       throw new GoogleSheetsError(
         GoogleSheetsErrorType.AUTHENTICATION_FAILED,
@@ -156,13 +187,21 @@ export class GoogleSheetsService {
       });
       return !!response.data;
     } catch (error) {
-      const gaxiosError = error as { code?: number; status?: number; message: string };
+      const err = error as any; // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error('Spreadsheet access failed:', {
         spreadsheetId: this.config.spreadsheetId,
-        errorMessage: gaxiosError.message,
-        errorCode: gaxiosError.code || 'unknown',
-        errorStatus: gaxiosError.status || 'unknown'
+        errorMessage: err.message,
+        errorCode: err.code || 'unknown',
+        errorStatus: err.status || 'unknown',
+        errorType: err.constructor.name,
+        errorStack: err.stack
       });
+      
+      // 認証エラーの場合は再スロー
+      if (err.code === 'ERR_OSSL_UNSUPPORTED' || err.message.includes('DECODER routines')) {
+        throw error;
+      }
+      
       return false;
     }
   }
@@ -859,13 +898,59 @@ export class GoogleSheetsService {
       throw new Error('Private key is empty or undefined');
     }
 
-    // 既にPEMヘッダー/フッターがある場合はそのまま返す
-    if (privateKey.includes('-----BEGIN PRIVATE KEY-----') && privateKey.includes('-----END PRIVATE KEY-----')) {
-      return privateKey;
+    // デバッグ情報
+    console.log('normalizePrivateKey - input characteristics:', {
+      length: privateKey.length,
+      hasBeginHeader: privateKey.includes('-----BEGIN'),
+      hasEndFooter: privateKey.includes('-----END'),
+      firstChars: privateKey.substring(0, 100),
+      lastChars: privateKey.substring(privateKey.length - 100),
+      hasEscapedNewlines: privateKey.includes('\\n'),
+      hasActualNewlines: privateKey.includes('\n'),
+      hasLiteralNewlines: privateKey.includes('\n')
+    });
+
+    // 複数の形式に対応した改行文字の正規化
+    let normalizedKey = privateKey;
+    
+    // リテラルの改行文字列 "\n" を実際の改行に変換
+    if (normalizedKey.includes('\\n')) {
+      normalizedKey = normalizedKey.replace(/\\n/g, '\n');
+      console.log('normalizePrivateKey - replaced escaped newlines');
+    }
+    
+    // 既にPEMヘッダー/フッターがある場合
+    if (normalizedKey.includes('-----BEGIN') && normalizedKey.includes('-----END')) {
+      console.log('normalizePrivateKey - already has PEM headers');
+      return normalizedKey;
     }
 
-    // PEMヘッダー/フッターを追加
-    const cleanKey = privateKey.replace(/\\n/g, '\n').trim();
-    return `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
+    // PEMヘッダー/フッターがない場合
+    let cleanKey = normalizedKey.trim();
+    
+    // RSA形式かEC形式かを判定
+    const isRSAKey = cleanKey.includes('-----BEGIN RSA PRIVATE KEY-----');
+    
+    // Base64の改行を処理（64文字ごとに改行が必要）
+    if (!cleanKey.includes('\n') && cleanKey.length > 64) {
+      console.log('normalizePrivateKey - adding line breaks to Base64 key');
+      const chunks = [];
+      for (let i = 0; i < cleanKey.length; i += 64) {
+        chunks.push(cleanKey.substring(i, i + 64));
+      }
+      cleanKey = chunks.join('\n');
+    }
+
+    // 適切なヘッダー/フッターを追加
+    const pemKey = isRSAKey 
+      ? cleanKey // RSAキーの場合はすでにヘッダーがあるはず
+      : `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
+    
+    console.log('normalizePrivateKey - final key format:', {
+      hasHeaders: pemKey.includes('-----BEGIN'),
+      keyPreview: pemKey.substring(0, 100) + '...'
+    });
+    
+    return pemKey;
   }
 }

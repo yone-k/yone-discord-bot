@@ -6,8 +6,8 @@
   "scripts": {
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/ scripts/ --ext .ts",
-    "lint:fix": "eslint src/ scripts/ --ext .ts --fix",
+    "lint": "eslint src/ scripts/ tests/ --ext .ts",
+    "lint:fix": "eslint src/ scripts/ tests/ --ext .ts --fix",
     "check": "npm run typecheck && npm run lint",
     "build": "npm run check && tsc && npm run build-commands",
     "build-only": "tsc",
@@ -28,7 +28,9 @@
     "@typescript-eslint/eslint-plugin": "^8.37.0",
     "@typescript-eslint/parser": "^8.37.0",
     "discord.js": "^14.21.0",
-    "eslint": "^8.57.1"
+    "eslint": "^8.57.1",
+    "google-auth-library": "^9.0.0",
+    "googleapis": "^126.0.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.15",

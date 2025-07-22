@@ -29,7 +29,7 @@ export class PingCommand extends BaseCommand {
     if (context?.interaction) {
       await context.interaction.reply({
         content: `🏓 Pong! レスポンス時間: ${responseTime.toFixed(2)}ms`,
-        ephemeral: false
+        ephemeral: this.ephemeral
       });
     }
     

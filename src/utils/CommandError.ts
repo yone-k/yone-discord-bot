@@ -4,7 +4,9 @@ export enum CommandErrorType {
   PERMISSION_DENIED = 'PERMISSION_DENIED',
   INVALID_PARAMETERS = 'INVALID_PARAMETERS',
   TIMEOUT = 'TIMEOUT',
-  RATE_LIMITED = 'RATE_LIMITED'
+  RATE_LIMITED = 'RATE_LIMITED',
+  CONFIG_MISSING = 'CONFIG_MISSING',
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE'
 }
 
 export class CommandError extends Error {
@@ -42,6 +44,10 @@ export class CommandError extends Error {
       return 'コマンドの実行がタイムアウトしました。';
     case CommandErrorType.RATE_LIMITED:
       return 'レート制限により、しばらく時間を置いてから再試行してください。';
+    case CommandErrorType.CONFIG_MISSING:
+      return '必要な設定が見つかりません。環境変数を確認してください。';
+    case CommandErrorType.SERVICE_UNAVAILABLE:
+      return 'サービスが利用できません。しばらく時間を置いてから再試行してください。';
     default:
       return '予期しないエラーが発生しました。';
     }

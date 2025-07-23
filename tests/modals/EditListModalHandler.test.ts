@@ -11,6 +11,7 @@ describe('EditListModalHandler', () => {
   let logger: Logger;
   let mockGoogleSheetsService: GoogleSheetsService;
   let mockMessageManager: MessageManager;
+  let mockMetadataManager: any;
   let mockInteraction: ModalSubmitInteraction;
   let context: ModalHandlerContext;
   let mockFields: any;
@@ -31,6 +32,10 @@ describe('EditListModalHandler', () => {
       createOrUpdateMessageWithMetadata: vi.fn()
     } as any;
 
+    mockMetadataManager = {
+      getChannelMetadata: vi.fn()
+    } as any;
+
     mockFields = {
       getTextInputValue: vi.fn()
     };
@@ -49,12 +54,12 @@ describe('EditListModalHandler', () => {
       interaction: mockInteraction
     };
 
-    handler = new EditListModalHandler(logger, mockGoogleSheetsService, mockMessageManager);
+    handler = new EditListModalHandler(logger, mockGoogleSheetsService, mockMessageManager, mockMetadataManager);
   });
 
   describe('executeAction', () => {
     it('should process valid CSV data and update sheets', async () => {
-      const csvText = '牛乳,1本,食品\nパン,2斤,食品';
+      const csvText = '牛乳,食品\nパン,食品';
       mockFields.getTextInputValue.mockReturnValue(csvText);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
 
@@ -64,9 +69,9 @@ describe('EditListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         expect.arrayContaining([
-          ['name', 'quantity', 'category', 'added_at', 'until'],
-          expect.arrayContaining(['牛乳', '1本', '食品']),
-          expect.arrayContaining(['パン', '2斤', '食品'])
+          ['name', 'category', 'until'],
+          expect.arrayContaining(['牛乳', '食品']),
+          expect.arrayContaining(['パン', '食品'])
         ])
       );
       expect(logger.info).toHaveBeenCalledWith(
@@ -85,21 +90,48 @@ describe('EditListModalHandler', () => {
       await expect(handler['executeAction'](context)).rejects.toThrow('チャンネルIDが取得できません');
     });
 
-    it('should throw error when no valid data found', async () => {
+    it('should handle empty list input without throwing error', async () => {
       mockFields.getTextInputValue.mockReturnValue('');
+      mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
 
-      await expect(handler['executeAction'](context)).rejects.toThrow('有効なデータが見つかりません。正しい形式で入力してください。');
+      // Clientのモックを追加
+      const mockClient = {
+        channels: {
+          fetch: vi.fn().mockResolvedValue({
+            name: 'test-channel'
+          })
+        }
+      };
+      mockInteraction.client = mockClient;
+
+      await handler['executeAction'](context);
+
+      // 空のリストでも正常に処理されることを確認
+      expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
+        'channel789',
+        expect.arrayContaining([
+          ['name', 'category', 'until'] // ヘッダーのみ
+        ])
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        'List edited successfully',
+        expect.objectContaining({
+          channelId: 'channel789',
+          itemCount: 0,
+          userId: 'user123'
+        })
+      );
     });
 
     it('should throw error when too many items', async () => {
-      const manyItems = Array.from({ length: 101 }, (_, i) => `商品${i},1個,食品`).join('\n');
+      const manyItems = Array.from({ length: 101 }, (_, i) => `商品${i},食品`).join('\n');
       mockFields.getTextInputValue.mockReturnValue(manyItems);
 
       await expect(handler['executeAction'](context)).rejects.toThrow('アイテム数が多すぎます（最大100件）。');
     });
 
     it('should throw error when sheet update fails', async () => {
-      const csvText = '牛乳,1本,食品';
+      const csvText = '牛乳,食品';
       mockFields.getTextInputValue.mockReturnValue(csvText);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ 
         success: false, 
@@ -111,21 +143,86 @@ describe('EditListModalHandler', () => {
   });
 
   describe('parseCsvText', () => {
+    it('should return empty array for empty input', () => {
+      const result = handler['parseCsvText']('');
+      expect(result).toEqual([]);
+    });
+
+    it('should return empty array for whitespace-only input', () => {
+      const result = handler['parseCsvText']('   \n   \n   ');
+      expect(result).toEqual([]);
+    });
+
     it('should parse valid CSV text', () => {
-      const csvText = '牛乳,1本,食品\nパン,2斤,食品';
+      const csvText = '牛乳,食品\nパン,食品';
       const result = handler['parseCsvText'](csvText);
 
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual(expect.objectContaining({
         name: '牛乳',
-        quantity: '1本',
         category: '食品'
       }));
       expect(result[1]).toEqual(expect.objectContaining({
         name: 'パン',
-        quantity: '2斤',
         category: '食品'
       }));
+    });
+
+    it('should preserve empty categories as null without using defaultCategory', () => {
+      const csvText = '牛乳,\nパン,  \n卵,食材';
+      const result = handler['parseCsvText'](csvText, '日用品'); // defaultCategoryを渡しても使用しない
+
+      expect(result).toHaveLength(3);
+      expect(result[0].category).toBe(null); // 空文字列の場合
+      expect(result[1].category).toBe(null); // 空白のみの場合  
+      expect(result[2].category).toBe('食材'); // 明示的に指定されている場合
+    });
+
+    it('should NOT use metadata defaultCategory for empty category in edit mode', async () => {
+      // metadataにdefaultCategoryを設定
+      mockMetadataManager.getChannelMetadata.mockResolvedValue({
+        success: true,
+        metadata: {
+          channelId: 'channel789',
+          messageId: 'test-message-id',
+          listTitle: 'Test List',
+          listType: 'shopping',
+          lastSyncTime: new Date(),
+          defaultCategory: '日用品'
+        }
+      });
+
+      const csvText = '牛乳,\nパン,  \n卵,食材';
+      mockFields.getTextInputValue.mockReturnValue(csvText);
+      mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
+
+      // Clientのモックを追加
+      const mockClient = {
+        channels: {
+          fetch: vi.fn().mockResolvedValue({
+            name: 'test-channel'
+          })
+        }
+      };
+      mockInteraction.client = mockClient;
+
+      // ListFormatterをモックして、渡されたitemsを検証
+      const ListFormatterModule = await import('../../src/ui/ListFormatter');
+      const formatDataListSpy = vi.spyOn(ListFormatterModule.ListFormatter, 'formatDataList');
+
+      await handler['executeAction'](context);
+
+      // formatDataListに渡されたitemsとdefaultCategoryを検証
+      expect(formatDataListSpy).toHaveBeenCalled();
+      const [, items, defaultCategory] = formatDataListSpy.mock.calls[0];
+      
+      // defaultCategoryが正しく渡されていることを確認
+      expect(defaultCategory).toBe('日用品');
+      
+      // 編集時はカテゴリが空のアイテムはdefaultCategoryを使用しない
+      expect(items[0].category).toBe(null); // 空文字列の場合はnull
+      expect(items[1].category).toBe(null); // 空白のみの場合もnull  
+      expect(items[2].category).toBe('食材'); // 明示的に指定されている場合
     });
 
     it('should parse name-only CSV text', () => {
@@ -135,42 +232,37 @@ describe('EditListModalHandler', () => {
       expect(result).toHaveLength(3);
       expect(result[0]).toEqual(expect.objectContaining({
         name: 'テスト1',
-        quantity: null,
         category: null
       }));
       expect(result[1]).toEqual(expect.objectContaining({
         name: 'テスト2',
-        quantity: null,
         category: null
       }));
       expect(result[2]).toEqual(expect.objectContaining({
         name: 'テスト3',
-        quantity: null,
         category: null
       }));
     });
 
     it('should parse CSV with date field', () => {
-      const csvText = '牛乳,1本,食品,2024-12-31\nパン,2斤,食品';
+      const csvText = '牛乳,食品,2024-12-31\nパン,食品';
       const result = handler['parseCsvText'](csvText);
 
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual(expect.objectContaining({
         name: '牛乳',
-        quantity: '1本',
         category: '食品',
         until: new Date('2024-12-31')
       }));
       expect(result[1]).toEqual(expect.objectContaining({
         name: 'パン',
-        quantity: '2斤',
         category: '食品',
         until: null
       }));
     });
 
     it('should skip empty lines and comments', () => {
-      const csvText = '牛乳,1本,食品\n\n# コメント\n//別のコメント\nパン,2斤,食品';
+      const csvText = '牛乳,食品\n\n# コメント\n//別のコメント\nパン,食品';
       const result = handler['parseCsvText'](csvText);
 
       expect(result).toHaveLength(2);
@@ -179,7 +271,7 @@ describe('EditListModalHandler', () => {
     });
 
     it('should skip header lines', () => {
-      const csvText = '商品名,数量,カテゴリ\n牛乳,1本,食品\nパン,2斤,食品';
+      const csvText = '商品名,カテゴリ\n牛乳,食品\nパン,食品';
       const result = handler['parseCsvText'](csvText);
 
       expect(result).toHaveLength(2);
@@ -188,7 +280,7 @@ describe('EditListModalHandler', () => {
     });
 
     it('should skip example lines', () => {
-      const csvText = '例: 牛乳,1本,食品\n牛乳,1本,食品\nパン,2斤,食品';
+      const csvText = '例: 牛乳,食品\n牛乳,食品\nパン,食品';
       const result = handler['parseCsvText'](csvText);
 
       expect(result).toHaveLength(2);
@@ -197,7 +289,7 @@ describe('EditListModalHandler', () => {
     });
 
     it('should skip invalid format lines', () => {
-      const csvText = '牛乳,1本,食品\n\n,空の名前,食品\nパン,2斤,食品';
+      const csvText = '牛乳,食品\n\n,食品\nパン,食品';
       const result = handler['parseCsvText'](csvText);
 
       expect(result).toHaveLength(2);
@@ -210,21 +302,20 @@ describe('EditListModalHandler', () => {
     });
 
     it('should accept single field lines as valid', () => {
-      const csvText = '牛乳,1本,食品\n単一アイテム\nパン,2斤,食品';
+      const csvText = '牛乳,食品\n単一アイテム\nパン,食品';
       const result = handler['parseCsvText'](csvText);
 
       expect(result).toHaveLength(3);
       expect(result[0].name).toBe('牛乳');
       expect(result[1]).toEqual(expect.objectContaining({
         name: '単一アイテム',
-        quantity: null,
         category: null
       }));
       expect(result[2].name).toBe('パン');
     });
 
     it('should skip duplicate names', () => {
-      const csvText = '牛乳,1本,食品\n牛乳,2本,食品\nパン,2斤,食品';
+      const csvText = '牛乳,食品\n牛乳,食品\nパン,食品';
       const result = handler['parseCsvText'](csvText);
 
       expect(result).toHaveLength(2);
@@ -237,7 +328,7 @@ describe('EditListModalHandler', () => {
     });
 
     it('should handle parsing errors gracefully', () => {
-      const csvText = '牛乳,1本,食品\n無効なカテゴリ,1個,\nパン,2斤,食品';
+      const csvText = '牛乳,食品\n無効なカテゴリ,\nパン,食品';
       const result = handler['parseCsvText'](csvText);
 
       expect(result).toHaveLength(2);
@@ -248,14 +339,14 @@ describe('EditListModalHandler', () => {
 
   describe('isHeaderLine', () => {
     it('should detect header lines', () => {
-      expect(handler['isHeaderLine']('商品名,数量,カテゴリ')).toBe(true);
-      expect(handler['isHeaderLine']('name,quantity,category')).toBe(true);
-      expect(handler['isHeaderLine']('Name,Quantity,Category')).toBe(true);
+      expect(handler['isHeaderLine']('商品名,カテゴリ')).toBe(true);
+      expect(handler['isHeaderLine']('name,category')).toBe(true);
+      expect(handler['isHeaderLine']('Name,Category')).toBe(true);
     });
 
     it('should not detect data lines as headers', () => {
-      expect(handler['isHeaderLine']('牛乳,1本,食品')).toBe(false);
-      expect(handler['isHeaderLine']('パン,2斤,食品')).toBe(false);
+      expect(handler['isHeaderLine']('牛乳,食品')).toBe(false);
+      expect(handler['isHeaderLine']('パン,食品')).toBe(false);
     });
   });
 
@@ -264,9 +355,7 @@ describe('EditListModalHandler', () => {
       const items = [
         {
           name: '牛乳',
-          quantity: '1本',
           category: '食品' as any,
-          addedAt: new Date(),
           until: null
         }
       ];
@@ -278,9 +367,7 @@ describe('EditListModalHandler', () => {
       const items = [
         {
           name: 'ミニマルアイテム',
-          quantity: null,
           category: null,
-          addedAt: new Date(),
           until: null
         }
       ];
@@ -288,16 +375,14 @@ describe('EditListModalHandler', () => {
       expect(() => handler['validateItems'](items)).not.toThrow();
     });
 
-    it('should throw error for empty items', () => {
-      expect(() => handler['validateItems']([])).toThrow('有効なデータが見つかりません。正しい形式で入力してください。');
+    it('should pass validation for empty items (empty list is now allowed)', () => {
+      expect(() => handler['validateItems']([])).not.toThrow();
     });
 
     it('should throw error for too many items', () => {
       const items = Array.from({ length: 101 }, (_, i) => ({
         name: `商品${i}`,
-        quantity: '1個',
         category: '食品' as any,
-        addedAt: new Date(),
         until: null
       }));
 
@@ -310,16 +395,12 @@ describe('EditListModalHandler', () => {
       const items = [
         {
           name: '牛乳',
-          quantity: '1本',
           category: '食品' as any,
-          addedAt: new Date('2023-01-01T00:00:00.000Z'),
           until: null
         },
         {
           name: 'パン',
-          quantity: '2斤',
           category: '食品' as any,
-          addedAt: new Date('2023-01-02T00:00:00.000Z'),
           until: new Date('2023-01-10T00:00:00.000Z')
         }
       ];
@@ -327,9 +408,9 @@ describe('EditListModalHandler', () => {
       const result = handler['convertItemsToSheetData'](items);
 
       expect(result).toEqual([
-        ['name', 'quantity', 'category', 'added_at', 'until'],
-        ['牛乳', '1本', '食品', '2023-01-01T00:00:00.000Z', ''],
-        ['パン', '2斤', '食品', '2023-01-02T00:00:00.000Z', '2023-01-10T00:00:00.000Z']
+        ['name', 'category', 'until'],
+        ['牛乳', '食品', ''],
+        ['パン', '食品', '2023-01-10']
       ]);
     });
 
@@ -337,9 +418,7 @@ describe('EditListModalHandler', () => {
       const items = [
         {
           name: 'ミニマルアイテム',
-          quantity: null,
           category: null,
-          addedAt: new Date('2023-01-01T00:00:00.000Z'),
           until: null
         }
       ];
@@ -347,8 +426,25 @@ describe('EditListModalHandler', () => {
       const result = handler['convertItemsToSheetData'](items);
 
       expect(result).toEqual([
-        ['name', 'quantity', 'category', 'added_at', 'until'],
-        ['ミニマルアイテム', '', '', '2023-01-01T00:00:00.000Z', '']
+        ['name', 'category', 'until'],
+        ['ミニマルアイテム', '', '']
+      ]);
+    });
+
+    it('should convert date without timezone shift when saving to sheet', () => {
+      const items = [
+        {
+          name: 'テスト商品',
+          category: '食品' as any,
+          until: new Date('2025/07/24') // スプレッドシートから読み込まれた日付をシミュレート
+        }
+      ];
+
+      const result = handler['convertItemsToSheetData'](items);
+
+      expect(result).toEqual([
+        ['name', 'category', 'until'],
+        ['テスト商品', '食品', '2025-07-24'] // 1日前にならないことを確認
       ]);
     });
   });

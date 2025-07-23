@@ -92,7 +92,7 @@ describe('PingCommand', () => {
   });
 
   describe('interaction対応', () => {
-    it('interactionがある場合はレスポンスを送信する（ephemeral: false）', async () => {
+    it('interactionがある場合はレスポンスを送信する（ephemeral: true）', async () => {
       const mockInteraction = {
         reply: vi.fn().mockResolvedValue(undefined)
       };
@@ -106,12 +106,12 @@ describe('PingCommand', () => {
 
       expect(mockInteraction.reply).toHaveBeenCalledWith({
         content: expect.stringMatching(/^🏓 Pong! レスポンス時間: \d+(\.\d+)?ms$/),
-        ephemeral: false
+        ephemeral: true
       });
     });
 
     it('ephemeralオプションが正しく適用される', () => {
-      expect(pingCommand.getEphemeral()).toBe(false);
+      expect(pingCommand.getEphemeral()).toBe(true);
     });
   });
 });

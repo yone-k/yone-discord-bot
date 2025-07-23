@@ -7,6 +7,12 @@ interface CommandInfo {
   description: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface CommandWithClass extends CommandInfo {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  commandClass?: any;
+}
+
 export class CommandAutoDiscovery {
   private logger: Logger;
   private commandsDir: string;
@@ -17,18 +23,23 @@ export class CommandAutoDiscovery {
   }
 
   async discoverCommands(): Promise<CommandInfo[]> {
+    const commandsWithClass = await this.discoverCommandsWithClass();
+    return commandsWithClass.map(({ name, description }) => ({ name, description }));
+  }
+
+  async discoverCommandsWithClass(): Promise<CommandWithClass[]> {
     try {
       this.logger.debug(`Discovering commands in ${this.commandsDir}`);
       
       const commandFiles = await this.getCommandFiles();
-      const commands: CommandInfo[] = [];
+      const commands: CommandWithClass[] = [];
 
       for (const file of commandFiles) {
         try {
-          const command = await this.loadCommandInfoFromFile(file);
-          if (command) {
-            commands.push(command);
-            this.logger.debug(`Loaded command: ${command.name}`);
+          const commandData = await this.loadCommandFromFile(file);
+          if (commandData) {
+            commands.push(commandData);
+            this.logger.debug(`Loaded command: ${commandData.name}`);
           }
         } catch (error) {
           this.logger.warn(`Failed to load command from ${file}: ${error}`);
@@ -52,6 +63,37 @@ export class CommandAutoDiscovery {
     } catch {
       this.logger.warn(`Commands directory ${this.commandsDir} not found or inaccessible`);
       return [];
+    }
+  }
+
+  private async loadCommandFromFile(filePath: string): Promise<CommandWithClass | null> {
+    try {
+      // TypeScriptファイルを動的にインポート
+      const absolutePath = path.resolve(filePath);
+      const module = await import(absolutePath);
+      
+      // エクスポートされたクラスを探す
+      for (const exportName of Object.keys(module)) {
+        const ExportedClass = module[exportName];
+        
+        if (typeof ExportedClass === 'function') {
+          // 静的メソッドの存在を確認
+          if (typeof ExportedClass.getCommandName === 'function' && 
+              typeof ExportedClass.getCommandDescription === 'function') {
+            try {
+              const name = ExportedClass.getCommandName();
+              const description = ExportedClass.getCommandDescription();
+              return { name, description, commandClass: ExportedClass };
+            } catch (error) {
+              this.logger.debug(`Failed to get command info from ${exportName} in ${filePath}: ${error}`);
+            }
+          }
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      throw new Error(`Cannot load command from ${filePath}: ${error}`);
     }
   }
 

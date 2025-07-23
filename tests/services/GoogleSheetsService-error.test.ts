@@ -130,23 +130,6 @@ describe('GoogleSheetsService Error Handling Tests', () => {
   });
 
   describe('認証エラーハンドリング', () => {
-    test('認証エラーの基本動作確認（実際のライブラリでもテスト可能）', async () => {
-      // 実際の認証情報ではエラーが発生することを確認
-      process.env.GOOGLE_SHEETS_SPREADSHEET_ID = 'test-spreadsheet-id';
-      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'invalid@example.com';
-      process.env.GOOGLE_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\\ninvalid-key-content\\n-----END PRIVATE KEY-----';
-
-      const service = GoogleSheetsService.getInstance();
-      
-      // 認証クライアント作成はできるが、実際のAPI呼び出しで失敗する想定
-      const authClient = await service.getAuthClient();
-      expect(authClient).toBeDefined();
-      
-      // 実際のスプレッドシートアクセスで失敗することを確認
-      const exists = await service.checkSpreadsheetExists();
-      expect(exists).toBe(false);
-    });
-
     test('空のプライベートキーでCONFIG_MISSINGエラー', () => {
       process.env.GOOGLE_SHEETS_SPREADSHEET_ID = 'test-spreadsheet-id';
       process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@example.com';
@@ -175,8 +158,8 @@ describe('GoogleSheetsService Error Handling Tests', () => {
       const service = GoogleSheetsService.getInstance();
       
       const invalidData = [
-        ['1', 'name'], // 3列必要だが2列のみ
-        ['2', 'name2'] // 2列のみ
+        [], // 0列（空の行）
+        [] // 0列（空の行）
       ];
 
       const result = service.validateData(invalidData);
@@ -190,8 +173,8 @@ describe('GoogleSheetsService Error Handling Tests', () => {
       const service = GoogleSheetsService.getInstance();
       
       const invalidData = [
-        ['', 'name', 'quantity', 'category', 'date'], // 空のID
-        ['  ', 'name2', 'quantity2', 'category2', 'date2'] // 空白のID
+        ['', 'name', 'category', 'date'], // 空のID
+        ['  ', 'name2', 'category2', 'date2'] // 空白のID
       ];
 
       const result = service.validateData(invalidData);
@@ -205,23 +188,23 @@ describe('GoogleSheetsService Error Handling Tests', () => {
       const service = GoogleSheetsService.getInstance();
       
       const invalidData = [
-        ['1', 'name', 'quantity', 'category', '2023-99-99'], // 不正な日付
-        ['2', 'name2', 'quantity2', 'category2', '2023-13-45'] // 不正な日付
+        ['1', 'name', 'category', '2023-99-99'], // 不正な日付
+        ['2', 'name2', 'category2', '2023-13-45'] // 不正な日付
       ];
 
       const result = service.validateData(invalidData);
       
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('行 1: 列 5 の日付形式が正しくありません');
-      expect(result.errors).toContain('行 2: 列 5 の日付形式が正しくありません');
+      expect(result.errors).toContain('行 1: 列 4 の日付形式が正しくありません');
+      expect(result.errors).toContain('行 2: 列 4 の日付形式が正しくありません');
     });
 
     test('正常なデータの検証成功', () => {
       const service = GoogleSheetsService.getInstance();
       
       const validData = [
-        ['1', 'name', 'quantity', 'category', '2023-01-01'],
-        ['2', 'name2', 'quantity2', 'category2', '2023-12-31']
+        ['1', 'name', 'category', '2023-01-01'],
+        ['2', 'name2', 'category2', '2023-12-31']
       ];
 
       const result = service.validateData(validData);

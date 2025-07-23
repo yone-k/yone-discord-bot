@@ -10,6 +10,12 @@ interface BuildCommandsOptions {
   dryRun?: boolean
 }
 
+interface CommandWithOptions {
+  name: string;
+  description: string;
+  commandClass?: { getOptions?: (builder: SlashCommandBuilder) => SlashCommandBuilder };
+}
+
 class CommandBuilder {
   private rest?: REST;
   private config?: Config;
@@ -56,7 +62,7 @@ class CommandBuilder {
       this.logger.info('Starting command build and deployment process');
       
       // コマンドの自動検出
-      const commands = await this.discovery.discoverCommands();
+      const commands = await this.discovery.discoverCommandsWithClass();
       
       if (commands.length === 0) {
         this.logger.warn('No commands discovered. Deployment skipped.');
@@ -92,13 +98,17 @@ class CommandBuilder {
     }
   }
 
-  private buildSlashCommands(commands: { name: string; description: string }[]): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
+  private buildSlashCommands(commands: CommandWithOptions[]): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
     return commands.map(command => {
-      const builder = new SlashCommandBuilder()
+      let builder = new SlashCommandBuilder()
         .setName(command.name)
         .setDescription(command.description);
 
-      // 追加のオプションがある場合は後で拡張可能
+      // コマンドクラスがgetOptionsメソッドを持つ場合、オプションを追加
+      if (command.commandClass && typeof command.commandClass.getOptions === 'function') {
+        builder = command.commandClass.getOptions(builder);
+      }
+
       return builder.toJSON();
     });
   }

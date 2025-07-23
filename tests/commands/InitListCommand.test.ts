@@ -81,7 +81,10 @@ describe('InitListCommand', () => {
       guildId: 'test-guild-id',
       channelId: 'test-channel-id',
       channel: { name: 'test-channel' },
-      client: {}
+      client: {},
+      options: {
+        getString: vi.fn().mockReturnValue(null)
+      }
     };
     
     initListCommand = new InitListCommand(
@@ -366,6 +369,209 @@ describe('InitListCommand', () => {
     });
   });
 
+  describe('デフォルトカテゴリー処理テスト', () => {
+    it('default-category引数がある場合、指定されたカテゴリーを使用する', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      };
+
+      // default-category引数を設定
+      mockInteraction.options.getString.mockReturnValue('食材');
+
+      // 全依存関係の正常モック設定
+      mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true);
+      mockGoogleSheetsService.getSheetData.mockResolvedValue([]);
+      mockGoogleSheetsService.validateData.mockReturnValue({ isValid: true, errors: [] });
+      mockGoogleSheetsService.normalizeData.mockReturnValue([]);
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue({
+        existed: false,
+        created: true
+      });
+      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        message: { id: 'test-message-id' }
+      });
+
+      await initListCommand.execute(context);
+      
+      // createOrUpdateMessageWithMetadataが指定されたカテゴリーで呼ばれることを確認
+      expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+        'test-channel-id',
+        expect.any(Object), // embed
+        'test-channelリスト',
+        expect.any(Object), // client
+        'list',
+        '食材'
+      );
+    });
+
+    it('default-category引数がない場合で、既存のメタデータにデフォルトカテゴリーがある場合、それを保持する', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      };
+
+      // default-category引数なし
+      mockInteraction.options.getString.mockReturnValue(null);
+
+      // 既存メタデータにデフォルトカテゴリー設定
+      mockMetadataManager.getChannelMetadata.mockResolvedValue({
+        success: true,
+        metadata: {
+          channelId: 'test-channel-id',
+          messageId: 'test-message-id',
+          listTitle: 'Test List',
+          listType: 'shopping',
+          lastSyncTime: new Date(),
+          defaultCategory: '既存カテゴリー'
+        }
+      });
+
+      // 全依存関係の正常モック設定
+      mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true);
+      mockGoogleSheetsService.getSheetData.mockResolvedValue([]);
+      mockGoogleSheetsService.validateData.mockReturnValue({ isValid: true, errors: [] });
+      mockGoogleSheetsService.normalizeData.mockReturnValue([]);
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue({
+        existed: false,
+        created: true
+      });
+      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        message: { id: 'test-message-id' }
+      });
+
+      await initListCommand.execute(context);
+      
+      // createOrUpdateMessageWithMetadataが既存カテゴリーで呼ばれることを確認
+      expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+        'test-channel-id',
+        expect.any(Object), // embed
+        'test-channelリスト',
+        expect.any(Object), // client
+        'list',
+        '既存カテゴリー'
+      );
+    });
+
+    it('default-category引数がない場合で、既存のメタデータにデフォルトカテゴリーがない場合、「その他」を設定する', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      };
+
+      // default-category引数なし
+      mockInteraction.options.getString.mockReturnValue(null);
+
+      // 既存メタデータなし
+      mockMetadataManager.getChannelMetadata.mockResolvedValue({
+        success: false,
+        message: 'チャンネルのメタデータが見つかりません'
+      });
+
+      // 全依存関係の正常モック設定
+      mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true);
+      mockGoogleSheetsService.getSheetData.mockResolvedValue([]);
+      mockGoogleSheetsService.validateData.mockReturnValue({ isValid: true, errors: [] });
+      mockGoogleSheetsService.normalizeData.mockReturnValue([]);
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue({
+        existed: false,
+        created: true
+      });
+      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        message: { id: 'test-message-id' }
+      });
+
+      await initListCommand.execute(context);
+      
+      // createOrUpdateMessageWithMetadataが「その他」で呼ばれることを確認
+      expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+        'test-channel-id',
+        expect.any(Object), // embed
+        'test-channelリスト',
+        expect.any(Object), // client
+        'list',
+        'その他'
+      );
+    });
+  });
+
+  describe('カテゴリが空の場合のdefaultCategory処理', () => {
+    it('データのカテゴリが空の場合、metadataのdefaultCategoryが使用される', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      };
+
+      // カテゴリが空のデータを設定
+      const testData = [
+        ['name', 'category', 'added_at', 'until'], // ヘッダー行
+        ['牛乳', '', '2025-01-21'], // カテゴリが空
+        ['パン', '  ', '2025-01-21'], // カテゴリが空白のみ
+        ['卵', '食材', '2025-01-21'] // カテゴリあり
+      ];
+
+      // メタデータにdefaultCategoryを設定
+      mockMetadataManager.getChannelMetadata.mockResolvedValue({
+        success: true,
+        metadata: {
+          channelId: 'test-channel-id',
+          messageId: 'test-message-id',
+          listTitle: 'Test List',
+          listType: 'shopping',
+          lastSyncTime: new Date(),
+          defaultCategory: '日用品'
+        }
+      });
+
+      mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true);
+      mockGoogleSheetsService.getSheetData.mockResolvedValue(testData);
+      mockGoogleSheetsService.validateData.mockReturnValue({ isValid: true, errors: [] });
+      mockGoogleSheetsService.normalizeData.mockReturnValue(testData);
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue({
+        existed: false,
+        created: true
+      });
+      
+      // ListFormatterをモックして、渡されたitemsを検証
+      const ListFormatterModule = await import('../../src/ui/ListFormatter');
+      const formatDataListSpy = vi.spyOn(ListFormatterModule.ListFormatter, 'formatDataList');
+
+      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        message: { id: 'test-message-id' }
+      });
+
+      await initListCommand.execute(context);
+      
+      // formatDataListに渡されたitemsを検証
+      expect(formatDataListSpy).toHaveBeenCalled();
+      const [, items, defaultCategory] = formatDataListSpy.mock.calls[0];
+      
+      // defaultCategoryが正しく渡されていることを確認
+      expect(defaultCategory).toBe('日用品');
+      
+      // カテゴリが空のアイテムがdefaultCategoryを使用していることを確認
+      expect(items[0].category).toBe('日用品'); // 空文字列の場合
+      expect(items[1].category).toBe('日用品'); // 空白のみの場合
+      expect(items[2].category).toBe('食材'); // 明示的に指定されている場合
+    });
+  });
+
   describe('統合テスト', () => {
     it('完全な初期化フローが正常に動作する', async () => {
       const context: CommandExecutionContext = {
@@ -409,6 +615,46 @@ describe('InitListCommand', () => {
       );
       
       expect(loggerDebugSpy).toHaveBeenCalledWith('Init list command completed');
+    });
+
+    it('ボタンインタラクション（options undefined）でも正常に動作する', async () => {
+      // ボタンインタラクションをシミュレート（optionsがundefined）
+      const buttonInteraction = {
+        reply: vi.fn(),
+        deferReply: vi.fn(),
+        editReply: vi.fn(),
+        user: { id: 'test-user-id' },
+        guildId: 'test-guild-id',
+        channelId: 'test-channel-id',
+        channel: { name: 'test-channel' },
+        client: {},
+        options: undefined // 明示的にundefinedを設定
+      };
+
+      const context: CommandExecutionContext = {
+        interaction: buttonInteraction as any,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      };
+
+      // 全依存関係の正常モック設定
+      mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true);
+      mockGoogleSheetsService.getSheetData.mockResolvedValue([]);
+      mockGoogleSheetsService.validateData.mockReturnValue({ isValid: true, errors: [] });
+      mockGoogleSheetsService.normalizeData.mockReturnValue([]);
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue({
+        existed: false,
+        created: true
+      });
+      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        message: { id: 'test-message-id' }
+      });
+
+      // 修正後は正常に動作するはず（Green phase）
+      await expect(initListCommand.execute(context)).resolves.not.toThrow();
     });
   });
 });

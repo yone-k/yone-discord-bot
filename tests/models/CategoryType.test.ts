@@ -38,7 +38,7 @@ describe('CategoryType', () => {
     it('should return specific emoji for known categories', () => {
       expect(getCategoryEmoji('重要')).toBe('🔥');
       expect(getCategoryEmoji('通常')).toBe('📝');
-      expect(getCategoryEmoji('食品')).toBe('🍎');
+      expect(getCategoryEmoji('食料品')).toBe('🍎');
     });
 
     it('should return default emoji for unknown categories', () => {

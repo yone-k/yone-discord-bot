@@ -63,7 +63,7 @@ describe('InitList Command Execution Flow Tests', () => {
     
     // MessageManagerのモック
     mockMessageManager = {
-      createOrUpdateMessageWithMetadata: vi.fn().mockImplementation((channelId, embed, listTitle, _client) => {
+      createOrUpdateMessageWithMetadata: vi.fn().mockImplementation((channelId, embed, listTitle, _client, _commandName, _defaultCategory) => {
         console.log('[MOCK] createOrUpdateMessageWithMetadata called with:', {
           channelId, listTitle
         });
@@ -107,7 +107,13 @@ describe('InitList Command Execution Flow Tests', () => {
       guildId: 'test-guild-id',
       channelId: 'test-channel-id',
       channel: { name: 'test-channel-id' },
-      client: {}
+      client: {},
+      options: {
+        getString: vi.fn().mockImplementation((name) => {
+          console.log('[MOCK] options.getString called with:', name);
+          return null; // デフォルトカテゴリーの指定なし
+        })
+      }
     };
     
     initListCommand = new InitListCommand(

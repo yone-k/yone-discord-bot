@@ -7,7 +7,8 @@ import { MetadataManager } from '../services/MetadataManager';
 import { ListFormatter } from '../ui/ListFormatter';
 import { GoogleSheetsService } from '../services/GoogleSheetsService';
 import { ListItem } from '../models/ListItem';
-import { normalizeCategory } from '../models/CategoryType';
+import { normalizeCategory, validateCategory, DEFAULT_CATEGORY, CategoryType } from '../models/CategoryType';
+import { SlashCommandBuilder } from 'discord.js';
 
 export class InitListCommand extends BaseCommand {
   static getCommandName(): string {
@@ -16,6 +17,15 @@ export class InitListCommand extends BaseCommand {
 
   static getCommandDescription(): string {
     return 'リストの初期化を行います';
+  }
+
+  static getOptions(builder: SlashCommandBuilder): SlashCommandBuilder {
+    return builder
+      .addStringOption(option =>
+        option.setName('default-category')
+          .setDescription('デフォルトカテゴリーを設定します')
+          .setRequired(false)
+      ) as SlashCommandBuilder;
   }
 
   private channelSheetManager: ChannelSheetManager;
@@ -85,12 +95,45 @@ export class InitListCommand extends BaseCommand {
       userId: context.userId
     });
 
+    // オプションからデフォルトカテゴリーを取得（ボタンインタラクションの場合はoptionsが存在しない）
+    const defaultCategoryOption = context.interaction.options?.getString('default-category') || null;
+    let defaultCategory = DEFAULT_CATEGORY;
+    
+    if (defaultCategoryOption) {
+      // 引数がある場合：指定されたカテゴリーを使用
+      try {
+        defaultCategory = validateCategory(defaultCategoryOption);
+      } catch (error) {
+        throw new CommandError(
+          CommandErrorType.INVALID_PARAMETERS,
+          'init-list',
+          '無効なデフォルトカテゴリー',
+          error instanceof Error ? error.message : 'カテゴリーの検証に失敗しました。'
+        );
+      }
+    } else {
+      // 引数がない場合：既存メタデータから取得を試行
+      try {
+        const existingMetadata = await this.metadataManager.getChannelMetadata(context.channelId);
+        if (existingMetadata.success && existingMetadata.metadata?.defaultCategory) {
+          defaultCategory = existingMetadata.metadata.defaultCategory;
+        }
+        // 既存メタデータがない、またはdefaultCategoryが未設定の場合はDEFAULT_CATEGORYを使用（既に設定済み）
+      } catch (error) {
+        // メタデータ取得エラー時はDEFAULT_CATEGORYを使用（既に設定済み）
+        this.logger.warn('Failed to get existing metadata for default category', {
+          channelId: context.channelId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
     // チャンネルシートの準備
     await this.channelSheetManager.getOrCreateChannelSheet(context.channelId);
 
     // ステップ3: データ取得と検証
     const listData = await this.getAndValidateData(context.channelId);
-    const items = this.convertToListItems(listData);
+    const items = this.convertToListItems(listData, defaultCategory);
     
     this.logger.info('Data retrieved and converted', {
       channelId: context.channelId,
@@ -105,15 +148,16 @@ export class InitListCommand extends BaseCommand {
 
     // ステップ4: Embed形式変換と固定メッセージ処理
     const embed = items.length > 0 
-      ? await ListFormatter.formatDataList(listTitle, items)
-      : ListFormatter.formatEmptyList(listTitle);
+      ? await ListFormatter.formatDataList(listTitle, items, defaultCategory)
+      : ListFormatter.formatEmptyList(listTitle, undefined, defaultCategory);
 
     const messageResult = await this.messageManager.createOrUpdateMessageWithMetadata(
       context.channelId,
       embed,
       listTitle,
       context.interaction.client,
-      'list'
+      'list',
+      defaultCategory
     );
 
     if (!messageResult.success) {
@@ -215,7 +259,7 @@ export class InitListCommand extends BaseCommand {
     }
   }
 
-  private convertToListItems(data: string[][]): ListItem[] {
+  private convertToListItems(data: string[][], defaultCategory?: CategoryType): ListItem[] {
     const items: ListItem[] = [];
     const seenNames = new Set<string>();
     
@@ -224,7 +268,7 @@ export class InitListCommand extends BaseCommand {
     
     for (let i = startIndex; i < data.length; i++) {
       const row = data[i];
-      if (row.length >= 3 && row[0]) { // name必須、最低限のデータ（name, quantity, category）がある行のみ
+      if (row.length >= 1 && row[0]) { // name必須、最低限のデータ（name）がある行のみ
         try {
           const name = row[0].trim();
           
@@ -238,25 +282,24 @@ export class InitListCommand extends BaseCommand {
           }
           seenNames.add(name);
           
-          // added_at の安全な処理
-          let addedAt: Date | null = null;
-          if (row[3] && row[3].trim() !== '') {
-            const dateValue = new Date(row[3].trim());
-            addedAt = !isNaN(dateValue.getTime()) ? dateValue : null;
-          }
-
           // until の安全な処理
           let until: Date | null = null;
-          if (row[4] && row[4].trim() !== '') {
-            const dateValue = new Date(row[4].trim());
+          if (row.length > 2 && row[2] && row[2].trim() !== '') {
+            const dateValue = new Date(row[2].trim());
             until = !isNaN(dateValue.getTime()) ? dateValue : null;
+          }
+
+          // カテゴリの処理：空の場合はdefaultCategoryを使用
+          let category: CategoryType;
+          if (row.length > 1 && row[1] && row[1].trim() !== '') {
+            category = normalizeCategory(row[1]);
+          } else {
+            category = defaultCategory || DEFAULT_CATEGORY;
           }
 
           const item: ListItem = {
             name,
-            quantity: row[1]?.trim() || '',
-            category: normalizeCategory(row[2] || 'その他'),
-            addedAt,
+            category,
             until
           };
           
@@ -275,7 +318,7 @@ export class InitListCommand extends BaseCommand {
   }
 
   private isHeaderRow(row: string[]): boolean {
-    const headers = ['name', 'quantity', 'category', 'added_at', 'until'];
+    const headers = ['name', 'category', 'until'];
     return headers.some(header => 
       row.some(cell => cell.toLowerCase().includes(header))
     );

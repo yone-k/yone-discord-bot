@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, MockedFunction } from 'vitest';
-import { CommandAutoDiscovery } from '../../scripts/CommandAutoDiscovery';
+import { CommandAutoDiscovery } from '../../src/scripts/CommandAutoDiscovery';
 import { Logger, LogLevel } from '../../src/utils/logger';
 import { BaseCommand } from '../../src/base/BaseCommand';
 
@@ -32,20 +32,25 @@ describe('CommandAutoDiscovery', () => {
       expect(commands.length).toBeGreaterThan(0);
     });
 
-    it('検出されたコマンドがBaseCommandのインスタンスである', async () => {
-      const commands = await discovery.discoverCommands();
+    it('検出されたコマンドが正しい構造を持つ', async () => {
+      const commands = await discovery.discoverCommandsWithClass();
       
       commands.forEach(command => {
-        expect(command).toBeInstanceOf(BaseCommand);
+        expect(command).toHaveProperty('name');
+        expect(command).toHaveProperty('description');
+        expect(command).toHaveProperty('commandClass');
+        expect(typeof command.name).toBe('string');
+        expect(typeof command.description).toBe('string');
+        expect(typeof command.commandClass).toBe('function');
       });
     });
 
     it('PingCommandが検出される', async () => {
       const commands = await discovery.discoverCommands();
       
-      const pingCommand = commands.find(cmd => cmd.getName() === 'ping');
+      const pingCommand = commands.find(cmd => cmd.name === 'ping');
       expect(pingCommand).toBeDefined();
-      expect(pingCommand?.getDescription()).toContain('疎通確認');
+      expect(pingCommand?.description).toContain('疎通確認');
     });
   });
 

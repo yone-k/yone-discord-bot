@@ -1,9 +1,8 @@
 import 'dotenv/config';
 import { CommandAutoDiscovery } from './CommandAutoDiscovery';
-import { Logger, LogLevel } from '../src/utils/logger';
-import { Config, ConfigError } from '../src/utils/config';
+import { Logger, LogLevel } from '../utils/logger';
+import { Config, ConfigError } from '../utils/config';
 import { REST, Routes, SlashCommandBuilder, RESTPostAPIChatInputApplicationCommandsJSONBody } from 'discord.js';
-import { BaseCommand } from '../src/base/BaseCommand';
 
 interface BuildCommandsOptions {
   environment?: 'development' | 'production'
@@ -93,11 +92,11 @@ class CommandBuilder {
     }
   }
 
-  private buildSlashCommands(commands: BaseCommand[]): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
+  private buildSlashCommands(commands: { name: string; description: string }[]): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
     return commands.map(command => {
       const builder = new SlashCommandBuilder()
-        .setName(command.getName())
-        .setDescription(command.getDescription());
+        .setName(command.name)
+        .setDescription(command.description);
 
       // 追加のオプションがある場合は後で拡張可能
       return builder.toJSON();

@@ -2,6 +2,14 @@ import { BaseCommand, CommandExecutionContext } from '../base/BaseCommand';
 import { Logger } from '../utils/logger';
 
 export class PingCommand extends BaseCommand {
+  static getCommandName(): string {
+    return 'ping';
+  }
+
+  static getCommandDescription(): string {
+    return 'Bot の疎通確認を行います（レスポンス時間測定付き）';
+  }
+
   constructor(logger: Logger) {
     super('ping', 'Bot の疎通確認を行います（レスポンス時間測定付き）', logger);
     this.useThread = false;  // pingコマンドはスレッドを使用しない

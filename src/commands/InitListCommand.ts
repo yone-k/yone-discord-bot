@@ -10,6 +10,14 @@ import { ListItem } from '../models/ListItem';
 import { normalizeCategory } from '../models/CategoryType';
 
 export class InitListCommand extends BaseCommand {
+  static getCommandName(): string {
+    return 'init-list';
+  }
+
+  static getCommandDescription(): string {
+    return 'リストの初期化を行います';
+  }
+
   private channelSheetManager: ChannelSheetManager;
   private messageManager: MessageManager;
   private metadataManager: MetadataManager;

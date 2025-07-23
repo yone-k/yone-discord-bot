@@ -64,7 +64,7 @@ export class MessageManager {
   private metadataManager: MetadataManager;
   private buttonConfigManager: ButtonConfigManager;
   // チャンネル単位での並行処理制御用のロックMap
-  private readonly channelLocks = new Map<string, Promise<any>>(); // eslint-disable-line @typescript-eslint/no-explicit-any
+  private readonly channelLocks = new Map<string, Promise<unknown>>();
   private readonly lockTimeout = 30000; // 30秒のタイムアウト
 
   constructor() {

@@ -7,10 +7,8 @@ interface CommandInfo {
   description: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface CommandWithClass extends CommandInfo {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  commandClass?: any;
+  commandClass?: unknown;
 }
 
 export class CommandAutoDiscovery {

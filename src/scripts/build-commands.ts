@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { CommandAutoDiscovery } from './CommandAutoDiscovery';
+import { CommandAutoDiscovery, CommandWithClass } from './CommandAutoDiscovery';
 import { Logger, LogLevel } from '../utils/logger';
 import { Config, ConfigError } from '../utils/config';
 import { REST, Routes, SlashCommandBuilder, RESTPostAPIChatInputApplicationCommandsJSONBody } from 'discord.js';
@@ -70,7 +70,8 @@ class CommandBuilder {
       }
 
       // SlashCommandBuilderに変換
-      const slashCommands = this.buildSlashCommands(commands);
+      const commandsWithOptions = this.convertToCommandsWithOptions(commands);
+      const slashCommands = this.buildSlashCommands(commandsWithOptions);
       
       this.logger.info(`Built ${slashCommands.length} slash commands`);
 
@@ -96,6 +97,18 @@ class CommandBuilder {
       this.logger.error(`Command build and deployment failed: ${error}`);
       throw error;
     }
+  }
+
+  private convertToCommandsWithOptions(commands: CommandWithClass[]): CommandWithOptions[] {
+    return commands.map(command => ({
+      name: command.name,
+      description: command.description,
+      commandClass: command.commandClass && 
+        typeof command.commandClass === 'object' && 
+        'getOptions' in command.commandClass 
+        ? command.commandClass as { getOptions?: (builder: SlashCommandBuilder) => SlashCommandBuilder }
+        : undefined
+    }));
   }
 
   private buildSlashCommands(commands: CommandWithOptions[]): RESTPostAPIChatInputApplicationCommandsJSONBody[] {

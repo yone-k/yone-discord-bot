@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import { Server } from 'http';
 import { Client, GatewayIntentBits, Events, ChatInputCommandInteraction, MessageReaction, User } from 'discord.js';
 import { Config, ConfigError } from './utils/config';
 import { Logger, LogLevel } from './utils/logger';
@@ -22,7 +23,7 @@ class DiscordBot {
   private modalManager!: ModalManager;
   private buttonManager!: ButtonManager;
   private httpServer!: express.Application;
-  private server: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  private server: Server | null = null;
 
   constructor() {
     try {
@@ -315,7 +316,7 @@ class DiscordBot {
       // HTTPサーバーを停止
       if (this.server) {
         await new Promise<void>((resolve) => {
-          this.server.close(() => {
+          this.server!.close(() => {
             this.logger.info('Health check server stopped');
             resolve();
           });

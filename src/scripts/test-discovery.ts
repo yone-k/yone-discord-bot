@@ -1,5 +1,5 @@
 import { CommandAutoDiscovery } from './CommandAutoDiscovery';
-import { Logger, LogLevel } from '../src/utils/logger';
+import { Logger, LogLevel } from '../utils/logger';
 
 async function testDiscovery(): Promise<void> {
   console.log('=== Command Auto Discovery Test ===\n');
@@ -15,7 +15,7 @@ async function testDiscovery(): Promise<void> {
     console.log(`✅ Discovered ${commands.length} commands:\n`);
     
     commands.forEach((command, index) => {
-      console.log(`  ${index + 1}. ${command.getName()}: ${command.getDescription()}`);
+      console.log(`  ${index + 1}. ${command.name}: ${command.description}`);
     });
     
     // SlashCommand変換

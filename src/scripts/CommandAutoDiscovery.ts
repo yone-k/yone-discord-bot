@@ -1,7 +1,11 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { BaseCommand } from '../src/base/BaseCommand';
-import { Logger } from '../src/utils/logger';
+import { Logger } from '../utils/logger';
+
+interface CommandInfo {
+  name: string;
+  description: string;
+}
 
 export class CommandAutoDiscovery {
   private logger: Logger;
@@ -12,19 +16,19 @@ export class CommandAutoDiscovery {
     this.commandsDir = commandsDir;
   }
 
-  async discoverCommands(): Promise<BaseCommand[]> {
+  async discoverCommands(): Promise<CommandInfo[]> {
     try {
       this.logger.debug(`Discovering commands in ${this.commandsDir}`);
       
       const commandFiles = await this.getCommandFiles();
-      const commands: BaseCommand[] = [];
+      const commands: CommandInfo[] = [];
 
       for (const file of commandFiles) {
         try {
-          const command = await this.loadCommandFromFile(file);
+          const command = await this.loadCommandInfoFromFile(file);
           if (command) {
             commands.push(command);
-            this.logger.debug(`Loaded command: ${command.getName()}`);
+            this.logger.debug(`Loaded command: ${command.name}`);
           }
         } catch (error) {
           this.logger.warn(`Failed to load command from ${file}: ${error}`);
@@ -51,7 +55,7 @@ export class CommandAutoDiscovery {
     }
   }
 
-  private async loadCommandFromFile(filePath: string): Promise<BaseCommand | null> {
+  private async loadCommandInfoFromFile(filePath: string): Promise<CommandInfo | null> {
     try {
       // TypeScriptファイルを動的にインポート
       const absolutePath = path.resolve(filePath);
@@ -62,14 +66,16 @@ export class CommandAutoDiscovery {
         const ExportedClass = module[exportName];
         
         if (typeof ExportedClass === 'function') {
-          try {
-            // BaseCommandを継承しているかテスト
-            const instance = new ExportedClass(this.logger);
-            if (instance instanceof BaseCommand) {
-              return instance;
+          // 静的メソッドの存在を確認
+          if (typeof ExportedClass.getCommandName === 'function' && 
+              typeof ExportedClass.getCommandDescription === 'function') {
+            try {
+              const name = ExportedClass.getCommandName();
+              const description = ExportedClass.getCommandDescription();
+              return { name, description };
+            } catch (error) {
+              this.logger.debug(`Failed to get command info from ${exportName} in ${filePath}: ${error}`);
             }
-          } catch {
-            // インスタンス化に失敗した場合はスキップ
           }
         }
       }
@@ -80,14 +86,14 @@ export class CommandAutoDiscovery {
     }
   }
 
-  convertToSlashCommand(command: BaseCommand): { name: string; description: string } {
+  convertToSlashCommand(command: CommandInfo): { name: string; description: string } {
     return {
-      name: command.getName(),
-      description: command.getDescription()
+      name: command.name,
+      description: command.description
     };
   }
 
-  convertToSlashCommands(commands: BaseCommand[]): { name: string; description: string }[] {
+  convertToSlashCommands(commands: CommandInfo[]): { name: string; description: string }[] {
     return commands.map(command => this.convertToSlashCommand(command));
   }
 

@@ -1,7 +1,7 @@
 import 'dotenv/config';
-import { REST, Routes, SlashCommandBuilder } from 'discord.js';
-import { Config, ConfigError } from '../src/utils/config';
-import { Logger, LogLevel } from '../src/utils/logger';
+import { REST, Routes } from 'discord.js';
+import { Config, ConfigError } from '../utils/config';
+import { Logger, LogLevel } from '../utils/logger';
 
 class CommandDeployer {
   private rest: REST;
@@ -37,14 +37,7 @@ class CommandDeployer {
   }
 
   private getCommands(): object[] {
-    const commands = [
-      new SlashCommandBuilder()
-        .setName('ping')
-        .setDescription('Replies with Pong!')
-        .toJSON(),
-    ];
-
-    return commands;
+    return [];
   }
 
   public async deployToGuild(guildId: string): Promise<void> {

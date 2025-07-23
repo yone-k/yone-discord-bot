@@ -709,8 +709,8 @@ export class GoogleSheetsService {
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       
-      // 最低3列必要
-      if (row.length < 3) {
+      // 最低1列必要（nameカラム）
+      if (row.length < 1) {
         errors.push(`行 ${i + 1}: 必要な列数が不足しています`);
         continue;
       }

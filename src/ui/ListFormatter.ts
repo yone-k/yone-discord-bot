@@ -11,7 +11,7 @@ export class ListFormatter {
   /**
    * 空リスト用のEmbedを生成
    */
-  public static formatEmptyList(title: string, categories?: CategoryType[]): EmbedBuilder {
+  public static formatEmptyList(title: string, categories?: CategoryType[], defaultCategory?: CategoryType): EmbedBuilder {
     const embed = new EmbedBuilder()
       .setTitle(`📝 ${title}`)
       .setColor(this.EMBED_COLOR)
@@ -20,8 +20,15 @@ export class ListFormatter {
       })
       .setTimestamp();
 
-    // カテゴリが指定されていない場合はデフォルトカテゴリを表示
-    const displayCategories = categories && categories.length > 0 ? categories : [DEFAULT_CATEGORY];
+    // 優先順位: defaultCategory > categories > DEFAULT_CATEGORY
+    let displayCategories: CategoryType[];
+    if (defaultCategory) {
+      displayCategories = [defaultCategory];
+    } else if (categories && categories.length > 0) {
+      displayCategories = categories;
+    } else {
+      displayCategories = [DEFAULT_CATEGORY];
+    }
     
     displayCategories.forEach(category => {
       embed.addFields({
@@ -37,9 +44,9 @@ export class ListFormatter {
   /**
    * データありリスト用のEmbedを生成
    */
-  public static async formatDataList(title: string, items: ListItem[]): Promise<EmbedBuilder> {
+  public static async formatDataList(title: string, items: ListItem[], defaultCategory?: CategoryType): Promise<EmbedBuilder> {
     const template = await this.templateManager.loadTemplate('list');
-    const variables = this.buildTemplateVariables(title, items);
+    const variables = this.buildTemplateVariables(title, items, defaultCategory);
     const renderedContent = this.templateManager.renderTemplate(template, variables);
     return this.buildEmbedFromTemplate(renderedContent);
   }
@@ -47,11 +54,11 @@ export class ListFormatter {
   /**
    * アイテムをカテゴリー別にグルーピング
    */
-  private static groupItemsByCategory(items: ListItem[]): Record<CategoryType, ListItem[]> {
+  private static groupItemsByCategory(items: ListItem[], defaultCategory?: CategoryType): Record<CategoryType, ListItem[]> {
     const grouped: Record<CategoryType, ListItem[]> = {};
     
     items.forEach(item => {
-      const category = item.category || DEFAULT_CATEGORY;
+      const category = item.category || defaultCategory || DEFAULT_CATEGORY;
       if (!grouped[category]) {
         grouped[category] = [];
       }
@@ -78,9 +85,7 @@ export class ListFormatter {
     let displayedCount = 0;
 
     for (const item of items) {
-      const itemText = (!item.quantity || item.quantity === '' || item.quantity.trim() === '') 
-        ? `• ${item.name}\n`
-        : `• ${item.name} ${item.quantity}\n`;
+      const itemText = `• ${item.name}\n`;
       
       // 文字数制限チェック
       if (fieldValue.length + itemText.length > this.MAX_FIELD_LENGTH) {
@@ -108,23 +113,9 @@ export class ListFormatter {
   /**
    * 最新の更新時刻を取得
    */
-  private static getLatestUpdateTime(items: ListItem[]): string {
-    if (items.length === 0) {
-      return '未更新';
-    }
-
-    // addedAtがnullではないアイテムのみをフィルタリング
-    const datedItems = items.filter(item => item.addedAt !== null);
-    
-    if (datedItems.length === 0) {
-      return '未更新';
-    }
-
-    const latestDate = datedItems.reduce((latest, item) => {
-      return item.addedAt! > latest ? item.addedAt! : latest;
-    }, datedItems[0].addedAt!);
-
-    return latestDate.toLocaleString('ja-JP', {
+  private static getLatestUpdateTime(_items: ListItem[]): string {
+    // 現在の時刻を返す
+    return new Date().toLocaleString('ja-JP', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -136,8 +127,8 @@ export class ListFormatter {
   /**
    * テンプレート変数を構築
    */
-  private static buildTemplateVariables(title: string, items: ListItem[]): Record<string, string> {
-    const categorizedItems = this.groupItemsByCategory(items);
+  private static buildTemplateVariables(title: string, items: ListItem[], defaultCategory?: CategoryType): Record<string, string> {
+    const categorizedItems = this.groupItemsByCategory(items, defaultCategory);
     const categorySections = this.buildCategorySections(categorizedItems);
     
     return {
@@ -158,11 +149,6 @@ export class ListFormatter {
 
     return items.map(item => {
       let itemText = `• ${item.name}`;
-      
-      // 数量がある場合は追加
-      if (item.quantity && item.quantity.trim() !== '') {
-        itemText += ` ${item.quantity}`;
-      }
       
       // 期限がある場合は追加
       if (item.until) {
@@ -211,13 +197,13 @@ export class ListFormatter {
   /**
    * ListItemsをDiscord Embed形式のオブジェクトに変換
    */
-  public static formatToDiscordEmbed(items: ListItem[]): {
+  public static formatToDiscordEmbed(items: ListItem[], defaultCategory?: CategoryType): {
     title: string;
     fields: Array<{ name: string; value: string }>;
   } {
     const fields = items.map(item => ({
       name: item.name,
-      value: this.formatItemValue(item)
+      value: this.formatItemValue(item, defaultCategory)
     }));
 
     return {
@@ -229,13 +215,11 @@ export class ListFormatter {
   /**
    * アイテムの詳細情報をフォーマット
    */
-  private static formatItemValue(item: ListItem): string {
-    const quantity = `📦 数量: ${item.quantity || '未設定'}`;
-    const category = `📂 カテゴリ: ${item.category || DEFAULT_CATEGORY}`;
-    const date = item.addedAt ? `📅 追加日: ${this.formatDate(item.addedAt)}` : '📅 追加日: 未設定';
+  private static formatItemValue(item: ListItem, defaultCategory?: CategoryType): string {
+    const category = `📂 カテゴリ: ${item.category || defaultCategory || DEFAULT_CATEGORY}`;
     const until = item.until ? `⏰ 期限: ${this.formatDate(item.until)}` : '';
     
-    return until ? `${quantity}\n${category}\n${date}\n${until}` : `${quantity}\n${category}\n${date}`;
+    return until ? `${category}\n${until}` : category;
   }
 
   /**

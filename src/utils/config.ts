@@ -117,7 +117,7 @@ export class Config {
     return {
       spreadsheetId: spreadsheetId.trim(),
       serviceAccountEmail: serviceAccountEmail.trim(),
-      privateKey: privateKey
+      privateKey: privateKey.replace(/\\n/g, '\n')
     };
   }
 

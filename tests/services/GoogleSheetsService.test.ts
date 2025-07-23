@@ -22,7 +22,9 @@ vi.mock('googleapis', () => ({
 }));
 
 vi.mock('google-auth-library', () => ({
-  GoogleAuth: vi.fn().mockImplementation(() => ({}))
+  GoogleAuth: vi.fn().mockImplementation(() => ({
+    getClient: vi.fn().mockResolvedValue({})
+  }))
 }));
 
 describe('GoogleSheetsService', () => {
@@ -50,6 +52,11 @@ describe('GoogleSheetsService', () => {
     
     mockGoogleAuth = GoogleAuth as any;
     mockSheets = (google.sheets as any)().spreadsheets;
+
+    // GoogleAuthのモック設定
+    mockGoogleAuth.mockImplementation(() => ({
+      getClient: vi.fn().mockResolvedValue({})
+    }));
 
     // Google APIs のモック設定
     mockSheets.get.mockResolvedValue({
@@ -190,9 +197,24 @@ describe('GoogleSheetsService', () => {
       expect(result.isValid).toBe(true);
     });
 
+    it('1列のみのデータも有効として検証できる', () => {
+      const service = GoogleSheetsService.getInstance();
+      const validData = [['項目名']];
+      const result = service.validateData(validData);
+      expect(result.isValid).toBe(true);
+    });
+
     it('無効なデータを検出できる', () => {
       const service = GoogleSheetsService.getInstance();
       const invalidData = [['', '', 'invalid-date']];
+      const result = service.validateData(invalidData);
+      expect(result.isValid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it('空の行（0列）は無効として検出される', () => {
+      const service = GoogleSheetsService.getInstance();
+      const invalidData = [[]];
       const result = service.validateData(invalidData);
       expect(result.isValid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);

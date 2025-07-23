@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, ThreadChannel } from 'discord.js';
+import { ChatInputCommandInteraction, ThreadChannel, SlashCommandBuilder } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { CommandError, CommandErrorType } from '../utils/CommandError';
 
@@ -35,6 +35,16 @@ export abstract class BaseCommand {
   }
 
   abstract execute(context?: CommandExecutionContext): Promise<void>
+
+  /**
+   * コマンドのオプションを定義するメソッド
+   * サブクラスでオーバーライドして使用
+   * @param builder SlashCommandBuilderインスタンス
+   * @returns オプションが追加されたSlashCommandBuilder
+   */
+  static getOptions?(builder: SlashCommandBuilder): SlashCommandBuilder {
+    return builder;
+  }
 
   public async safeExecute(context?: CommandExecutionContext): Promise<CommandExecutionResult> {
     const startTime = performance.now();

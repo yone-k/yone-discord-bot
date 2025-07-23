@@ -2,6 +2,7 @@ import { EmbedBuilder, TextChannel, Message, ChannelType, Client, ActionRowBuild
 import { MetadataManager, MetadataOperationResult } from './MetadataManager';
 import { ChannelMetadata } from '../models/ChannelMetadata';
 import { ButtonConfigManager } from './ButtonConfigManager';
+import { DEFAULT_CATEGORY } from '../models/CategoryType';
 
 export enum MessageManagerErrorType {
   CHANNEL_NOT_FOUND = 'CHANNEL_NOT_FOUND',
@@ -350,7 +351,8 @@ export class MessageManager {
     channelId: string,
     messageId: string,
     listTitle: string,
-    existingMetadata?: ChannelMetadata
+    existingMetadata?: ChannelMetadata,
+    defaultCategory?: string
   ): Promise<MetadataOperationResult> {
     try {
       if (existingMetadata) {
@@ -359,7 +361,8 @@ export class MessageManager {
           ...existingMetadata,
           messageId,
           listTitle,
-          lastSyncTime: new Date()
+          lastSyncTime: new Date(),
+          ...(defaultCategory && { defaultCategory })
         };
         
         return await this.metadataManager.updateChannelMetadata(channelId, updatedMetadata);
@@ -369,7 +372,8 @@ export class MessageManager {
           channelId,
           messageId,
           listTitle,
-          lastSyncTime: new Date()
+          lastSyncTime: new Date(),
+          defaultCategory: defaultCategory || DEFAULT_CATEGORY
         };
         
         return await this.metadataManager.createChannelMetadata(channelId, newMetadata);
@@ -391,7 +395,8 @@ export class MessageManager {
     embed: EmbedBuilder,
     listTitle: string,
     client: Client,
-    commandName?: string
+    commandName?: string,
+    defaultCategory?: string
   ): Promise<MessageOperationResult> {
     return this.withChannelLock(channelId, async () => {
       try {
@@ -431,7 +436,8 @@ export class MessageManager {
           channelId,
           messageResult.message.id,
           listTitle,
-          metadataResult.success ? metadataResult.metadata : undefined
+          metadataResult.success ? metadataResult.metadata : undefined,
+          defaultCategory
         );
         
         if (!metadataUpdateResult.success) {

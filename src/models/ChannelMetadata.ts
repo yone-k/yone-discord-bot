@@ -1,20 +1,25 @@
+import { DEFAULT_CATEGORY } from './CategoryType';
+
 export interface ChannelMetadata {
   channelId: string;
   messageId: string;
   listTitle: string;
   lastSyncTime: Date;
+  defaultCategory: string;
 }
 
 export function createChannelMetadata(
   channelId: string,
   messageId: string,
-  listTitle: string
+  listTitle: string,
+  defaultCategory?: string
 ): ChannelMetadata {
   return {
     channelId,
     messageId,
     listTitle: listTitle.trim(),
-    lastSyncTime: new Date()
+    lastSyncTime: new Date(),
+    defaultCategory: defaultCategory || DEFAULT_CATEGORY
   };
 }
 

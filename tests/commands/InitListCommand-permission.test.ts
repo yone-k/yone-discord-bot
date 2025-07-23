@@ -82,7 +82,10 @@ describe('InitListCommand Permission Error Tests', () => {
         deferReply: vi.fn(),
         editReply: vi.fn(),
         reply: vi.fn(),
-        client: {} as any
+        client: {} as any,
+        options: {
+          getString: vi.fn().mockReturnValue(null)
+        }
       } as any
     };
   });

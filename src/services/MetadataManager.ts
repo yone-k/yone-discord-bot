@@ -1,5 +1,6 @@
 import { GoogleSheetsService, OperationResult } from './GoogleSheetsService';
 import { ChannelMetadata, validateChannelMetadata, updateSyncTime } from '../models/ChannelMetadata';
+import { DEFAULT_CATEGORY } from '../models/CategoryType';
 
 export enum MetadataManagerErrorType {
   SHEET_NOT_FOUND = 'SHEET_NOT_FOUND',
@@ -57,7 +58,7 @@ export interface MetadataOperationResult {
 export class MetadataManager {
   private googleSheetsService: GoogleSheetsService;
   private readonly METADATA_SHEET_NAME = 'metadata';
-  private readonly metadataHeaders = ['channel_id', 'message_id', 'list_title', 'last_sync_time'];
+  private readonly metadataHeaders = ['channel_id', 'message_id', 'list_title', 'last_sync_time', 'default_category'];
 
   constructor() {
     this.googleSheetsService = GoogleSheetsService.getInstance();
@@ -87,18 +88,40 @@ export class MetadataManager {
       }
       
       const firstRow = data[0];
-      if (firstRow.length !== this.metadataHeaders.length) {
+      
+      // 最低限必要なヘッダー（最初の4列）が存在することを確認
+      const requiredHeaders = ['channel_id', 'message_id', 'list_title', 'last_sync_time'];
+      if (firstRow.length < requiredHeaders.length) {
         return false;
       }
       
-      // ヘッダーの完全一致確認
-      for (let i = 0; i < this.metadataHeaders.length; i++) {
-        if (firstRow[i] !== this.metadataHeaders[i]) {
+      // 必須ヘッダーの一致確認
+      for (let i = 0; i < requiredHeaders.length; i++) {
+        if (firstRow[i] !== requiredHeaders[i]) {
           return false;
         }
       }
       
       return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * metadataシートのヘッダーが完全かチェック
+   */
+  public async isMetadataHeaderComplete(): Promise<boolean> {
+    try {
+      const data = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+      
+      if (data.length === 0) {
+        return false;
+      }
+      
+      const firstRow = data[0];
+      return firstRow.length === this.metadataHeaders.length &&
+             this.metadataHeaders.every((header, index) => firstRow[index] === header);
     } catch {
       return false;
     }
@@ -154,10 +177,11 @@ export class MetadataManager {
         }
       }
 
-      // ステップ2: ヘッダーの存在確認、なければ作成
+      // ステップ2: ヘッダーの存在確認
       const headerExists = await this.metadataHeaderExists();
       
       if (!headerExists) {
+        // ヘッダーが全く存在しない場合は新規作成
         const headerResult = await this.googleSheetsService.appendSheetData(
           this.METADATA_SHEET_NAME, 
           [this.metadataHeaders], 
@@ -169,6 +193,20 @@ export class MetadataManager {
             MetadataManagerErrorType.CREATION_FAILED,
             `Failed to create metadata headers: ${headerResult.message}`
           );
+        }
+      } else {
+        // ステップ3: ヘッダーが存在する場合、完全性をチェック
+        const isComplete = await this.isMetadataHeaderComplete();
+        
+        if (!isComplete) {
+          // ヘッダーが不完全な場合は更新
+          const updateResult = await this.updateMetadataHeaders();
+          if (!updateResult.success) {
+            throw new MetadataManagerError(
+              MetadataManagerErrorType.OPERATION_FAILED,
+              `Failed to update metadata headers: ${updateResult.message}`
+            );
+          }
         }
       }
 
@@ -210,7 +248,8 @@ export class MetadataManager {
             channelId: row[0],
             messageId: row[1] || '',
             listTitle: row[2] || '',
-            lastSyncTime: this.parseDate(row[3])
+            lastSyncTime: this.parseDate(row[3]),
+            defaultCategory: row[4] || DEFAULT_CATEGORY
           };
           
           return {
@@ -280,7 +319,8 @@ export class MetadataManager {
         updatedMetadata.channelId,
         updatedMetadata.messageId,
         updatedMetadata.listTitle,
-        this.formatDate(updatedMetadata.lastSyncTime)
+        this.formatDate(updatedMetadata.lastSyncTime),
+        updatedMetadata.defaultCategory
       ];
 
       // 特定行のみを更新（行番号は1-based、targetRowIndexは0-basedなので+1）
@@ -288,7 +328,7 @@ export class MetadataManager {
       const updateResult = await this.googleSheetsService.updateSheetData(
         this.METADATA_SHEET_NAME,
         [updateRow],
-        `A${rowNumber}:D${rowNumber}`
+        `A${rowNumber}:E${rowNumber}`
       );
       
       if (!updateResult.success) {
@@ -338,7 +378,8 @@ export class MetadataManager {
         newMetadata.channelId,
         newMetadata.messageId,
         newMetadata.listTitle,
-        this.formatDate(newMetadata.lastSyncTime)
+        this.formatDate(newMetadata.lastSyncTime),
+        newMetadata.defaultCategory
       ];
 
       // atomic操作でデータを追加（重複チェックと追加を同時実行）
@@ -410,7 +451,8 @@ export class MetadataManager {
         updatedMetadata.channelId,
         updatedMetadata.messageId,
         updatedMetadata.listTitle,
-        this.formatDate(updatedMetadata.lastSyncTime)
+        this.formatDate(updatedMetadata.lastSyncTime),
+        updatedMetadata.defaultCategory
       ];
 
       // 特定行のみを更新（行番号は1-based、targetRowIndexは0-basedなので+1）
@@ -418,7 +460,7 @@ export class MetadataManager {
       const updateResult = await this.googleSheetsService.updateSheetData(
         this.METADATA_SHEET_NAME,
         [updateRow],
-        `A${rowNumber}:D${rowNumber}`
+        `A${rowNumber}:E${rowNumber}`
       );
       
       if (!updateResult.success) {
@@ -454,6 +496,39 @@ export class MetadataManager {
     // この実装は簡素化されています。実際にはGoogle Sheets APIのclear機能を使用することが推奨されます。
   }
 
+
+  /**
+   * metadataシートのヘッダーを更新（既存データを保持）
+   */
+  private async updateMetadataHeaders(): Promise<OperationResult> {
+    try {
+      // 現在のシートデータを取得
+      const currentData = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+      
+      if (currentData.length === 0) {
+        // データが空の場合は新規作成
+        return await this.googleSheetsService.appendSheetData(
+          this.METADATA_SHEET_NAME,
+          [this.metadataHeaders],
+          true
+        );
+      }
+      
+      // 既存のヘッダー行を更新
+      const updateResult = await this.googleSheetsService.updateSheetData(
+        this.METADATA_SHEET_NAME,
+        [this.metadataHeaders],
+        'A1:E1'
+      );
+      
+      return updateResult;
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to update metadata headers: ${(error as Error).message}`
+      };
+    }
+  }
 
   /**
    * 日付文字列を解析

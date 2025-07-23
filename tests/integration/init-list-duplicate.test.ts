@@ -90,7 +90,10 @@ describe('InitList Command Duplicate Execution Tests', () => {
       guildId: 'test-guild-id',
       channelId: 'test-channel-id',
       channel: { name: 'test-channel-id' },
-      client: {}
+      client: {},
+      options: {
+        getString: vi.fn().mockReturnValue(null)
+      }
     };
     
     initListCommand = new InitListCommand(
@@ -185,7 +188,8 @@ describe('InitList Command Duplicate Execution Tests', () => {
         expect.any(Object), // embed
         'test-channel-idリスト', // channel name + リスト
         expect.any(Object), // client
-        'list' // commandName
+        'list', // commandName
+        'その他' // defaultCategory
       );
     });
 

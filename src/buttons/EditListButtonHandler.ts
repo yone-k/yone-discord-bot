@@ -33,12 +33,12 @@ export class EditListButtonHandler extends BaseButtonHandler {
 
     const textInput = new TextInputBuilder()
       .setCustomId('list-data')
-      .setLabel('リスト内容（商品名,数量,カテゴリ,期限 の形式）')
+      .setLabel('リスト内容（商品名,カテゴリ,期限 の形式）')
       .setStyle(TextInputStyle.Paragraph)
       .setValue(csvText)
-      .setPlaceholder('例: 牛乳,1本,食品,2024-12-31\nパン,2斤,食品\nシャンプー,1個,日用品,2024-06-30')
+      .setPlaceholder('例: 牛乳,食品,2024-12-31\nパン,食品\nシャンプー,日用品,2024-06-30')
       .setMaxLength(4000)
-      .setRequired(true);
+      .setRequired(false);
 
     const firstActionRow = new ActionRowBuilder<TextInputBuilder>()
       .addComponents(textInput);
@@ -58,7 +58,7 @@ export class EditListButtonHandler extends BaseButtonHandler {
     
     for (let i = startIndex; i < data.length; i++) {
       const row = data[i];
-      if (row.length >= 3 && row[0]) {
+      if (row.length >= 1 && row[0]) {
         try {
           const name = row[0].trim();
           
@@ -67,16 +67,13 @@ export class EditListButtonHandler extends BaseButtonHandler {
             continue;
           }
           
-          const quantity = row[1] || '';
-          const category = normalizeCategory(row[2] || '');
-          const addedAt = row[3] ? this.parseDate(row[3]) : new Date();
-          const until = row[4] ? this.parseDate(row[4]) : null;
+          // カテゴリの処理：空の場合は空文字列のまま保持
+          const category = row.length > 1 && row[1] && row[1].trim() !== '' ? normalizeCategory(row[1]) : '';
+          const until = row.length > 2 && row[2] ? this.parseDate(row[2]) : null;
 
           const item: ListItem = {
             name,
-            quantity,
             category,
-            addedAt,
             until
           };
 
@@ -96,7 +93,7 @@ export class EditListButtonHandler extends BaseButtonHandler {
   }
 
   private isHeaderRow(row: string[]): boolean {
-    const headers = ['name', 'quantity', 'category', 'added_at', 'until', '商品名', '数量', 'カテゴリ'];
+    const headers = ['name', 'category', 'until', '商品名', 'カテゴリ'];
     return row.some(cell => 
       headers.some(header => 
         cell && cell.toLowerCase().includes(header.toLowerCase())
@@ -115,19 +112,22 @@ export class EditListButtonHandler extends BaseButtonHandler {
 
   private convertToCsvText(items: ListItem[]): string {
     if (items.length === 0) {
-      return '商品名,数量,カテゴリ,期限\n例: 牛乳,1本,食品,2024-12-31';
+      return '商品名,カテゴリ,期限\n例: 牛乳,食品,2024-12-31';
     }
 
     return items.map(item => {
       const name = item.name;
-      const quantity = item.quantity || '';
       const category = item.category || '';
       const until = item.until ? this.formatDateForCsv(item.until) : '';
-      return `${name},${quantity},${category},${until}`;
+      return `${name},${category},${until}`;
     }).join('\n');
   }
 
   private formatDateForCsv(date: Date): string {
-    return date.toISOString().split('T')[0]; // YYYY-MM-DD形式
+    // タイムゾーンの影響を受けないよう、ローカルの年月日を直接使用
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }

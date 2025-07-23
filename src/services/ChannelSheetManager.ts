@@ -58,7 +58,7 @@ export interface DataOperationResult {
 
 export class ChannelSheetManager {
   private googleSheetsService: GoogleSheetsService;
-  private readonly defaultHeaders = ['name', 'quantity', 'category', 'added_at', 'until'];
+  private readonly defaultHeaders = ['name', 'category', 'until'];
 
   constructor() {
     this.googleSheetsService = GoogleSheetsService.getInstance();

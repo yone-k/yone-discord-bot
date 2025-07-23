@@ -3,24 +3,28 @@ import { Logger } from '../utils/logger';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import { GoogleSheetsService } from '../services/GoogleSheetsService';
 import { MessageManager } from '../services/MessageManager';
+import { MetadataManager } from '../services/MetadataManager';
 import { ListFormatter } from '../ui/ListFormatter';
 import { ListItem, createListItem, validateListItem } from '../models/ListItem';
-import { normalizeCategory } from '../models/CategoryType';
+import { normalizeCategory, CategoryType } from '../models/CategoryType';
 
 export class EditListModalHandler extends BaseModalHandler {
   private googleSheetsService: GoogleSheetsService;
   private messageManager: MessageManager;
+  private metadataManager: MetadataManager;
 
   constructor(
     logger: Logger, 
     googleSheetsService?: GoogleSheetsService,
-    messageManager?: MessageManager
+    messageManager?: MessageManager,
+    metadataManager?: MetadataManager
   ) {
     super('edit-list-modal', logger);
     this.deleteOnSuccess = true;
     this.ephemeral = false;
     this.googleSheetsService = googleSheetsService || GoogleSheetsService.getInstance();
     this.messageManager = messageManager || new MessageManager();
+    this.metadataManager = metadataManager || new MetadataManager();
   }
 
   protected async executeAction(context: ModalHandlerContext): Promise<void> {
@@ -32,7 +36,7 @@ export class EditListModalHandler extends BaseModalHandler {
     // モーダルからデータを取得
     const listDataText = context.interaction.fields.getTextInputValue('list-data');
     
-    // CSVテキストをListItemsに変換
+    // CSVテキストをListItemsに変換（編集時はdefaultCategoryを使用しない）
     const listItems = this.parseCsvText(listDataText);
     
     // データをバリデーション
@@ -88,9 +92,8 @@ export class EditListModalHandler extends BaseModalHandler {
         }
 
         const name = parts[0];
-        const quantity = parts.length > 1 && parts[1] ? parts[1] : null;
-        const categoryStr = parts.length > 2 && parts[2] ? parts[2] : null;
-        const untilStr = parts.length > 3 && parts[3] ? parts[3] : null;
+        const categoryStr = parts.length > 1 && parts[1] ? parts[1] : null;
+        const untilStr = parts.length > 2 && parts[2] ? parts[2] : null;
 
         if (!name || name.trim() === '') {
           this.logger.warn('Empty name found, skipping', { lineNumber: i + 1, line });
@@ -103,9 +106,16 @@ export class EditListModalHandler extends BaseModalHandler {
           continue;
         }
 
-        const category = categoryStr ? normalizeCategory(categoryStr) : null;
+        // カテゴリの処理：編集時は空の場合はnullのまま保持（defaultCategoryは使用しない）
+        let category: CategoryType | null;
+        if (categoryStr && categoryStr.trim() !== '') {
+          category = normalizeCategory(categoryStr);
+        } else {
+          category = null;
+        }
+
         const until = untilStr ? this.parseDate(untilStr) : null;
-        const item = createListItem(name, quantity, category, until);
+        const item = createListItem(name, category, until);
         
         validateListItem(item);
         
@@ -139,15 +149,12 @@ export class EditListModalHandler extends BaseModalHandler {
 
   private isHeaderLine(line: string): boolean {
     const lowerLine = line.toLowerCase();
-    const headerKeywords = ['商品名', 'name', '数量', 'quantity', 'カテゴリ', 'category'];
+    const headerKeywords = ['商品名', 'name', 'カテゴリ', 'category'];
     return headerKeywords.some(keyword => lowerLine.includes(keyword));
   }
 
   private validateItems(items: ListItem[]): void {
-    if (items.length === 0) {
-      throw new Error('有効なデータが見つかりません。正しい形式で入力してください。');
-    }
-
+    // 空のリストも許可する
     if (items.length > 100) {
       throw new Error('アイテム数が多すぎます（最大100件）。');
     }
@@ -172,21 +179,27 @@ export class EditListModalHandler extends BaseModalHandler {
     const data: string[][] = [];
     
     // ヘッダー行を追加
-    data.push(['name', 'quantity', 'category', 'added_at', 'until']);
+    data.push(['name', 'category', 'until']);
     
     // データ行を追加
     for (const item of items) {
       const row = [
         item.name,
-        item.quantity || '',
         item.category || '',
-        item.addedAt ? item.addedAt.toISOString() : '',
-        item.until ? item.until.toISOString() : ''
+        item.until ? this.formatDateForSheet(item.until) : ''
       ];
       data.push(row);
     }
 
     return data;
+  }
+
+  private formatDateForSheet(date: Date): string {
+    // タイムゾーンの影響を受けないよう、ローカルの年月日を直接使用
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private async updateDiscordMessage(channelId: string, items: ListItem[], client: Client): Promise<void> {
@@ -205,10 +218,24 @@ export class EditListModalHandler extends BaseModalHandler {
         });
       }
 
+      // metadataからdefaultCategoryを取得
+      let defaultCategory;
+      try {
+        const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+        if (metadataResult.success && metadataResult.metadata?.defaultCategory) {
+          defaultCategory = metadataResult.metadata.defaultCategory;
+        }
+      } catch (error) {
+        this.logger.warn('Failed to get metadata for defaultCategory', {
+          channelId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
       // Embedを作成
       const embed = items.length > 0 
-        ? await ListFormatter.formatDataList(listTitle, items)
-        : ListFormatter.formatEmptyList(listTitle);
+        ? await ListFormatter.formatDataList(listTitle, items, defaultCategory)
+        : ListFormatter.formatEmptyList(listTitle, undefined, defaultCategory);
 
       // MessageManagerを使用してメッセージを更新
       const messageResult = await this.messageManager.createOrUpdateMessageWithMetadata(

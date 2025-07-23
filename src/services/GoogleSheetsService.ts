@@ -333,23 +333,37 @@ export class GoogleSheetsService {
           ? sheetNameOrChannelId
           : this.getSheetNameForChannel(sheetNameOrChannelId);
       
-      const updateRange = range || `${sheetName}!A:Z`;
-      
-      // シート全体をクリア（削除された行を確実に除去するため）
-      await this.sheets.spreadsheets.values.clear({
-        spreadsheetId: this.config.spreadsheetId,
-        range: updateRange
-      });
+      // 範囲が指定されている場合はその範囲のみ更新
+      if (range) {
+        // 指定された範囲のみを更新（クリアせずに直接上書き）
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId: this.config.spreadsheetId,
+          range: range,
+          valueInputOption: 'RAW',
+          resource: {
+            values: data
+          }
+        });
+      } else {
+        // 範囲が指定されていない場合は従来通りシート全体を更新
+        const updateRange = `${sheetName}!A:Z`;
+        
+        // シート全体をクリア（削除された行を確実に除去するため）
+        await this.sheets.spreadsheets.values.clear({
+          spreadsheetId: this.config.spreadsheetId,
+          range: updateRange
+        });
 
-      // 新しいデータを書き込み
-      await this.sheets.spreadsheets.values.update({
-        spreadsheetId: this.config.spreadsheetId,
-        range: `${sheetName}!A1`,
-        valueInputOption: 'RAW',
-        resource: {
-          values: data
-        }
-      });
+        // 新しいデータを書き込み
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId: this.config.spreadsheetId,
+          range: `${sheetName}!A1`,
+          valueInputOption: 'RAW',
+          resource: {
+            values: data
+          }
+        });
+      }
 
       return { success: true };
     } catch (error) {

@@ -42,22 +42,6 @@ class CommandDeployer {
         .setName('ping')
         .setDescription('Replies with Pong!')
         .toJSON(),
-      
-      new SlashCommandBuilder()
-        .setName('echo')
-        .setDescription('Echoes your message')
-        .addStringOption(option =>
-          option
-            .setName('message')
-            .setDescription('The message to echo')
-            .setRequired(true)
-        )
-        .toJSON(),
-      
-      new SlashCommandBuilder()
-        .setName('info')
-        .setDescription('Shows bot information')
-        .toJSON()
     ];
 
     return commands;

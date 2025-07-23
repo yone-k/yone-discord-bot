@@ -1,24 +1,194 @@
-name: Deploy to GCE (Placeholder)
+name: Deploy to GCE
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-    # Manual deployment trigger
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCE_INSTANCE: discord-bot-instance
+  GCE_INSTANCE_ZONE: us-central1-a
+  IMAGE_NAME: discord-bot
+  ARTIFACT_REGISTRY_REGION: us-central1
+  ARTIFACT_REGISTRY_REPO: discord-bot-repo
 
 jobs:
-  placeholder-job:
-    name: Placeholder Deployment
+  build-and-deploy:
+    name: Build and Deploy
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      
-    - name: Placeholder step
-      run: |
-        echo "This is a placeholder deployment workflow"
-        echo "Current branch: ${{ github.ref }}"
-        echo "Commit SHA: ${{ github.sha }}"
-        echo "Deployment workflow will be implemented later"
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - id: 'auth'
+      name: 'Authenticate to Google Cloud'
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}'
+
+    - name: Setup Google Cloud CLI
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure Docker for Artifact Registry
+      run: |-
+        gcloud auth configure-docker $ARTIFACT_REGISTRY_REGION-docker.pkg.dev
+
+    - name: Create Artifact Registry repository
+      run: |-
+        gcloud artifacts repositories create $ARTIFACT_REGISTRY_REPO \
+          --repository-format=docker \
+          --location=$ARTIFACT_REGISTRY_REGION \
+          --description="Discord Bot Docker Repository" || echo "Repository already exists"
+
+    - name: Build Docker image
+      run: |-
+        docker build -t $ARTIFACT_REGISTRY_REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:latest .
+
+    - name: Push Docker image to Artifact Registry
+      run: |-
+        docker push $ARTIFACT_REGISTRY_REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:latest
+
+    - name: Deploy to GCE
+      run: |-
+        # Debug: Check if required secrets are set
+        echo "Checking required environment variables..."
+        if [ -z "${{ secrets.DISCORD_BOT_TOKEN }}" ]; then
+          echo "ERROR: DISCORD_BOT_TOKEN secret is not set"
+          exit 1
+        fi
+        if [ -z "${{ secrets.CLIENT_ID }}" ]; then
+          echo "ERROR: CLIENT_ID secret is not set"
+          exit 1
+        fi
+        if [ -z "${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}" ]; then
+          echo "ERROR: GOOGLE_SERVICE_ACCOUNT_EMAIL secret is not set"
+          exit 1
+        fi
+        if [ -z "${{ secrets.GOOGLE_PRIVATE_KEY }}" ]; then
+          echo "ERROR: GOOGLE_PRIVATE_KEY secret is not set"
+          exit 1
+        fi
+        if [ -z "${{ secrets.GOOGLE_SPREADSHEET_ID }}" ]; then
+          echo "ERROR: GOOGLE_SPREADSHEET_ID secret is not set"
+          exit 1
+        fi
+        echo "All required secrets are present"
+        
+        # Create metadata for environment variables
+        # Using individual metadata keys to avoid parsing issues
+        echo "Setting up environment variables as individual metadata..."
+        
+        # Base64 encode GOOGLE_PRIVATE_KEY to avoid special character issues
+        GOOGLE_PRIVATE_KEY_B64=$(echo -n "${{ secrets.GOOGLE_PRIVATE_KEY }}" | base64 -w 0)
+        echo "GOOGLE_PRIVATE_KEY encoded (length: ${#GOOGLE_PRIVATE_KEY_B64})"
+
+        # Generate startup script with current values
+        sed "s|{{PROJECT_ID}}|$PROJECT_ID|g; s|{{ARTIFACT_REGISTRY_REGION}}|$ARTIFACT_REGISTRY_REGION|g; s|{{ARTIFACT_REGISTRY_REPO}}|$ARTIFACT_REGISTRY_REPO|g; s|{{IMAGE_NAME}}|$IMAGE_NAME|g" gce-startup-script.sh > startup-script-temp.sh
+
+
+        # Check if GCE instance exists
+        if ! gcloud compute instances describe $GCE_INSTANCE --zone=$GCE_INSTANCE_ZONE > /dev/null 2>&1; then
+          echo "Creating new GCE instance..."
+          gcloud compute instances create $GCE_INSTANCE \
+            --zone=$GCE_INSTANCE_ZONE \
+            --machine-type=e2-micro \
+            --boot-disk-size=10GB \
+            --boot-disk-type=pd-standard \
+            --boot-disk-device-name=$GCE_INSTANCE \
+            --image-family=cos-stable \
+            --image-project=cos-cloud \
+            --tags=http-server,https-server,discord-bot \
+            --scopes=https://www.googleapis.com/auth/cloud-platform \
+            --metadata="env-DISCORD_BOT_TOKEN=${{ secrets.DISCORD_BOT_TOKEN }},env-CLIENT_ID=${{ secrets.CLIENT_ID }},env-NODE_ENV=production,env-GOOGLE_SERVICE_ACCOUNT_EMAIL=${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }},env-GOOGLE_PRIVATE_KEY_B64=$GOOGLE_PRIVATE_KEY_B64,env-GOOGLE_SHEETS_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }}" \
+            --metadata-from-file=startup-script=startup-script-temp.sh
+        else
+          echo "Updating existing instance metadata..."
+          # Remove existing env-* metadata keys
+          gcloud compute instances remove-metadata $GCE_INSTANCE \
+            --zone=$GCE_INSTANCE_ZONE \
+            --keys=env-DISCORD_BOT_TOKEN,env-CLIENT_ID,env-NODE_ENV,env-GOOGLE_SERVICE_ACCOUNT_EMAIL,env-GOOGLE_PRIVATE_KEY,env-GOOGLE_PRIVATE_KEY_B64,env-GOOGLE_SHEETS_SPREADSHEET_ID,env-vars || echo "No existing env metadata to remove"
+          
+          # Add new metadata with individual keys
+          gcloud compute instances add-metadata $GCE_INSTANCE \
+            --zone=$GCE_INSTANCE_ZONE \
+            --metadata="env-DISCORD_BOT_TOKEN=${{ secrets.DISCORD_BOT_TOKEN }},env-CLIENT_ID=${{ secrets.CLIENT_ID }},env-NODE_ENV=production,env-GOOGLE_SERVICE_ACCOUNT_EMAIL=${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }},env-GOOGLE_PRIVATE_KEY_B64=$GOOGLE_PRIVATE_KEY_B64,env-GOOGLE_SHEETS_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }}"
+          
+          # Update startup script separately
+          gcloud compute instances add-metadata $GCE_INSTANCE \
+            --zone=$GCE_INSTANCE_ZONE \
+            --metadata-from-file=startup-script=startup-script-temp.sh
+        fi
+
+        # Debug: Verify metadata was set correctly
+        echo "Verifying metadata was set on instance..."
+        echo "Checking individual environment variable metadata keys:"
+        
+        # Check each environment variable
+        for key in DISCORD_BOT_TOKEN CLIENT_ID NODE_ENV GOOGLE_SERVICE_ACCOUNT_EMAIL GOOGLE_PRIVATE_KEY_B64 GOOGLE_SHEETS_SPREADSHEET_ID; do
+          VALUE=$(gcloud compute instances describe $GCE_INSTANCE --zone=$GCE_INSTANCE_ZONE --format="get(metadata.items[key=env-$key].value)" 2>/dev/null || echo "")
+          if [ -n "$VALUE" ]; then
+            echo "✓ env-$key: Set (length: ${#VALUE})"
+          else
+            echo "✗ env-$key: NOT SET"
+          fi
+        done
+
+        # Clean up temporary file
+        rm startup-script-temp.sh
+
+    - name: Restart instance to deploy new version
+      run: |-
+        echo "Restarting instance to deploy new version..."
+        gcloud compute instances reset $GCE_INSTANCE --zone=$GCE_INSTANCE_ZONE
+
+    - name: Wait for deployment
+      run: |-
+        echo "Waiting for instance to be ready..."
+        sleep 10
+
+        # Get instance IP address
+        INSTANCE_IP=$(gcloud compute instances describe $GCE_INSTANCE --zone=$GCE_INSTANCE_ZONE --format="get(networkInterfaces[0].accessConfigs[0].natIP)")
+        
+        echo "Instance IP: $INSTANCE_IP"
+        echo "Starting health check loop..."
+
+        # Health check (HTTP only to avoid SSH key conflicts)
+        for i in {1..60}; do
+          echo "Health check attempt $i/60"
+          
+          # Try health check
+          echo "Testing health endpoint..."
+          HEALTH_RESPONSE=$(curl -s -w "HTTP_CODE:%{http_code}" "http://$INSTANCE_IP:3000/health" 2>/dev/null || echo "CURL_FAILED")
+          echo "Health response: $HEALTH_RESPONSE"
+          
+          if echo "$HEALTH_RESPONSE" | grep -q "HTTP_CODE:200"; then
+            echo "✅ Deployment successful!"
+            echo "Bot is running at: http://$INSTANCE_IP:3000"
+            echo "Health check: http://$INSTANCE_IP:3000/health"
+            exit 0
+          else
+            echo "Health check failed, retrying in 5 seconds... ($i/60)"
+            if [ $((i % 12)) -eq 0 ]; then
+              echo "📊 Progress: Completed $i/60 health checks"
+            fi
+            sleep 5
+          fi
+        done
+
+        echo "❌ Deployment failed - health check timeout after 5 minutes"
+        echo "Please check the instance manually:"
+        echo "gcloud compute ssh $GCE_INSTANCE --zone=$GCE_INSTANCE_ZONE"
+        echo "Then run: docker logs discord-bot"
+        exit 1

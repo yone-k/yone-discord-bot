@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import express from 'express';
 import { Client, GatewayIntentBits, Events, ChatInputCommandInteraction, MessageReaction, User } from 'discord.js';
 import { Config, ConfigError } from './utils/config';
 import { Logger, LogLevel } from './utils/logger';
@@ -20,6 +21,8 @@ class DiscordBot {
   private reactionManager!: ReactionManager;
   private modalManager!: ModalManager;
   private buttonManager!: ButtonManager;
+  private httpServer!: express.Application;
+  private server: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   constructor() {
     try {
@@ -39,6 +42,7 @@ class DiscordBot {
       this.registerCommands();
       this.registerReactionAndModalHandlers();
       this.setupEventHandlers();
+      this.setupHealthCheckServer();
     } catch (error) {
       console.error('Failed to initialize Discord Bot:', error);
       process.exit(1);
@@ -73,6 +77,28 @@ class DiscordBot {
       this.logger.error('Failed to register button handlers', { error });
       throw error;
     }
+  }
+
+  private setupHealthCheckServer(): void {
+    this.httpServer = express();
+    
+    this.httpServer.get('/health', (req, res) => {
+      const healthStatus = {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        bot: {
+          ready: this.client.isReady(),
+          guilds: this.client.guilds.cache.size
+        }
+      };
+      
+      res.status(200).json(healthStatus);
+    });
+
+    this.httpServer.get('/', (req, res) => {
+      res.status(200).json({ message: 'Discord Bot is running' });
+    });
   }
 
   private getLogLevelFromString(level: string): LogLevel {
@@ -259,6 +285,12 @@ class DiscordBot {
     try {
       this.logger.info('Starting Discord Bot...');
       
+      // HTTPサーバーを起動
+      const port = process.env.PORT || 3000;
+      this.server = this.httpServer.listen(port, () => {
+        this.logger.info(`Health check server started on port ${port}`);
+      });
+      
       const token = this.config.getDiscordToken();
       await this.client.login(token);
       
@@ -279,6 +311,16 @@ class DiscordBot {
       
       // シャットダウン前に統計情報を出力
       this.commandManager.logExecutionSummary();
+      
+      // HTTPサーバーを停止
+      if (this.server) {
+        await new Promise<void>((resolve) => {
+          this.server.close(() => {
+            this.logger.info('Health check server stopped');
+            resolve();
+          });
+        });
+      }
       
       this.client.destroy();
       

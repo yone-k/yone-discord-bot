@@ -142,6 +142,29 @@ export class InitListCommand extends BaseCommand {
       if (error instanceof CommandError) {
         throw error;
       }
+      
+      // GoogleSheetsErrorの場合は詳細なエラー情報を提供
+      if (error instanceof Error && error.name === 'GoogleSheetsError') {
+        const gsError = error as Error & { userMessage?: string };
+        throw new CommandError(
+          CommandErrorType.PERMISSION_DENIED,
+          'init-list',
+          `Sheet access verification error: ${error.message}`,
+          gsError.userMessage || 'スプレッドシートへのアクセス確認に失敗しました。'
+        );
+      }
+      
+      // OpenSSLエラーの場合は特別な処理
+      if (error instanceof Error && (error.message.includes('ERR_OSSL_UNSUPPORTED') || error.message.includes('DECODER routines'))) {
+        throw new CommandError(
+          CommandErrorType.PERMISSION_DENIED,
+          'init-list',
+          `Authentication key format error: ${error.message}`,
+          '認証キーの形式エラーが発生しました。\n' +
+          'サーバー管理者に環境変数GOOGLE_PRIVATE_KEYの設定を確認するよう依頼してください。'
+        );
+      }
+      
       throw new CommandError(
         CommandErrorType.PERMISSION_DENIED,
         'init-list',

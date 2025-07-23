@@ -12,19 +12,25 @@ interface BuildCommandsOptions {
 }
 
 class CommandBuilder {
-  private rest: REST;
-  private config: Config;
+  private rest?: REST;
+  private config?: Config;
   private logger: Logger;
   private discovery: CommandAutoDiscovery;
 
-  constructor() {
+  constructor(buildOnly = false) {
     try {
-      this.config = Config.getInstance();
-      this.logger = new Logger(this.getLogLevelFromString(this.config.getLogLevel()));
-      this.discovery = new CommandAutoDiscovery(this.logger);
-      
-      const token = this.config.getDiscordToken();
-      this.rest = new REST({ version: '10' }).setToken(token);
+      // ビルドのみの場合は最小限の初期化
+      if (buildOnly) {
+        this.logger = new Logger(LogLevel.INFO);
+        this.discovery = new CommandAutoDiscovery(this.logger);
+      } else {
+        this.config = Config.getInstance();
+        this.logger = new Logger(this.getLogLevelFromString(this.config.getLogLevel()));
+        this.discovery = new CommandAutoDiscovery(this.logger);
+        
+        const token = this.config.getDiscordToken();
+        this.rest = new REST({ version: '10' }).setToken(token);
+      }
     } catch (error) {
       console.error('Failed to initialize CommandBuilder:', error);
       process.exit(1);
@@ -63,11 +69,17 @@ class CommandBuilder {
       
       this.logger.info(`Built ${slashCommands.length} slash commands`);
 
-      if (options.dryRun) {
-        this.logger.info('Dry run mode - commands would be deployed:');
+      // ビルドのみモードまたはドライランモードの場合はデプロイをスキップ
+      if (options.dryRun || !this.config || !this.rest) {
+        if (options.dryRun) {
+          this.logger.info('Dry run mode - commands would be deployed:');
+        } else {
+          this.logger.info('Build-only mode - commands successfully built but not deployed:');
+        }
         slashCommands.forEach(cmd => {
           this.logger.info(`  - ${cmd.name}: ${cmd.description}`);
         });
+        this.logger.info('Command build completed successfully');
         return;
       }
 
@@ -93,6 +105,10 @@ class CommandBuilder {
   }
 
   private async deployCommands(commands: object[], options: BuildCommandsOptions): Promise<void> {
+    if (!this.config || !this.rest) {
+      throw new Error('Config and REST client are required for deployment');
+    }
+    
     const clientId = this.config.getClientId();
     
     if (options.environment === 'production') {
@@ -140,8 +156,19 @@ class CommandBuilder {
 
 async function main(): Promise<void> {
   try {
-    const builder = new CommandBuilder();
     const args = process.argv.slice(2);
+    
+    // ヘルプメッセージの表示（Configが不要）
+    if (args.includes('--help')) {
+      console.log('Usage: npm run build-commands [options]');
+      console.log('Options:');
+      console.log('  --production  Deploy commands globally');
+      console.log('  --force       Force rebuild even if no changes detected');
+      console.log('  --dry-run     Show what would be deployed without actually deploying');
+      console.log('  --check       Check for command changes without deploying');
+      console.log('  --help        Show this help message');
+      return;
+    }
     
     const options: BuildCommandsOptions = {
       environment: args.includes('--production') ? 'production' : 'development',
@@ -149,15 +176,11 @@ async function main(): Promise<void> {
       dryRun: args.includes('--dry-run')
     };
 
-    if (args.includes('--help')) {
-      console.log('Usage: npm run build-commands [options]');
-      console.log('Options:');
-      console.log('  --production  Deploy commands globally');
-      console.log('  --force       Force rebuild even if no changes detected');
-      console.log('  --dry-run     Show what would be deployed without actually deploying');
-      console.log('  --help        Show this help message');
-      return;
-    }
+    // ビルドのみか実際のデプロイが必要かを判定
+    const buildOnly = args.includes('--dry-run') || args.includes('--check') || 
+                     (!args.includes('--production') && !process.env.DISCORD_BOT_TOKEN);
+    
+    const builder = new CommandBuilder(buildOnly);
 
     if (args.includes('--check')) {
       const hasChanges = await builder.checkForUpdates();

@@ -335,9 +335,16 @@ export class GoogleSheetsService {
       
       const updateRange = range || `${sheetName}!A:Z`;
       
+      // シート全体をクリア（削除された行を確実に除去するため）
+      await this.sheets.spreadsheets.values.clear({
+        spreadsheetId: this.config.spreadsheetId,
+        range: updateRange
+      });
+
+      // 新しいデータを書き込み
       await this.sheets.spreadsheets.values.update({
         spreadsheetId: this.config.spreadsheetId,
-        range: updateRange,
+        range: `${sheetName}!A1`,
         valueInputOption: 'RAW',
         resource: {
           values: data

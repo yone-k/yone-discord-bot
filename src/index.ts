@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
-import { Client, GatewayIntentBits, Events, ChatInputCommandInteraction, MessageReaction, User } from 'discord.js';
+import { Server } from 'http';
+import { Client, GatewayIntentBits, Events, ChatInputCommandInteraction, MessageReaction, User, TextChannel } from 'discord.js';
 import { Config, ConfigError } from './utils/config';
 import { Logger, LogLevel } from './utils/logger';
 import { CommandManager } from './utils/CommandManager';
@@ -12,6 +13,8 @@ import { ButtonManager } from './services/ButtonManager';
 import { InitListButtonHandler } from './buttons/InitListButtonHandler';
 import { EditListButtonHandler } from './buttons/EditListButtonHandler';
 import { EditListModalHandler } from './modals/EditListModalHandler';
+import { ConfirmationModalHandler, ConfirmationCallback } from './modals/ConfirmationModalHandler';
+import { DeleteAllMessageLogic } from './services/DeleteAllMessageLogic';
 
 class DiscordBot {
   private client: Client;
@@ -22,7 +25,7 @@ class DiscordBot {
   private modalManager!: ModalManager;
   private buttonManager!: ButtonManager;
   private httpServer!: express.Application;
-  private server: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  private server: Server | null = null;
 
   constructor() {
     try {
@@ -67,10 +70,31 @@ class DiscordBot {
       const initListButtonHandler = new InitListButtonHandler(this.logger);
       const editListButtonHandler = new EditListButtonHandler(this.logger);
       const editListModalHandler = new EditListModalHandler(this.logger);
+      
+      // DeleteAllMessageLogicのコールバック関数を作成
+      const deleteAllMessageLogic = new DeleteAllMessageLogic(this.logger);
+      const deleteAllMessageCallback: ConfirmationCallback = async (context) => {
+        const { interaction } = context;
+        
+        if (!interaction.guild || !interaction.channel) {
+          throw new Error('このコマンドはサーバー内でのみ使用できます。');
+        }
+
+        // メンバーの権限をチェック
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        await deleteAllMessageLogic.checkPermissions(member);
+
+        // メッセージを削除
+        const result = await deleteAllMessageLogic.deleteAllMessages(interaction.channel as TextChannel, interaction.user.id);
+        return `✅ ${result.message}`;
+      };
+
+      const confirmationModalHandler = new ConfirmationModalHandler(this.logger, deleteAllMessageCallback, false);
 
       this.buttonManager.registerHandler(initListButtonHandler);
       this.buttonManager.registerHandler(editListButtonHandler);
       this.modalManager.registerHandler(editListModalHandler);
+      this.modalManager.registerHandler(confirmationModalHandler);
 
       this.logger.info('Button and modal handlers registered successfully');
     } catch (error) {
@@ -315,7 +339,7 @@ class DiscordBot {
       // HTTPサーバーを停止
       if (this.server) {
         await new Promise<void>((resolve) => {
-          this.server.close(() => {
+          this.server!.close(() => {
             this.logger.info('Health check server stopped');
             resolve();
           });

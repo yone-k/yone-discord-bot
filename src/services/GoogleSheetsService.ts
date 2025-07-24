@@ -1,6 +1,6 @@
 import { google, sheets_v4 } from 'googleapis';
 import { GoogleAuth } from 'google-auth-library';
-import { Config } from '../utils/config';
+import { Config, GoogleSheetsConfig } from '../utils/config';
 import { normalizeCategory } from '../models/CategoryType';
 
 export enum GoogleSheetsErrorType {
@@ -78,7 +78,7 @@ export class GoogleSheetsService {
   private static instance: GoogleSheetsService;
   private auth: GoogleAuth | null = null;
   private sheets: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
-  private config: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  private config!: GoogleSheetsConfig;
   private readonly maxRetries = 3;
   private readonly retryDelay = 1000;
   
@@ -88,14 +88,16 @@ export class GoogleSheetsService {
 
   private constructor() {
     const configInstance = Config.getInstance();
-    this.config = configInstance.getGoogleSheetsConfig();
+    const config = configInstance.getGoogleSheetsConfig();
     
-    if (!this.config) {
+    if (!config) {
       throw new GoogleSheetsError(
         GoogleSheetsErrorType.CONFIG_MISSING,
         'Google Sheets configuration is missing'
       );
     }
+    
+    this.config = config;
   }
 
   public static getInstance(): GoogleSheetsService {
@@ -133,7 +135,13 @@ export class GoogleSheetsService {
       this.sheets = google.sheets({ version: 'v4', auth: this.auth });
       return this.auth;
     } catch (error) {
-      const err = error as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      const err = error as unknown;
+      const errorMessage = err && typeof err === 'object' && 'message' in err ? (err as Error).message : 'Unknown error';
+      const errorCode = err && typeof err === 'object' && 'code' in err ? (err as { code: unknown }).code : undefined;
+      const errorStack = err && typeof err === 'object' && 'stack' in err ? (err as Error).stack : undefined;
+      const errorDetails = err && typeof err === 'object' && 'details' in err ? (err as { details: unknown }).details : undefined;
+      const errorType = err && typeof err === 'object' && 'constructor' in err ? (err as { constructor: { name: string } }).constructor.name : 'Unknown';
+      
       console.error('Google Sheets authentication error details:', {
         hasServiceAccountEmail: !!this.config.serviceAccountEmail,
         serviceAccountEmailLength: this.config.serviceAccountEmail?.length || 0,
@@ -142,15 +150,15 @@ export class GoogleSheetsService {
         privateKeyLength: this.config.privateKey?.length || 0,
         privateKeyStart: this.config.privateKey?.substring(0, 100) || 'null',
         privateKeyEnd: this.config.privateKey?.substring(this.config.privateKey.length - 100) || 'null',
-        errorMessage: err.message,
-        errorCode: err.code,
-        errorStack: err.stack,
-        errorDetails: err.details || 'No details',
-        errorType: err.constructor.name
+        errorMessage,
+        errorCode,
+        errorStack,
+        errorDetails: errorDetails || 'No details',
+        errorType
       });
       
       // OpenSSLエラーの場合は特別な処理
-      if (err.code === 'ERR_OSSL_UNSUPPORTED' || err.message.includes('DECODER routines')) {
+      if (errorCode === 'ERR_OSSL_UNSUPPORTED' || errorMessage.includes('DECODER routines')) {
         console.error('OpenSSL error detected. This usually means the private key format is incorrect.');
         console.error('Common causes:');
         console.error('1. Private key is not properly formatted (missing headers/footers)');
@@ -187,18 +195,24 @@ export class GoogleSheetsService {
       });
       return !!response.data;
     } catch (error) {
-      const err = error as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      const err = error as unknown;
+      const errorMessage = err && typeof err === 'object' && 'message' in err ? (err as Error).message : 'Unknown error';
+      const errorCode = err && typeof err === 'object' && 'code' in err ? (err as { code: unknown }).code : undefined;
+      const errorStatus = err && typeof err === 'object' && 'status' in err ? (err as { status: unknown }).status : undefined;
+      const errorType = err && typeof err === 'object' && 'constructor' in err ? (err as { constructor: { name: string } }).constructor.name : 'Unknown';
+      const errorStack = err && typeof err === 'object' && 'stack' in err ? (err as Error).stack : undefined;
+      
       console.error('Spreadsheet access failed:', {
         spreadsheetId: this.config.spreadsheetId,
-        errorMessage: err.message,
-        errorCode: err.code || 'unknown',
-        errorStatus: err.status || 'unknown',
-        errorType: err.constructor.name,
-        errorStack: err.stack
+        errorMessage,
+        errorCode: errorCode || 'unknown',
+        errorStatus: errorStatus || 'unknown',
+        errorType,
+        errorStack
       });
       
       // 認証エラーの場合は再スロー
-      if (err.code === 'ERR_OSSL_UNSUPPORTED' || err.message.includes('DECODER routines')) {
+      if (errorCode === 'ERR_OSSL_UNSUPPORTED' || errorMessage.includes('DECODER routines')) {
         throw error;
       }
       
@@ -885,10 +899,13 @@ export class GoogleSheetsService {
         return await operation();
       } catch (error) {
         lastError = error as Error;
-        const statusCode = (error as any).code || (error as any).status; // eslint-disable-line @typescript-eslint/no-explicit-any
+        const err = error as unknown;
+        const statusCode = (err && typeof err === 'object' && ('code' in err || 'status' in err))
+          ? ((err as { code?: unknown }).code || (err as { status?: unknown }).status)
+          : undefined;
         
         // リトライ可能なエラーかチェック
-        if (this.isRetryableError(statusCode) && attempt < this.maxRetries - 1) {
+        if (typeof statusCode === 'number' && this.isRetryableError(statusCode) && attempt < this.maxRetries - 1) {
           const delay = this.retryDelay * Math.pow(2, attempt); // 指数バックオフ
           await this.sleep(delay);
           continue;

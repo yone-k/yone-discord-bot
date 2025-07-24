@@ -1,5 +1,5 @@
 export const templates = {
-  list: `# {list_title}
+  list: `## {list_title}
 
 {category_sections}
 

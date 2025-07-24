@@ -26,7 +26,7 @@ export class ListFormatter {
     // 空リスト用のカテゴリセクションを生成
     const categorySections = displayCategories.map(category => {
       const emoji = getCategoryEmoji(category);
-      return `## ${emoji} ${category}\nまだアイテムがありません`;
+      return `### ${emoji} ${category}\nまだアイテムがありません`;
     }).join('\n\n');
 
     const template = await this.templateManager.loadTemplate('list');
@@ -180,7 +180,7 @@ export class ListFormatter {
       const emoji = getCategoryEmoji(category);
       const formattedItems = this.formatCategoryItems(items);
       
-      sections.push(`## ${emoji} ${category}\n${formattedItems}`);
+      sections.push(`### ${emoji} ${category}\n${formattedItems}`);
     });
     
     return sections.join('\n\n');

@@ -89,12 +89,20 @@ describe('RegisterButtons', () => {
       expect(editListHandler?.constructor.name).toBe('EditListButtonHandler');
     });
 
+    it('AddListButtonHandlerが正しく登録される', () => {
+      registerAllButtons(buttonManager, logger);
+      
+      const addListHandler = buttonManager.getHandlerByCustomId('add-list-button');
+      expect(addListHandler).toBeDefined();
+      expect(addListHandler?.constructor.name).toBe('AddListButtonHandler');
+    });
+
     it('登録されるハンドラー数が期待する値と一致する', () => {
       registerAllButtons(buttonManager, logger);
       
       const registeredHandlers = buttonManager.getRegisteredHandlers();
-      // 現在のボタンハンドラー数: InitListButtonHandler, EditListButtonHandler
-      expect(registeredHandlers).toHaveLength(2);
+      // 現在のボタンハンドラー数: InitListButtonHandler, EditListButtonHandler, AddListButtonHandler
+      expect(registeredHandlers).toHaveLength(3);
     });
   });
 });

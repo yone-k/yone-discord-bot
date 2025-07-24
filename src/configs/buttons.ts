@@ -30,12 +30,12 @@ export const buttonSettings: ButtonSettings = {
       enabled: true,
       buttons: [
         {
-          customId: 'init-list-button',
-          label: '同期',
-          style: ButtonStyle.Primary,
-          emoji: '🔄',
-          description: 'リスト更新・再初期化',
-          handler: 'InitListButtonHandler'
+          customId: 'add-list-button',
+          label: '追加',
+          style: ButtonStyle.Success,
+          emoji: '➕',
+          description: 'リストに項目を追加',
+          handler: 'AddListButtonHandler'
         },
         {
           customId: 'edit-list-button',
@@ -44,6 +44,14 @@ export const buttonSettings: ButtonSettings = {
           emoji: '📝',
           description: 'リスト編集',
           handler: 'EditListButtonHandler'
+        },
+        {
+          customId: 'init-list-button',
+          label: '同期',
+          style: ButtonStyle.Primary,
+          emoji: '🔄',
+          description: 'リスト更新・再初期化',
+          handler: 'InitListButtonHandler'
         }
       ]
     },

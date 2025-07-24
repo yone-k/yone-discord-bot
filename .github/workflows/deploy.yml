@@ -54,10 +54,14 @@ jobs:
 
     - name: Build Docker image
       run: |-
+        IMAGE_TAG="${GITHUB_SHA:0:8}"
+        docker build -t $ARTIFACT_REGISTRY_REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:$IMAGE_TAG .
         docker build -t $ARTIFACT_REGISTRY_REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:latest .
 
     - name: Push Docker image to Artifact Registry
       run: |-
+        IMAGE_TAG="${GITHUB_SHA:0:8}"
+        docker push $ARTIFACT_REGISTRY_REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:$IMAGE_TAG
         docker push $ARTIFACT_REGISTRY_REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:latest
 
     - name: Deploy to GCE
@@ -95,7 +99,8 @@ jobs:
         echo "GOOGLE_PRIVATE_KEY encoded (length: ${#GOOGLE_PRIVATE_KEY_B64})"
 
         # Generate startup script with current values
-        sed "s|{{PROJECT_ID}}|$PROJECT_ID|g; s|{{ARTIFACT_REGISTRY_REGION}}|$ARTIFACT_REGISTRY_REGION|g; s|{{ARTIFACT_REGISTRY_REPO}}|$ARTIFACT_REGISTRY_REPO|g; s|{{IMAGE_NAME}}|$IMAGE_NAME|g" gce-startup-script.sh > startup-script-temp.sh
+        IMAGE_TAG="${GITHUB_SHA:0:8}"
+        sed "s|{{PROJECT_ID}}|$PROJECT_ID|g; s|{{ARTIFACT_REGISTRY_REGION}}|$ARTIFACT_REGISTRY_REGION|g; s|{{ARTIFACT_REGISTRY_REPO}}|$ARTIFACT_REGISTRY_REPO|g; s|{{IMAGE_NAME}}|$IMAGE_NAME|g; s|{{IMAGE_TAG}}|$IMAGE_TAG|g" gce-startup-script.sh > startup-script-temp.sh
 
 
         # Check if GCE instance exists

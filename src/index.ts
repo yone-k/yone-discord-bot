@@ -13,6 +13,7 @@ import { ButtonManager } from './services/ButtonManager';
 import { InitListButtonHandler } from './buttons/InitListButtonHandler';
 import { EditListButtonHandler } from './buttons/EditListButtonHandler';
 import { EditListModalHandler } from './modals/EditListModalHandler';
+import { AddListModalHandler } from './modals/AddListModalHandler';
 import { ConfirmationModalHandler, ConfirmationCallback } from './modals/ConfirmationModalHandler';
 import { DeleteAllMessageLogic } from './services/DeleteAllMessageLogic';
 
@@ -70,6 +71,7 @@ class DiscordBot {
       const initListButtonHandler = new InitListButtonHandler(this.logger);
       const editListButtonHandler = new EditListButtonHandler(this.logger);
       const editListModalHandler = new EditListModalHandler(this.logger);
+      const addListModalHandler = new AddListModalHandler(this.logger);
       
       // DeleteAllMessageLogicのコールバック関数を作成
       const deleteAllMessageLogic = new DeleteAllMessageLogic(this.logger);
@@ -94,6 +96,7 @@ class DiscordBot {
       this.buttonManager.registerHandler(initListButtonHandler);
       this.buttonManager.registerHandler(editListButtonHandler);
       this.modalManager.registerHandler(editListModalHandler);
+      this.modalManager.registerHandler(addListModalHandler);
       this.modalManager.registerHandler(confirmationModalHandler);
 
       this.logger.info('Button and modal handlers registered successfully');

@@ -30,6 +30,43 @@ ACCESS_TOKEN=$(curl -s -H "Metadata-Flavor: Google" "$SVC_ACCT/token" | cut -d'"
 # Login to Artifact Registry using OAuth2 access token
 echo $ACCESS_TOKEN | docker login -u oauth2accesstoken --password-stdin https://$ARTIFACT_REGISTRY_REGION-docker.pkg.dev
 
+echo "Checking disk usage and cleaning up Docker resources..."
+
+# Check disk usage before cleanup
+echo "Disk usage before cleanup:"
+df -h /
+echo "Docker system usage:"
+docker system df 2>/dev/null || echo "Docker system df not available"
+
+# Clean up old Docker resources to free disk space
+echo "Cleaning up old Docker images and containers..."
+
+# Remove dangling images and stopped containers
+docker system prune -f 2>/dev/null || echo "Docker system prune failed (may not be available)"
+
+# Remove old discord-bot images (keep only the latest 3)
+echo "Removing old discord-bot images..."
+echo "Current discord-bot images:"
+docker images --format "table {{.Repository}}:{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}" | grep discord-bot || echo "No discord-bot images found"
+
+# Get discord-bot image IDs, sorted by creation time (newest first), skip the newest 3
+OLD_DISCORD_IMAGES=$(docker images --format "{{.ID}} {{.CreatedAt}} {{.Repository}}" | grep discord-bot | sort -k2 -r | tail -n +4 | awk '{print $1}' || echo "")
+
+if [ -n "$OLD_DISCORD_IMAGES" ]; then
+  echo "Removing old discord-bot images: $OLD_DISCORD_IMAGES"
+  for img in $OLD_DISCORD_IMAGES; do
+    docker rmi $img 2>/dev/null && echo "Removed image: $img" || echo "Could not remove image: $img (may be in use)"
+  done
+else
+  echo "No old discord-bot images to remove"
+fi
+
+# Remove unused volumes
+docker volume prune -f 2>/dev/null || echo "Docker volume prune not available"
+
+echo "Disk usage after cleanup:"
+df -h /
+
 echo "Pulling Docker image: $FULL_IMAGE_PATH"
 
 # Pull the latest Docker image
@@ -219,6 +256,22 @@ else
     echo "All containers:"
     docker ps -a
     exit 1
+fi
+
+echo "Final disk usage monitoring..."
+DISK_USAGE=$(df / | awk '/\// {print $(NF-1)}' | sed 's/%//')
+echo "Current disk usage: ${DISK_USAGE}%"
+
+if [ "$DISK_USAGE" -gt 85 ]; then
+    echo "⚠️  WARNING: Disk usage is high (${DISK_USAGE}%). Consider increasing disk size or implementing more aggressive cleanup."
+    echo "Docker system usage:"
+    docker system df 2>/dev/null || echo "Docker system df not available"
+    echo "Top disk usage by directory:"
+    du -sh /var/lib/docker/* 2>/dev/null | sort -hr | head -5 || echo "Could not analyze Docker directory usage"
+elif [ "$DISK_USAGE" -gt 70 ]; then
+    echo "⚠️  NOTICE: Disk usage is moderate (${DISK_USAGE}%). Monitoring recommended."
+else
+    echo "✅ Disk usage is acceptable (${DISK_USAGE}%)."
 fi
 
 echo "Startup script completed at $(date)"

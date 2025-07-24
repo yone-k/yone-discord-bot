@@ -83,53 +83,66 @@ describe('ListFormatter', () => {
   });
 
   describe('formatEmptyList', () => {
-    it('should use defaultCategory parameter when provided', () => {
+    it('should use defaultCategory parameter when provided', async () => {
       const title = 'テストリスト';
+      const channelId = 'test-channel-id';
       const defaultCategory = '食料品';
 
-      const result = ListFormatter.formatEmptyList(title, undefined, defaultCategory);
+      const result = await ListFormatter.formatEmptyList(title, channelId, undefined, defaultCategory);
 
-      expect(result.data.title).toBe('📝 テストリスト');
-      expect(result.data.fields).toHaveLength(1);
-      expect(result.data.fields![0].name).toBe('🍎 食料品');
-      expect(result.data.fields![0].value).toBe('まだアイテムがありません');
+      expect(result.data.description).toContain('テストリスト');
+      expect(result.data.description).toContain('🍎 食料品');
+      expect(result.data.description).toContain('まだアイテムがありません');
     });
 
-    it('should prioritize defaultCategory over categories array', () => {
+    it('should prioritize defaultCategory over categories array', async () => {
       const title = 'テストリスト';
+      const channelId = 'test-channel-id';
       const categories = ['重要', '通常'];
       const defaultCategory = '食料品';
 
-      const result = ListFormatter.formatEmptyList(title, categories, defaultCategory);
+      const result = await ListFormatter.formatEmptyList(title, channelId, categories, defaultCategory);
 
-      expect(result.data.fields).toHaveLength(1);
-      expect(result.data.fields![0].name).toBe('🍎 食料品');
+      expect(result.data.description).toContain('🍎 食料品');
+      expect(result.data.description).not.toContain('🔥 重要');
     });
 
-    it('should use categories when defaultCategory is not provided', () => {
+    it('should use categories when defaultCategory is not provided', async () => {
       const title = 'テストリスト';
+      const channelId = 'test-channel-id';
       const categories = ['重要', '通常'];
 
-      const result = ListFormatter.formatEmptyList(title, categories);
+      const result = await ListFormatter.formatEmptyList(title, channelId, categories);
 
-      expect(result.data.fields).toHaveLength(2);
-      expect(result.data.fields![0].name).toBe('🔥 重要');
-      expect(result.data.fields![1].name).toBe('📝 通常');
+      expect(result.data.description).toContain('🔥 重要');
+      expect(result.data.description).toContain('📝 通常');
     });
 
-    it('should use DEFAULT_CATEGORY when neither defaultCategory nor categories are provided', () => {
+    it('should use DEFAULT_CATEGORY when neither defaultCategory nor categories are provided', async () => {
       const title = 'テストリスト';
+      const channelId = 'test-channel-id';
 
-      const result = ListFormatter.formatEmptyList(title);
+      const result = await ListFormatter.formatEmptyList(title, channelId);
 
-      expect(result.data.fields).toHaveLength(1);
-      expect(result.data.fields![0].name).toBe('📦 その他');
+      expect(result.data.description).toContain('📦 その他');
+    });
+
+    it('should include spreadsheet URL with gid parameter in description', async () => {
+      const title = 'テストリスト';
+      const channelId = 'test-channel-id';
+      const categories = ['重要'];
+
+      const result = await ListFormatter.formatEmptyList(title, channelId, categories);
+
+      expect(result.data.description).toContain('[スプレッドシートを開く](https://docs.google.com/spreadsheets/d/');
+      expect(result.data.description).toContain('#gid=');
     });
   });
 
   describe('formatDataList', () => {
     it('should use defaultCategory for items with null category', async () => {
       const title = 'テストリスト';
+      const channelId = 'test-channel-id';
       const defaultCategory = '食料品';
       const items: ListItem[] = [
         {
@@ -139,7 +152,7 @@ describe('ListFormatter', () => {
         }
       ];
 
-      const result = await ListFormatter.formatDataList(title, items, defaultCategory);
+      const result = await ListFormatter.formatDataList(title, items, channelId, defaultCategory);
 
       expect(result.data.description).toContain('🍎 食料品');
       expect(result.data.description).toContain('テストアイテム');
@@ -148,6 +161,7 @@ describe('ListFormatter', () => {
 
     it('should use item category when specified, ignoring defaultCategory', async () => {
       const title = 'テストリスト';
+      const channelId = 'test-channel-id';
       const defaultCategory = '食料品';
       const items: ListItem[] = [
         {
@@ -157,7 +171,7 @@ describe('ListFormatter', () => {
         }
       ];
 
-      const result = await ListFormatter.formatDataList(title, items, defaultCategory);
+      const result = await ListFormatter.formatDataList(title, items, channelId, defaultCategory);
 
       expect(result.data.description).toContain('🔥 重要');
       expect(result.data.description).toContain('テストアイテム');
@@ -166,6 +180,7 @@ describe('ListFormatter', () => {
 
     it('should use DEFAULT_CATEGORY when neither item category nor defaultCategory is provided', async () => {
       const title = 'テストリスト';
+      const channelId = 'test-channel-id';
       const items: ListItem[] = [
         {
           name: 'テストアイテム',
@@ -174,10 +189,27 @@ describe('ListFormatter', () => {
         }
       ];
 
-      const result = await ListFormatter.formatDataList(title, items);
+      const result = await ListFormatter.formatDataList(title, items, channelId);
 
       expect(result.data.description).toContain('📦 その他');
       expect(result.data.description).toContain('テストアイテム');
+    });
+
+    it('should include spreadsheet URL with gid parameter in description', async () => {
+      const title = 'テストリスト';
+      const channelId = 'test-channel-id';
+      const items: ListItem[] = [
+        {
+          name: 'テストアイテム',
+          category: '重要',
+          until: null
+        }
+      ];
+
+      const result = await ListFormatter.formatDataList(title, items, channelId);
+
+      expect(result.data.description).toContain('[スプレッドシートを開く](https://docs.google.com/spreadsheets/d/');
+      expect(result.data.description).toContain('#gid=');
     });
   });
 });

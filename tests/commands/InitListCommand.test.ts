@@ -560,8 +560,10 @@ describe('InitListCommand', () => {
       
       // formatDataListに渡されたitemsを検証
       expect(formatDataListSpy).toHaveBeenCalled();
-      const [, items, defaultCategory] = formatDataListSpy.mock.calls[0];
+      const [, items, channelId, defaultCategory] = formatDataListSpy.mock.calls[0];
       
+      // channelIdが正しく渡されていることを確認
+      expect(channelId).toBe('test-channel-id');
       // defaultCategoryが正しく渡されていることを確認
       expect(defaultCategory).toBe('日用品');
       

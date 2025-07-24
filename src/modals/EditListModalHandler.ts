@@ -149,7 +149,7 @@ export class EditListModalHandler extends BaseModalHandler {
 
   private isHeaderLine(line: string): boolean {
     const lowerLine = line.toLowerCase();
-    const headerKeywords = ['商品名', 'name', 'カテゴリ', 'category'];
+    const headerKeywords = ['名前', 'name', 'カテゴリ', 'category'];
     return headerKeywords.some(keyword => lowerLine.includes(keyword));
   }
 
@@ -234,8 +234,8 @@ export class EditListModalHandler extends BaseModalHandler {
 
       // Embedを作成
       const embed = items.length > 0 
-        ? await ListFormatter.formatDataList(listTitle, items, defaultCategory)
-        : ListFormatter.formatEmptyList(listTitle, undefined, defaultCategory);
+        ? await ListFormatter.formatDataList(listTitle, items, channelId, defaultCategory)
+        : await ListFormatter.formatEmptyList(listTitle, channelId, undefined, defaultCategory);
 
       // MessageManagerを使用してメッセージを更新
       const messageResult = await this.messageManager.createOrUpdateMessageWithMetadata(

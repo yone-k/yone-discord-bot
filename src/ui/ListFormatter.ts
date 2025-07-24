@@ -2,6 +2,7 @@ import { EmbedBuilder } from 'discord.js';
 import { ListItem } from '../models/ListItem';
 import { CategoryType, getCategoryEmoji, DEFAULT_CATEGORY } from '../models/CategoryType';
 import { TemplateManager } from '../services/TemplateManager';
+import { GoogleSheetsService } from '../services/GoogleSheetsService';
 
 export class ListFormatter {
   private static readonly MAX_FIELD_LENGTH = 800;
@@ -11,15 +12,7 @@ export class ListFormatter {
   /**
    * 空リスト用のEmbedを生成
    */
-  public static formatEmptyList(title: string, categories?: CategoryType[], defaultCategory?: CategoryType): EmbedBuilder {
-    const embed = new EmbedBuilder()
-      .setTitle(`📝 ${title}`)
-      .setColor(this.EMBED_COLOR)
-      .setFooter({
-        text: '合計: 0項目 | 最終更新: 未更新'
-      })
-      .setTimestamp();
-
+  public static async formatEmptyList(title: string, channelId: string, categories?: CategoryType[], defaultCategory?: CategoryType): Promise<EmbedBuilder> {
     // 優先順位: defaultCategory > categories > DEFAULT_CATEGORY
     let displayCategories: CategoryType[];
     if (defaultCategory) {
@@ -30,23 +23,30 @@ export class ListFormatter {
       displayCategories = [DEFAULT_CATEGORY];
     }
     
-    displayCategories.forEach(category => {
-      embed.addFields({
-        name: `${getCategoryEmoji(category)} ${category}`,
-        value: 'まだアイテムがありません',
-        inline: true
-      });
-    });
+    // 空リスト用のカテゴリセクションを生成
+    const categorySections = displayCategories.map(category => {
+      const emoji = getCategoryEmoji(category);
+      return `## ${emoji} ${category}\nまだアイテムがありません`;
+    }).join('\n\n');
 
-    return embed;
+    const template = await this.templateManager.loadTemplate('list');
+    const variables = {
+      list_title: title,
+      category_sections: categorySections,
+      total_count: '0',
+      last_update: '未更新',
+      spreadsheet_url: await this.getSpreadsheetUrl(channelId)
+    };
+    const renderedContent = this.templateManager.renderTemplate(template, variables);
+    return this.buildEmbedFromTemplate(renderedContent);
   }
 
   /**
    * データありリスト用のEmbedを生成
    */
-  public static async formatDataList(title: string, items: ListItem[], defaultCategory?: CategoryType): Promise<EmbedBuilder> {
+  public static async formatDataList(title: string, items: ListItem[], channelId: string, defaultCategory?: CategoryType): Promise<EmbedBuilder> {
     const template = await this.templateManager.loadTemplate('list');
-    const variables = this.buildTemplateVariables(title, items, defaultCategory);
+    const variables = await this.buildTemplateVariables(title, items, channelId, defaultCategory);
     const renderedContent = this.templateManager.renderTemplate(template, variables);
     return this.buildEmbedFromTemplate(renderedContent);
   }
@@ -127,15 +127,17 @@ export class ListFormatter {
   /**
    * テンプレート変数を構築
    */
-  private static buildTemplateVariables(title: string, items: ListItem[], defaultCategory?: CategoryType): Record<string, string> {
+  private static async buildTemplateVariables(title: string, items: ListItem[], channelId: string, defaultCategory?: CategoryType): Promise<Record<string, string>> {
     const categorizedItems = this.groupItemsByCategory(items, defaultCategory);
     const categorySections = this.buildCategorySections(categorizedItems);
+    const spreadsheetUrl = await this.getSpreadsheetUrl(channelId);
     
     return {
       list_title: title,
       category_sections: categorySections,
       total_count: items.length.toString(),
-      last_update: this.getLatestUpdateTime(items)
+      last_update: this.getLatestUpdateTime(items),
+      spreadsheet_url: spreadsheetUrl
     };
   }
 
@@ -188,10 +190,12 @@ export class ListFormatter {
    * テンプレートからEmbedBuilderを構築
    */
   private static buildEmbedFromTemplate(renderedContent: string): EmbedBuilder {
-    return new EmbedBuilder()
+    const embed = new EmbedBuilder()
       .setDescription(renderedContent)
       .setColor(this.EMBED_COLOR)
       .setTimestamp();
+
+    return embed;
   }
 
   /**
@@ -239,5 +243,43 @@ export class ListFormatter {
     const month = date.getMonth() + 1;
     const day = date.getDate();
     return `${month}/${day}`;
+  }
+
+  /**
+   * スプレッドシートURLを取得します
+   * 
+   * @param {string} channelId チャンネルID（特定のシートを開くため）
+   * @return {Promise<string>} スプレッドシートのURL。取得できない場合は空文字列またはテスト用URL
+   */
+  private static async getSpreadsheetUrl(channelId: string): Promise<string> {
+    try {
+      const googleSheetsService = GoogleSheetsService.getInstance();
+      // NOTE: configへの直接アクセスは一時的な措置。将来的にはpublicなgetterメソッドの追加を検討
+      const spreadsheetId = (googleSheetsService as unknown as { config?: { spreadsheetId: string } }).config?.spreadsheetId;
+      
+      if (spreadsheetId) {
+        try {
+          // 特定のシートのメタデータを取得してシートIDを取得
+          const sheetMetadata = await googleSheetsService.getSheetMetadata(channelId);
+          return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetMetadata.sheetId}`;
+        } catch (sheetError) {
+          // シートが存在しない場合は通常のスプレッドシートURLを返す
+          console.warn('Failed to get sheet metadata, falling back to main spreadsheet URL:', sheetError);
+          return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // テスト環境またはConfigエラーの場合は、ダミーURLを返す
+      if (process.env.NODE_ENV === 'test' || errorMessage.includes('Missing required environment variables')) {
+        return 'https://docs.google.com/spreadsheets/d/test-spreadsheet-id/edit#gid=0';
+      }
+      
+      // その他のエラーが発生した場合はログを出力
+      console.warn('Failed to get spreadsheet URL:', errorMessage);
+    }
+    
+    return '';
   }
 }

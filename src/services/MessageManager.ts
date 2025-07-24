@@ -445,6 +445,18 @@ export class MessageManager {
           // メッセージ作成は成功しているので、警告のみ出力して処理は継続
         }
         
+        // ステップ5: メッセージのピン留めを確認・実行
+        const pinResult = await this.ensureMessagePinned(
+          channelId,
+          messageResult.message.id,
+          client
+        );
+        
+        if (!pinResult.success) {
+          console.warn(`Failed to pin message: ${pinResult.errorMessage}`);
+          // ピン留め失敗は警告のみ出力して処理は継続
+        }
+
         // ボタンは既にメッセージ作成・更新時に追加済み
         return messageResult;
         
@@ -455,6 +467,86 @@ export class MessageManager {
         };
       }
     });
+  }
+
+  /**
+   * メッセージがピン留めされているかチェックし、されていない場合はピン留めする
+   */
+  public async ensureMessagePinned(
+    channelId: string,
+    messageId: string,
+    client: Client
+  ): Promise<MessageOperationResult> {
+    try {
+      // チャンネルを取得
+      const channel = await client.channels.fetch(channelId);
+      
+      if (!channel) {
+        throw new MessageManagerError(
+          MessageManagerErrorType.CHANNEL_NOT_FOUND,
+          `Channel not found: ${channelId}`
+        );
+      }
+      
+      if (channel.type !== ChannelType.GuildText) {
+        throw new MessageManagerError(
+          MessageManagerErrorType.INVALID_CHANNEL_TYPE,
+          `Channel is not a text channel: ${channelId}`
+        );
+      }
+      
+      const textChannel = channel as TextChannel;
+      
+      // メッセージを取得
+      let message;
+      try {
+        message = await textChannel.messages.fetch(messageId);
+      } catch (fetchError) {
+        if ((fetchError as Error).message.includes('Unknown Message')) {
+          throw new MessageManagerError(
+            MessageManagerErrorType.MESSAGE_NOT_FOUND,
+            `Message not found: ${messageId}`
+          );
+        }
+        throw fetchError;
+      }
+      
+      if (!message) {
+        throw new MessageManagerError(
+          MessageManagerErrorType.MESSAGE_NOT_FOUND,
+          `Message not found: ${messageId}`
+        );
+      }
+      
+      // 既にピン留めされている場合は何もしない
+      if (message.pinned) {
+        return {
+          success: true,
+          message
+        };
+      }
+      
+      // ピン留めを実行
+      await message.pin();
+      
+      return {
+        success: true,
+        message
+      };
+      
+    } catch (error) {
+      if (error instanceof MessageManagerError) {
+        return {
+          success: false,
+          errorMessage: error.userMessage
+        };
+      }
+      
+      return {
+        success: false,
+        errorMessage: `Failed to pin message: ${(error as Error).message}`
+      };
+    }
   }
 
   /**

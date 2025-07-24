@@ -84,6 +84,11 @@ class CommandBuilder {
         }
         slashCommands.forEach(cmd => {
           this.logger.info(`  - ${cmd.name}: ${cmd.description}`);
+          if (cmd.options && cmd.options.length > 0) {
+            this.logger.info(`    Options: ${JSON.stringify(cmd.options, null, 2)}`);
+          } else {
+            this.logger.info('    No options');
+          }
         });
         this.logger.info('Command build completed successfully');
         return;
@@ -104,7 +109,7 @@ class CommandBuilder {
       name: command.name,
       description: command.description,
       commandClass: command.commandClass && 
-        typeof command.commandClass === 'object' && 
+        (typeof command.commandClass === 'function' || typeof command.commandClass === 'object') &&
         'getOptions' in command.commandClass 
         ? command.commandClass as { getOptions?: (builder: SlashCommandBuilder) => SlashCommandBuilder }
         : undefined

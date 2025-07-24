@@ -214,8 +214,10 @@ describe('EditListModalHandler', () => {
 
       // formatDataListに渡されたitemsとdefaultCategoryを検証
       expect(formatDataListSpy).toHaveBeenCalled();
-      const [, items, defaultCategory] = formatDataListSpy.mock.calls[0];
+      const [, items, channelId, defaultCategory] = formatDataListSpy.mock.calls[0];
       
+      // channelIdが正しく渡されていることを確認
+      expect(channelId).toBe('channel789');
       // defaultCategoryが正しく渡されていることを確認
       expect(defaultCategory).toBe('日用品');
       
@@ -271,7 +273,7 @@ describe('EditListModalHandler', () => {
     });
 
     it('should skip header lines', () => {
-      const csvText = '商品名,カテゴリ\n牛乳,食品\nパン,食品';
+      const csvText = '名前,カテゴリ\n牛乳,食品\nパン,食品';
       const result = handler['parseCsvText'](csvText);
 
       expect(result).toHaveLength(2);
@@ -339,7 +341,7 @@ describe('EditListModalHandler', () => {
 
   describe('isHeaderLine', () => {
     it('should detect header lines', () => {
-      expect(handler['isHeaderLine']('商品名,カテゴリ')).toBe(true);
+      expect(handler['isHeaderLine']('名前,カテゴリ')).toBe(true);
       expect(handler['isHeaderLine']('name,category')).toBe(true);
       expect(handler['isHeaderLine']('Name,Category')).toBe(true);
     });

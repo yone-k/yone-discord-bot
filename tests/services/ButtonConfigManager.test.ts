@@ -24,14 +24,14 @@ describe('ButtonConfigManager', () => {
     it('有効なコマンドのボタン設定を取得できる', () => {
       const buttons = manager.getCommandButtons('list');
       
-      expect(buttons).toHaveLength(2);
+      expect(buttons).toHaveLength(3);
       expect(buttons[0]).toEqual({
-        customId: 'init-list-button',
-        label: '同期',
-        style: ButtonStyle.Primary,
-        emoji: '🔄',
-        description: 'リスト更新・再初期化',
-        handler: 'InitListButtonHandler'
+        customId: 'add-list-button',
+        label: '追加',
+        style: ButtonStyle.Success,
+        emoji: '➕',
+        description: 'リストに項目を追加',
+        handler: 'AddListButtonHandler'
       });
       expect(buttons[1]).toEqual({
         customId: 'edit-list-button',
@@ -40,6 +40,14 @@ describe('ButtonConfigManager', () => {
         emoji: '📝',
         description: 'リスト編集',
         handler: 'EditListButtonHandler'
+      });
+      expect(buttons[2]).toEqual({
+        customId: 'init-list-button',
+        label: '同期',
+        style: ButtonStyle.Primary,
+        emoji: '🔄',
+        description: 'リスト更新・再初期化',
+        handler: 'InitListButtonHandler'
       });
     });
 
@@ -91,12 +99,12 @@ describe('ButtonConfigManager', () => {
         enabled: true,
         buttons: [
           {
-            customId: 'init-list-button',
-            label: '同期',
-            style: ButtonStyle.Primary,
-            emoji: '🔄',
-            description: 'リスト更新・再初期化',
-            handler: 'InitListButtonHandler'
+            customId: 'add-list-button',
+            label: '追加',
+            style: ButtonStyle.Success,
+            emoji: '➕',
+            description: 'リストに項目を追加',
+            handler: 'AddListButtonHandler'
           },
           {
             customId: 'edit-list-button',
@@ -105,6 +113,14 @@ describe('ButtonConfigManager', () => {
             emoji: '📝',
             description: 'リスト編集',
             handler: 'EditListButtonHandler'
+          },
+          {
+            customId: 'init-list-button',
+            label: '同期',
+            style: ButtonStyle.Primary,
+            emoji: '🔄',
+            description: 'リスト更新・再初期化',
+            handler: 'InitListButtonHandler'
           }
         ]
       });

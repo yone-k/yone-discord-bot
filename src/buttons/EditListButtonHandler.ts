@@ -33,7 +33,7 @@ export class EditListButtonHandler extends BaseButtonHandler {
 
     const textInput = new TextInputBuilder()
       .setCustomId('list-data')
-      .setLabel('リスト内容（商品名,カテゴリ,期限 の形式）')
+      .setLabel('リスト内容（名前,カテゴリ,期限 の形式）')
       .setStyle(TextInputStyle.Paragraph)
       .setValue(csvText)
       .setPlaceholder('例: 牛乳,食品,2024-12-31\nパン,食品\nシャンプー,日用品,2024-06-30')
@@ -93,7 +93,7 @@ export class EditListButtonHandler extends BaseButtonHandler {
   }
 
   private isHeaderRow(row: string[]): boolean {
-    const headers = ['name', 'category', 'until', '商品名', 'カテゴリ'];
+    const headers = ['name', 'category', 'until', '名前', 'カテゴリ'];
     return row.some(cell => 
       headers.some(header => 
         cell && cell.toLowerCase().includes(header.toLowerCase())
@@ -112,7 +112,7 @@ export class EditListButtonHandler extends BaseButtonHandler {
 
   private convertToCsvText(items: ListItem[]): string {
     if (items.length === 0) {
-      return '商品名,カテゴリ,期限\n例: 牛乳,食品,2024-12-31';
+      return '名前,カテゴリ,期限\n例: 牛乳,食品,2024-12-31';
     }
 
     return items.map(item => {

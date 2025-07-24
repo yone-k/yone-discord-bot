@@ -8,7 +8,7 @@ import { ListFormatter } from '../ui/ListFormatter';
 import { ListItem, createListItem, validateListItem } from '../models/ListItem';
 import { normalizeCategory, CategoryType } from '../models/CategoryType';
 
-export class EditListModalHandler extends BaseModalHandler {
+export class AddListModalHandler extends BaseModalHandler {
   private googleSheetsService: GoogleSheetsService;
   private messageManager: MessageManager;
   private metadataManager: MetadataManager;
@@ -19,7 +19,7 @@ export class EditListModalHandler extends BaseModalHandler {
     messageManager?: MessageManager,
     metadataManager?: MetadataManager
   ) {
-    super('edit-list-modal', logger);
+    super('add-list-modal', logger);
     this.deleteOnSuccess = true;
     this.ephemeral = false;
     this.googleSheetsService = googleSheetsService || GoogleSheetsService.getInstance();
@@ -34,95 +34,101 @@ export class EditListModalHandler extends BaseModalHandler {
     }
 
     // モーダルからデータを取得
-    const listDataText = context.interaction.fields.getTextInputValue('list-data');
+    const categoryText = context.interaction.fields.getTextInputValue('category');
+    const itemsText = context.interaction.fields.getTextInputValue('items');
     
-    // CSVテキストをListItemsに変換（編集時はdefaultCategoryを使用しない）
-    const listItems = this.parseCsvText(listDataText);
+    if (!itemsText || itemsText.trim() === '') {
+      throw new Error('追加するアイテムが入力されていません');
+    }
+
+    // カテゴリーの処理
+    const category: CategoryType | null = categoryText && categoryText.trim() !== '' 
+      ? normalizeCategory(categoryText)
+      : null;
+
+    // 既存のリストデータを取得
+    const existingData = await this.googleSheetsService.getSheetData(channelId);
+    const existingItems = this.convertToListItems(existingData);
+    const existingNames = new Set(existingItems.map(item => item.name));
+
+    // 新しいアイテムをパース
+    const newItems = this.parseItemsText(itemsText, category);
     
+    // 重複チェックとフィルタリング
+    const filteredNewItems = newItems.filter(item => {
+      if (existingNames.has(item.name)) {
+        this.logger.warn('Duplicate name found, skipping', { name: item.name });
+        return false;
+      }
+      return true;
+    });
+
+    // 合計アイテム数チェック
+    const totalItemsCount = existingItems.length + filteredNewItems.length;
+    if (totalItemsCount > 100) {
+      throw new Error('アイテム数が多すぎます（最大100件）');
+    }
+
     // データをバリデーション
-    this.validateItems(listItems);
+    this.validateItems(filteredNewItems);
+    
+    // 既存データと新しいデータをマージ
+    const allItems = [...existingItems, ...filteredNewItems];
     
     // Google Sheetsに書き込み
-    await this.updateSheetData(channelId, listItems);
+    await this.updateSheetData(channelId, allItems);
     
     // Discord上のリストメッセージを更新
-    await this.updateDiscordMessage(channelId, listItems, context.interaction.client);
+    await this.updateDiscordMessage(channelId, allItems, context.interaction.client);
 
-    this.logger.info('List edited successfully', {
+    this.logger.info('List items added successfully', {
       channelId,
-      itemCount: listItems.length,
+      newItemsCount: filteredNewItems.length,
+      totalItemsCount: allItems.length,
       userId: context.interaction.user.id
     });
   }
 
   protected getSuccessMessage(): string {
-    return '✅ リストが正常に更新されました！';
+    return '✅ リストに項目が追加されました！';
   }
 
-  private parseCsvText(csvText: string): ListItem[] {
+  private parseItemsText(itemsText: string, defaultCategory: CategoryType | null): ListItem[] {
     const items: ListItem[] = [];
-    const lines = csvText.trim().split('\n');
-    const seenNames = new Set<string>();
+    const lines = itemsText.trim().split('\n');
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       
-      // 空行やコメント行をスキップ
-      if (!line || line.startsWith('#') || line.startsWith('//')) {
-        continue;
-      }
-
-      // ヘッダー行っぽいものをスキップ
-      if (this.isHeaderLine(line)) {
-        continue;
-      }
-
-      // 例行をスキップ
-      if (line.startsWith('例:') || line.includes('例:')) {
+      // 空行をスキップ
+      if (!line) {
         continue;
       }
 
       try {
         const parts = line.split(',').map(part => part.trim());
         
-        // nameのみは必須、他はオプション
         if (parts.length < 1) {
-          this.logger.warn('Invalid CSV line format, skipping', { lineNumber: i + 1, line });
+          this.logger.warn('Invalid line format, skipping', { lineNumber: i + 1, line });
           continue;
         }
 
         const name = parts[0];
-        const categoryStr = parts.length > 1 && parts[1] ? parts[1] : null;
-        const untilStr = parts.length > 2 && parts[2] ? parts[2] : null;
+        const untilStr = parts.length > 1 && parts[1] ? parts[1] : null;
 
         if (!name || name.trim() === '') {
           this.logger.warn('Empty name found, skipping', { lineNumber: i + 1, line });
           continue;
         }
 
-        // 重複チェック
-        if (seenNames.has(name)) {
-          this.logger.warn('Duplicate name found, skipping', { lineNumber: i + 1, name });
-          continue;
-        }
-
-        // カテゴリの処理：編集時は空の場合はnullのまま保持（defaultCategoryは使用しない）
-        let category: CategoryType | null;
-        if (categoryStr && categoryStr.trim() !== '') {
-          category = normalizeCategory(categoryStr);
-        } else {
-          category = null;
-        }
-
         const until = untilStr ? this.parseDate(untilStr) : null;
-        const item = createListItem(name, category, until);
+        const item = createListItem(name, defaultCategory, until);
         
         validateListItem(item);
         
         items.push(item);
-        seenNames.add(name);
       } catch (error) {
-        this.logger.warn('Failed to parse CSV line, skipping', { 
+        this.logger.warn('Failed to parse line, skipping', { 
           lineNumber: i + 1, 
           line,
           error: error instanceof Error ? error.message : 'Unknown error'
@@ -147,26 +153,58 @@ export class EditListModalHandler extends BaseModalHandler {
     }
   }
 
-  private isHeaderLine(line: string): boolean {
-    const lowerLine = line.toLowerCase();
-    const headerKeywords = ['名前', 'name', 'カテゴリ', 'category'];
-    return headerKeywords.some(keyword => lowerLine.includes(keyword));
+  private convertToListItems(data: string[][]): ListItem[] {
+    const items: ListItem[] = [];
+    
+    // ヘッダー行をスキップ（存在する場合）
+    const startIndex = data.length > 0 && this.isHeaderRow(data[0]) ? 1 : 0;
+    
+    for (let i = startIndex; i < data.length; i++) {
+      const row = data[i];
+      if (row.length >= 1 && row[0]) {
+        try {
+          const name = row[0].trim();
+          const category = row.length > 1 && row[1] && row[1].trim() !== '' ? normalizeCategory(row[1]) : null;
+          const until = row.length > 2 && row[2] ? this.parseDate(row[2]) : null;
+
+          const item: ListItem = {
+            name,
+            category,
+            until
+          };
+
+          items.push(item);
+        } catch (error) {
+          this.logger.warn('Failed to parse row, skipping', { 
+            rowIndex: i, 
+            row,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+    }
+
+    return items;
+  }
+
+  private isHeaderRow(row: string[]): boolean {
+    const headers = ['name', 'category', 'until', '名前', 'カテゴリ'];
+    return row.some(cell => 
+      headers.some(header => 
+        cell && cell.toLowerCase().includes(header.toLowerCase())
+      )
+    );
   }
 
   private validateItems(items: ListItem[]): void {
-    // 空のリストも許可する
-    if (items.length > 100) {
-      throw new Error('アイテム数が多すぎます（最大100件）。');
-    }
-
-    // 各アイテムのバリデーション（既にcreateListItemとvalidateListItemで行われているが、念のため）
+    // 各アイテムのバリデーション
     for (const item of items) {
       validateListItem(item);
     }
   }
 
   private async updateSheetData(channelId: string, items: ListItem[]): Promise<void> {
-    // 現在のシートデータを完全に置き換える
+    // シートデータを完全に置き換える
     const sheetData = this.convertItemsToSheetData(items);
     
     const result = await this.googleSheetsService.updateSheetData(channelId, sheetData);
@@ -247,19 +285,19 @@ export class EditListModalHandler extends BaseModalHandler {
       );
 
       if (messageResult.success) {
-        this.logger.info('Discord message updated successfully after edit', {
+        this.logger.info('Discord message updated successfully after add', {
           channelId,
           messageId: messageResult.message?.id,
           itemCount: items.length
         });
       } else {
-        this.logger.warn('Failed to update Discord message after edit', {
+        this.logger.warn('Failed to update Discord message after add', {
           channelId,
           errorMessage: messageResult.errorMessage
         });
       }
     } catch (error) {
-      this.logger.warn('Failed to update Discord message after edit', {
+      this.logger.warn('Failed to update Discord message after add', {
         channelId,
         error: error instanceof Error ? error.message : 'Unknown error'
       });

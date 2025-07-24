@@ -16,7 +16,7 @@ export function createListItem(name: string, category?: CategoryType | null, unt
 
 export function validateListItem(item: ListItem): void {
   if (!item.name || item.name.trim() === '') {
-    throw new Error('商品名は必須です');
+    throw new Error('名前は必須です');
   }
   
   if (item.category !== null && (typeof item.category !== 'string' || item.category.trim() === '')) {

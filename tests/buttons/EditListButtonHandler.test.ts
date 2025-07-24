@@ -79,7 +79,7 @@ describe('EditListButtonHandler', () => {
 
     it('should skip header row when converting to CSV', async () => {
       const sheetData = [
-        ['商品名', 'カテゴリ'],
+        ['名前', 'カテゴリ'],
         ['牛乳', '食品']
       ];
       
@@ -174,7 +174,7 @@ describe('EditListButtonHandler', () => {
   describe('convertToCsvText', () => {
     it('should return placeholder text for empty list', () => {
       const result = handler['convertToCsvText']([]);
-      expect(result).toBe('商品名,カテゴリ,期限\n例: 牛乳,食品,2024-12-31');
+      expect(result).toBe('名前,カテゴリ,期限\n例: 牛乳,食品,2024-12-31');
     });
 
     it('should convert list items to CSV format', () => {
@@ -225,7 +225,7 @@ describe('EditListButtonHandler', () => {
   describe('isHeaderRow', () => {
     it('should detect header rows', () => {
       expect(handler['isHeaderRow'](['name', 'category'])).toBe(true);
-      expect(handler['isHeaderRow'](['商品名', 'カテゴリ'])).toBe(true);
+      expect(handler['isHeaderRow'](['名前', 'カテゴリ'])).toBe(true);
       expect(handler['isHeaderRow'](['Name', 'Category'])).toBe(true);
     });
 

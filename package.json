@@ -19,7 +19,7 @@
     "build-commands:dry": "tsx src/scripts/build-commands.ts --dry-run",
     "test-discovery": "npx tsx src/scripts/test-discovery.ts",
     "test": "vitest run",
-    "dev": "npm run check && tsx src/index.ts",
+    "dev": "npm run check && npm run build-commands && tsx src/index.ts",
     "deploy-commands": "tsx src/scripts/deploy-commands.ts",
     "verify-auth": "node src/scripts/verify-google-auth.js"
   },

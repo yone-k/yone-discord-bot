@@ -103,7 +103,7 @@ describe('ListItem', () => {
         until: null
       };
 
-      expect(() => validateListItem(invalidItem)).toThrow('商品名は必須です');
+      expect(() => validateListItem(invalidItem)).toThrow('名前は必須です');
     });
 
     it('should validate null category', () => {

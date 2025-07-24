@@ -148,8 +148,8 @@ export class InitListCommand extends BaseCommand {
 
     // ステップ4: Embed形式変換と固定メッセージ処理
     const embed = items.length > 0 
-      ? await ListFormatter.formatDataList(listTitle, items, defaultCategory)
-      : ListFormatter.formatEmptyList(listTitle, undefined, defaultCategory);
+      ? await ListFormatter.formatDataList(listTitle, items, context.channelId, defaultCategory)
+      : await ListFormatter.formatEmptyList(listTitle, context.channelId, undefined, defaultCategory);
 
     const messageResult = await this.messageManager.createOrUpdateMessageWithMetadata(
       context.channelId,

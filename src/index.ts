@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { Server } from 'http';
-import { Client, GatewayIntentBits, Events, ChatInputCommandInteraction, MessageReaction, User, TextChannel } from 'discord.js';
+import { Client, GatewayIntentBits, Events, ChatInputCommandInteraction, MessageReaction, User } from 'discord.js';
 import { Config, ConfigError } from './utils/config';
 import { Logger, LogLevel } from './utils/logger';
 import { CommandManager } from './utils/CommandManager';
@@ -10,11 +10,8 @@ import { registerAllCommands } from './registry/RegisterCommands';
 import { ReactionManager } from './services/ReactionManager';
 import { ModalManager } from './services/ModalManager';
 import { ButtonManager } from './services/ButtonManager';
-import { InitListButtonHandler } from './buttons/InitListButtonHandler';
-import { EditListButtonHandler } from './buttons/EditListButtonHandler';
-import { EditListModalHandler } from './modals/EditListModalHandler';
-import { ConfirmationModalHandler, ConfirmationCallback } from './modals/ConfirmationModalHandler';
-import { DeleteAllMessageLogic } from './services/DeleteAllMessageLogic';
+import { registerAllButtons } from './registry/RegisterButtons';
+import { registerAllModals } from './registry/RegisterModals';
 
 class DiscordBot {
   private client: Client;
@@ -67,34 +64,9 @@ class DiscordBot {
       this.modalManager = new ModalManager(this.logger);
       this.buttonManager = new ButtonManager(this.logger);
 
-      const initListButtonHandler = new InitListButtonHandler(this.logger);
-      const editListButtonHandler = new EditListButtonHandler(this.logger);
-      const editListModalHandler = new EditListModalHandler(this.logger);
-      
-      // DeleteAllMessageLogicのコールバック関数を作成
-      const deleteAllMessageLogic = new DeleteAllMessageLogic(this.logger);
-      const deleteAllMessageCallback: ConfirmationCallback = async (context) => {
-        const { interaction } = context;
-        
-        if (!interaction.guild || !interaction.channel) {
-          throw new Error('このコマンドはサーバー内でのみ使用できます。');
-        }
-
-        // メンバーの権限をチェック
-        const member = await interaction.guild.members.fetch(interaction.user.id);
-        await deleteAllMessageLogic.checkPermissions(member);
-
-        // メッセージを削除
-        const result = await deleteAllMessageLogic.deleteAllMessages(interaction.channel as TextChannel, interaction.user.id);
-        return `✅ ${result.message}`;
-      };
-
-      const confirmationModalHandler = new ConfirmationModalHandler(this.logger, deleteAllMessageCallback, false);
-
-      this.buttonManager.registerHandler(initListButtonHandler);
-      this.buttonManager.registerHandler(editListButtonHandler);
-      this.modalManager.registerHandler(editListModalHandler);
-      this.modalManager.registerHandler(confirmationModalHandler);
+      // 新しいレジストリ関数を使用してハンドラーを登録
+      registerAllButtons(this.buttonManager, this.logger);
+      registerAllModals(this.modalManager, this.logger);
 
       this.logger.info('Button and modal handlers registered successfully');
     } catch (error) {

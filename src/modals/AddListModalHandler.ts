@@ -170,7 +170,8 @@ export class AddListModalHandler extends BaseModalHandler {
           const item: ListItem = {
             name,
             category,
-            until
+            until,
+            check: false
           };
 
           items.push(item);

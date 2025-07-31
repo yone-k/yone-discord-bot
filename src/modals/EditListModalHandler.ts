@@ -94,6 +94,7 @@ export class EditListModalHandler extends BaseModalHandler {
         const name = parts[0];
         const categoryStr = parts.length > 1 && parts[1] ? parts[1] : null;
         const untilStr = parts.length > 2 && parts[2] ? parts[2] : null;
+        const checkStr = parts.length > 3 && parts[3] ? parts[3] : null;
 
         if (!name || name.trim() === '') {
           this.logger.warn('Empty name found, skipping', { lineNumber: i + 1, line });
@@ -115,7 +116,8 @@ export class EditListModalHandler extends BaseModalHandler {
         }
 
         const until = untilStr ? this.parseDate(untilStr) : null;
-        const item = createListItem(name, category, until);
+        const check = this.parseCheck(checkStr);
+        const item = createListItem(name, category, until, check);
         
         validateListItem(item);
         
@@ -147,6 +149,22 @@ export class EditListModalHandler extends BaseModalHandler {
     }
   }
 
+  private parseCheck(checkStr: string | null): boolean {
+    if (!checkStr || checkStr.trim() === '') {
+      return false;
+    }
+    
+    const trimmed = checkStr.trim();
+    if (trimmed === '1') {
+      return true;
+    } else if (trimmed === '0') {
+      return false;
+    } else {
+      // 0,1以外の値の場合はfalse
+      return false;
+    }
+  }
+
   private isHeaderLine(line: string): boolean {
     const lowerLine = line.toLowerCase();
     const headerKeywords = ['名前', 'name', 'カテゴリ', 'category'];
@@ -175,18 +193,19 @@ export class EditListModalHandler extends BaseModalHandler {
     }
   }
 
-  private convertItemsToSheetData(items: ListItem[]): string[][] {
-    const data: string[][] = [];
+  private convertItemsToSheetData(items: ListItem[]): (string | number)[][] {
+    const data: (string | number)[][] = [];
     
     // ヘッダー行を追加
-    data.push(['name', 'category', 'until']);
+    data.push(['name', 'category', 'until', 'check']);
     
     // データ行を追加
     for (const item of items) {
       const row = [
         item.name,
         item.category || '',
-        item.until ? this.formatDateForSheet(item.until) : ''
+        item.until ? this.formatDateForSheet(item.until) : '',
+        item.check ? 1 : 0
       ];
       data.push(row);
     }

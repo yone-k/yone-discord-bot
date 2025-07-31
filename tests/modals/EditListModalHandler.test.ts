@@ -69,9 +69,9 @@ describe('EditListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         expect.arrayContaining([
-          ['name', 'category', 'until'],
-          expect.arrayContaining(['牛乳', '食品']),
-          expect.arrayContaining(['パン', '食品'])
+          ['name', 'category', 'until', 'check'],
+          expect.arrayContaining(['牛乳', '食品', '', 0]),
+          expect.arrayContaining(['パン', '食品', '', 0])
         ])
       );
       expect(logger.info).toHaveBeenCalledWith(
@@ -110,7 +110,7 @@ describe('EditListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         expect.arrayContaining([
-          ['name', 'category', 'until'] // ヘッダーのみ
+          ['name', 'category', 'until', 'check'] // ヘッダーのみ
         ])
       );
       expect(logger.info).toHaveBeenCalledWith(
@@ -139,6 +139,24 @@ describe('EditListModalHandler', () => {
       });
 
       await expect(handler['executeAction'](context)).rejects.toThrow('スプレッドシートの更新に失敗しました: Permission denied');
+    });
+
+    it('should process CSV data with completion column', async () => {
+      const csvText = '牛乳,食品,2024-12-31,1\nパン,食品,,0';
+      mockFields.getTextInputValue.mockReturnValue(csvText);
+      mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
+
+      await handler['executeAction'](context);
+
+      expect(mockFields.getTextInputValue).toHaveBeenCalledWith('list-data');
+      expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
+        'channel789',
+        expect.arrayContaining([
+          ['name', 'category', 'until', 'check'],
+          expect.arrayContaining(['牛乳', '食品', '2024-12-31', 1]),
+          expect.arrayContaining(['パン', '食品', '', 0])
+        ])
+      );
     });
   });
 
@@ -358,7 +376,8 @@ describe('EditListModalHandler', () => {
         {
           name: '牛乳',
           category: '食品' as any,
-          until: null
+          until: null,
+          check: false
         }
       ];
 
@@ -370,7 +389,8 @@ describe('EditListModalHandler', () => {
         {
           name: 'ミニマルアイテム',
           category: null,
-          until: null
+          until: null,
+          check: false
         }
       ];
 
@@ -385,7 +405,8 @@ describe('EditListModalHandler', () => {
       const items = Array.from({ length: 101 }, (_, i) => ({
         name: `商品${i}`,
         category: '食品' as any,
-        until: null
+        until: null,
+        check: false
       }));
 
       expect(() => handler['validateItems'](items)).toThrow('アイテム数が多すぎます（最大100件）。');
@@ -398,21 +419,23 @@ describe('EditListModalHandler', () => {
         {
           name: '牛乳',
           category: '食品' as any,
-          until: null
+          until: null,
+          check: false
         },
         {
           name: 'パン',
           category: '食品' as any,
-          until: new Date('2023-01-10T00:00:00.000Z')
+          until: new Date('2023-01-10T00:00:00.000Z'),
+          check: false
         }
       ];
 
       const result = handler['convertItemsToSheetData'](items);
 
       expect(result).toEqual([
-        ['name', 'category', 'until'],
-        ['牛乳', '食品', ''],
-        ['パン', '食品', '2023-01-10']
+        ['name', 'category', 'until', 'check'],
+        ['牛乳', '食品', '', 0],
+        ['パン', '食品', '2023-01-10', 0]
       ]);
     });
 
@@ -421,15 +444,48 @@ describe('EditListModalHandler', () => {
         {
           name: 'ミニマルアイテム',
           category: null,
-          until: null
+          until: null,
+          check: false
         }
       ];
 
       const result = handler['convertItemsToSheetData'](items);
 
       expect(result).toEqual([
-        ['name', 'category', 'until'],
-        ['ミニマルアイテム', '', '']
+        ['name', 'category', 'until', 'check'],
+        ['ミニマルアイテム', '', '', 0]
+      ]);
+    });
+
+    it('should convert items with completion status to sheet data format', () => {
+      const items = [
+        {
+          name: '牛乳',
+          category: '食品' as any,
+          until: null,
+          check: true
+        },
+        {
+          name: 'パン',
+          category: '食品' as any,
+          until: new Date('2023-01-10T00:00:00.000Z'),
+          check: false
+        },
+        {
+          name: '卵',
+          category: '食品' as any,
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = handler['convertItemsToSheetData'](items);
+
+      expect(result).toEqual([
+        ['name', 'category', 'until', 'check'],
+        ['牛乳', '食品', '', 1],
+        ['パン', '食品', '2023-01-10', 0],
+        ['卵', '食品', '', 0]
       ]);
     });
 
@@ -438,16 +494,186 @@ describe('EditListModalHandler', () => {
         {
           name: 'テスト商品',
           category: '食品' as any,
-          until: new Date('2025/07/24') // スプレッドシートから読み込まれた日付をシミュレート
+          until: new Date('2025/07/24'), // スプレッドシートから読み込まれた日付をシミュレート
+          check: false
         }
       ];
 
       const result = handler['convertItemsToSheetData'](items);
 
       expect(result).toEqual([
-        ['name', 'category', 'until'],
-        ['テスト商品', '食品', '2025-07-24'] // 1日前にならないことを確認
+        ['name', 'category', 'until', 'check'],
+        ['テスト商品', '食品', '2025-07-24', 0] // 1日前にならないことを確認
       ]);
+    });
+
+    it('should output numeric completion values (1,0) for spreadsheet writing', () => {
+      const items = [
+        {
+          name: '完了済みアイテム',
+          category: '食品' as any,
+          until: null,
+          check: true  // boolean true
+        },
+        {
+          name: '未完了アイテム',
+          category: '日用品' as any,
+          until: null,
+          check: false // boolean false
+        }
+      ];
+
+      const result = handler['convertItemsToSheetData'](items);
+
+      // スプレッドシート書き込み時は数値1,0を期待
+      expect(result).toEqual([
+        ['name', 'category', 'until', 'check'],
+        ['完了済みアイテム', '食品', '', 1],    // 数値1
+        ['未完了アイテム', '日用品', '', 0]     // 数値0
+      ]);
+
+      // データ型の検証
+      expect(typeof result[1][3]).toBe('number'); // 1は数値型
+      expect(typeof result[2][3]).toBe('number'); // 0は数値型
+      expect(result[1][3]).toBe(1);               // 厳密等価で1
+      expect(result[2][3]).toBe(0);               // 厳密等価で0
+    });
+
+    // CSV完了列（4番目の列）の解析機能のテストケース
+    describe('CSV completion column parsing', () => {
+      it('should parse CSV with completion column as boolean true for "1"', () => {
+        const csvText = '牛乳,食品,2024-12-31,1\nパン,食品,,0';
+        const result = handler['parseCsvText'](csvText);
+
+        expect(result).toHaveLength(2);
+        expect(result[0]).toEqual(expect.objectContaining({
+          name: '牛乳',
+          category: '食品',
+          until: new Date('2024-12-31'),
+          check: true
+        }));
+        expect(result[1]).toEqual(expect.objectContaining({
+          name: 'パン',
+          category: '食品',
+          until: null,
+          check: false
+        }));
+      });
+
+      it('should parse CSV with completion column as boolean false for "0"', () => {
+        const csvText = '牛乳,食品,,0\nパン,食品,,1';
+        const result = handler['parseCsvText'](csvText);
+
+        expect(result).toHaveLength(2);
+        expect(result[0]).toEqual(expect.objectContaining({
+          name: '牛乳',
+          category: '食品',
+          until: null,
+          check: false
+        }));
+        expect(result[1]).toEqual(expect.objectContaining({
+          name: 'パン',
+          category: '食品',
+          until: null,
+          check: true
+        }));
+      });
+
+      it('should default completion to false when column is omitted', () => {
+        const csvText = '牛乳,食品,2024-12-31\nパン,食品';
+        const result = handler['parseCsvText'](csvText);
+
+        expect(result).toHaveLength(2);
+        expect(result[0]).toEqual(expect.objectContaining({
+          name: '牛乳',
+          category: '食品',
+          until: new Date('2024-12-31'),
+          check: false
+        }));
+        expect(result[1]).toEqual(expect.objectContaining({
+          name: 'パン',
+          category: '食品',
+          until: null,
+          check: false
+        }));
+      });
+
+      it('should default completion to false when column is empty', () => {
+        const csvText = '牛乳,食品,2024-12-31,\nパン,食品,,  ';
+        const result = handler['parseCsvText'](csvText);
+
+        expect(result).toHaveLength(2);
+        expect(result[0]).toEqual(expect.objectContaining({
+          name: '牛乳',
+          category: '食品',
+          until: new Date('2024-12-31'),
+          check: false
+        }));
+        expect(result[1]).toEqual(expect.objectContaining({
+          name: 'パン',
+          category: '食品',
+          until: null,
+          check: false
+        }));
+      });
+
+      it('should default completion to false for invalid values', () => {
+        const csvText = '牛乳,食品,,2\nパン,食品,,yes\n卵,食品,,no\nバター,食品,,true';
+        const result = handler['parseCsvText'](csvText);
+
+        expect(result).toHaveLength(4);
+        expect(result[0]).toEqual(expect.objectContaining({
+          name: '牛乳',
+          category: '食品',
+          check: false // "2" は無効値なのでfalse
+        }));
+        expect(result[1]).toEqual(expect.objectContaining({
+          name: 'パン',
+          category: '食品',
+          check: false // "yes" は無効値なのでfalse
+        }));
+        expect(result[2]).toEqual(expect.objectContaining({
+          name: '卵',
+          category: '食品',
+          check: false // "no" は無効値なのでfalse
+        }));
+        expect(result[3]).toEqual(expect.objectContaining({
+          name: 'バター',
+          category: '食品',
+          check: false // "true" は無効値なのでfalse
+        }));
+      });
+
+      it('should handle mixed format CSV with some items having completion column', () => {
+        const csvText = '牛乳,食品,2024-12-31,1\nパン,食品\n卵,食品,,0\nバター,食品,2024-12-25';
+        const result = handler['parseCsvText'](csvText);
+
+        expect(result).toHaveLength(4);
+        expect(result[0]).toEqual(expect.objectContaining({
+          name: '牛乳',
+          category: '食品',
+          until: new Date('2024-12-31'),
+          check: true
+        }));
+        expect(result[1]).toEqual(expect.objectContaining({
+          name: 'パン',
+          category: '食品',
+          until: null,
+          check: false // 完了列なしなのでfalse
+        }));
+        expect(result[2]).toEqual(expect.objectContaining({
+          name: '卵',
+          category: '食品',
+          until: null,
+          check: false
+        }));
+        expect(result[3]).toEqual(expect.objectContaining({
+          name: 'バター',
+          category: '食品',
+          until: new Date('2024-12-25'),
+          check: false // 完了列なしなのでfalse
+        }));
+      });
     });
   });
 

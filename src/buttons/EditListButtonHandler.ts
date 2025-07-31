@@ -33,10 +33,10 @@ export class EditListButtonHandler extends BaseButtonHandler {
 
     const textInput = new TextInputBuilder()
       .setCustomId('list-data')
-      .setLabel('リスト内容（名前,カテゴリ,期限 の形式）')
+      .setLabel('リスト内容（名前,カテゴリ,期限,完了 の形式）')
       .setStyle(TextInputStyle.Paragraph)
       .setValue(csvText)
-      .setPlaceholder('例: 牛乳,食品,2024-12-31\nパン,食品\nシャンプー,日用品,2024-06-30')
+      .setPlaceholder('例: 牛乳,食品,2024-12-31,1\nパン,食品,,\nシャンプー,日用品,2024-06-30,\n※完了列：1=完了、空文字=未完了')
       .setMaxLength(4000)
       .setRequired(false);
 
@@ -70,11 +70,13 @@ export class EditListButtonHandler extends BaseButtonHandler {
           // カテゴリの処理：空の場合は空文字列のまま保持
           const category = row.length > 1 && row[1] && row[1].trim() !== '' ? normalizeCategory(row[1]) : '';
           const until = row.length > 2 && row[2] ? this.parseDate(row[2]) : null;
+          const check = row.length > 3 && row[3] && row[3].trim() === '1' ? true : false;
 
           const item: ListItem = {
             name,
             category,
-            until
+            until,
+            check
           };
 
           items.push(item);
@@ -112,14 +114,15 @@ export class EditListButtonHandler extends BaseButtonHandler {
 
   private convertToCsvText(items: ListItem[]): string {
     if (items.length === 0) {
-      return '名前,カテゴリ,期限\n例: 牛乳,食品,2024-12-31';
+      return '名前,カテゴリ,期限,完了\n例: 牛乳,食品,2024-12-31,';
     }
 
     return items.map(item => {
       const name = item.name;
       const category = item.category || '';
       const until = item.until ? this.formatDateForCsv(item.until) : '';
-      return `${name},${category},${until}`;
+      const check = item.check ? '1' : '';
+      return `${name},${category},${until},${check}`;
     }).join('\n');
   }
 

@@ -150,7 +150,8 @@ export class ListFormatter {
     }
 
     return items.map(item => {
-      let itemText = `• ${item.name}`;
+      const itemName = item.check ? `~~${item.name}~~` : item.name;
+      let itemText = `• ${itemName}`;
       
       // 期限がある場合は追加
       if (item.until) {
@@ -206,7 +207,7 @@ export class ListFormatter {
     fields: Array<{ name: string; value: string }>;
   } {
     const fields = items.map(item => ({
-      name: item.name,
+      name: item.check ? `~~${item.name}~~` : item.name,
       value: this.formatItemValue(item, defaultCategory)
     }));
 

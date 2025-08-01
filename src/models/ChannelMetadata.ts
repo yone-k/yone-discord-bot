@@ -6,12 +6,23 @@ export interface ChannelMetadata {
   listTitle: string;
   lastSyncTime: Date;
   defaultCategory: string;
+  operationLogThreadId?: string;
 }
 
+/**
+ * ChannelMetadataオブジェクトを作成
+ * @param channelId チャンネルID
+ * @param messageId メッセージID
+ * @param listTitle リストタイトル
+ * @param operationLogThreadId 操作ログスレッドID（省略可能）
+ * @param defaultCategory デフォルトカテゴリ（省略時はDEFAULT_CATEGORY）
+ * @returns 作成されたChannelMetadata
+ */
 export function createChannelMetadata(
   channelId: string,
   messageId: string,
   listTitle: string,
+  operationLogThreadId?: string,
   defaultCategory?: string
 ): ChannelMetadata {
   return {
@@ -19,7 +30,8 @@ export function createChannelMetadata(
     messageId,
     listTitle: listTitle.trim(),
     lastSyncTime: new Date(),
-    defaultCategory: defaultCategory || DEFAULT_CATEGORY
+    defaultCategory: defaultCategory || DEFAULT_CATEGORY,
+    operationLogThreadId
   };
 }
 

@@ -58,7 +58,7 @@ export interface MetadataOperationResult {
 export class MetadataManager {
   private googleSheetsService: GoogleSheetsService;
   private readonly METADATA_SHEET_NAME = 'metadata';
-  private readonly metadataHeaders = ['channel_id', 'message_id', 'list_title', 'last_sync_time', 'default_category'];
+  private readonly metadataHeaders = ['channel_id', 'message_id', 'list_title', 'last_sync_time', 'default_category', 'operation_log_thread_id'];
 
   constructor() {
     this.googleSheetsService = GoogleSheetsService.getInstance();
@@ -249,7 +249,8 @@ export class MetadataManager {
             messageId: row[1] || '',
             listTitle: row[2] || '',
             lastSyncTime: this.parseDate(row[3]),
-            defaultCategory: row[4] || DEFAULT_CATEGORY
+            defaultCategory: row[4] || DEFAULT_CATEGORY,
+            operationLogThreadId: row[5] && row[5].trim() !== '' ? row[5] : undefined
           };
           
           return {
@@ -320,7 +321,8 @@ export class MetadataManager {
         updatedMetadata.messageId,
         updatedMetadata.listTitle,
         this.formatDate(updatedMetadata.lastSyncTime),
-        updatedMetadata.defaultCategory
+        updatedMetadata.defaultCategory,
+        updatedMetadata.operationLogThreadId || ''
       ];
 
       // 特定行のみを更新（行番号は1-based、targetRowIndexは0-basedなので+1）
@@ -328,7 +330,7 @@ export class MetadataManager {
       const updateResult = await this.googleSheetsService.updateSheetData(
         this.METADATA_SHEET_NAME,
         [updateRow],
-        `A${rowNumber}:E${rowNumber}`
+        `A${rowNumber}:F${rowNumber}`
       );
       
       if (!updateResult.success) {
@@ -379,7 +381,8 @@ export class MetadataManager {
         newMetadata.messageId,
         newMetadata.listTitle,
         this.formatDate(newMetadata.lastSyncTime),
-        newMetadata.defaultCategory
+        newMetadata.defaultCategory,
+        newMetadata.operationLogThreadId || ''
       ];
 
       // atomic操作でデータを追加（重複チェックと追加を同時実行）
@@ -452,7 +455,8 @@ export class MetadataManager {
         updatedMetadata.messageId,
         updatedMetadata.listTitle,
         this.formatDate(updatedMetadata.lastSyncTime),
-        updatedMetadata.defaultCategory
+        updatedMetadata.defaultCategory,
+        updatedMetadata.operationLogThreadId || ''
       ];
 
       // 特定行のみを更新（行番号は1-based、targetRowIndexは0-basedなので+1）
@@ -460,7 +464,7 @@ export class MetadataManager {
       const updateResult = await this.googleSheetsService.updateSheetData(
         this.METADATA_SHEET_NAME,
         [updateRow],
-        `A${rowNumber}:E${rowNumber}`
+        `A${rowNumber}:F${rowNumber}`
       );
       
       if (!updateResult.success) {
@@ -518,7 +522,7 @@ export class MetadataManager {
       const updateResult = await this.googleSheetsService.updateSheetData(
         this.METADATA_SHEET_NAME,
         [this.metadataHeaders],
-        'A1:E1'
+        'A1:F1'
       );
       
       return updateResult;

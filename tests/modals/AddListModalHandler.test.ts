@@ -95,10 +95,10 @@ describe('AddListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         expect.arrayContaining([
-          ['name', 'category', 'until'],
-          ['既存アイテム', 'その他', ''],
-          ['牛乳', '食品', '2024-12-31'],
-          ['パン', '食品', '']
+          ['name', 'category', 'until', 'check'],
+          ['既存アイテム', 'その他', '', 0],
+          ['牛乳', '食品', '2024-12-31', 0],
+          ['パン', '食品', '', 0]
         ])
       );
       expect(logger.info).toHaveBeenCalledWith(
@@ -130,9 +130,9 @@ describe('AddListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         expect.arrayContaining([
-          ['name', 'category', 'until'],
-          ['牛乳', '', '2024-12-31'],
-          ['パン', '', '']
+          ['name', 'category', 'until', 'check'],
+          ['牛乳', '', '2024-12-31', 0],
+          ['パン', '', '', 0]
         ])
       );
     });
@@ -155,8 +155,8 @@ describe('AddListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         [
-          ['name', 'category', 'until'],
-          ['牛乳', '食品', '']
+          ['name', 'category', 'until', 'check'],
+          ['牛乳', '食品', '', 0]
         ]
       );
     });
@@ -197,10 +197,10 @@ describe('AddListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         [
-          ['name', 'category', 'until'],
-          ['既存アイテム', 'その他', ''],
-          ['牛乳', '食品', ''],
-          ['パン', '食品', '']
+          ['name', 'category', 'until', 'check'],
+          ['既存アイテム', 'その他', '', 0],
+          ['牛乳', '食品', '', 0],
+          ['パン', '食品', '', 0]
         ]
       );
       expect(logger.warn).toHaveBeenCalledWith(
@@ -243,10 +243,10 @@ describe('AddListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         [
-          ['name', 'category', 'until'],
-          ['牛乳', '食品', '2024-12-31'],
-          ['パン', '食品', ''],
-          ['シャンプー', '食品', '2024-06-15']
+          ['name', 'category', 'until', 'check'],
+          ['牛乳', '食品', '2024-12-31', 0],
+          ['パン', '食品', '', 0],
+          ['シャンプー', '食品', '2024-06-15', 0]
         ]
       );
     });
@@ -267,6 +267,39 @@ describe('AddListModalHandler', () => {
       });
 
       await expect(handler['executeAction'](context)).rejects.toThrow('スプレッドシートの更新に失敗しました: Sheet update failed');
+    });
+
+    it('should preserve check status when adding new items to existing list with completed items', async () => {
+      const category = '食品';
+      const items = '牛乳,2024-12-31\nパン';
+      
+      mockFields.getTextInputValue
+        .mockReturnValueOnce(category)
+        .mockReturnValueOnce(items);
+      
+      // 既存データに完了済み(check=1)のアイテムを含める
+      const existingData = [
+        ['name', 'category', 'until', 'check'],
+        ['既存アイテム', 'その他', '', '1'],
+        ['未完了アイテム', 'その他', '', '0']
+      ];
+      mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
+      mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
+      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
+
+      await handler['executeAction'](context);
+
+      // 既存の完了状態が保持され、新しいアイテムは未完了状態で追加される
+      expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
+        'channel789',
+        expect.arrayContaining([
+          ['name', 'category', 'until', 'check'],
+          ['既存アイテム', 'その他', '', 1],
+          ['未完了アイテム', 'その他', '', 0],
+          ['牛乳', '食品', '2024-12-31', 0],
+          ['パン', '食品', '', 0]
+        ])
+      );
     });
   });
 

@@ -166,12 +166,13 @@ export class AddListModalHandler extends BaseModalHandler {
           const name = row[0].trim();
           const category = row.length > 1 && row[1] && row[1].trim() !== '' ? normalizeCategory(row[1]) : null;
           const until = row.length > 2 && row[2] ? this.parseDate(row[2]) : null;
+          const check = row.length > 3 && row[3] && row[3].trim() === '1' ? true : false;
 
           const item: ListItem = {
             name,
             category,
             until,
-            check: false
+            check
           };
 
           items.push(item);
@@ -214,18 +215,19 @@ export class AddListModalHandler extends BaseModalHandler {
     }
   }
 
-  private convertItemsToSheetData(items: ListItem[]): string[][] {
-    const data: string[][] = [];
+  private convertItemsToSheetData(items: ListItem[]): (string | number)[][] {
+    const data: (string | number)[][] = [];
     
     // ヘッダー行を追加
-    data.push(['name', 'category', 'until']);
+    data.push(['name', 'category', 'until', 'check']);
     
     // データ行を追加
     for (const item of items) {
       const row = [
         item.name,
         item.category || '',
-        item.until ? this.formatDateForSheet(item.until) : ''
+        item.until ? this.formatDateForSheet(item.until) : '',
+        item.check ? 1 : 0
       ];
       data.push(row);
     }

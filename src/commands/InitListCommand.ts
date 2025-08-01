@@ -306,11 +306,18 @@ export class InitListCommand extends BaseCommand {
             category = defaultCategory || DEFAULT_CATEGORY;
           }
 
+          // checkの処理：4列目がある場合は読み取り、'1'の場合のみtrue
+          let check = false;
+          if (row.length > 3 && row[3]) {
+            const checkValue = typeof row[3] === 'string' ? row[3].trim() : String(row[3]);
+            check = checkValue === '1';
+          }
+
           const item: ListItem = {
             name,
             category,
             until,
-            check: false
+            check
           };
           
           items.push(item);

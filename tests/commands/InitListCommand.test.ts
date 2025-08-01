@@ -367,6 +367,57 @@ describe('InitListCommand', () => {
         content: '✅ スプレッドシートから1件のアイテムを取得し、このチャンネルに表示しました'
       });
     });
+
+    it('should preserve check status from existing data during initialization', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      };
+
+      // 完了フラグ(check)を含むデータ
+      const testData = [
+        ['name', 'category', 'until', 'check'],
+        ['完了済みアイテム', 'その他', '', '1'],
+        ['未完了アイテム', 'その他', '2024-12-31', '0'],
+        ['無効フラグアイテム', 'その他', '', 'invalid']
+      ];
+
+      mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true);
+      mockGoogleSheetsService.getSheetData.mockResolvedValue(testData);
+      mockGoogleSheetsService.validateData.mockReturnValue({ isValid: true, errors: [] });
+      mockGoogleSheetsService.normalizeData.mockReturnValue(testData);
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue({
+        existed: true,
+        created: false
+      });
+      
+      // ListFormatterをモックして、渡されたitemsを検証
+      const ListFormatterModule = await import('../../src/ui/ListFormatter');
+      const formatDataListSpy = vi.spyOn(ListFormatterModule.ListFormatter, 'formatDataList');
+      
+      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        message: { id: 'test-message-id' }
+      });
+
+      await initListCommand.execute(context);
+
+      // formatDataListに渡されたitemsを検証（check値が正しく読み込まれているか）
+      expect(formatDataListSpy).toHaveBeenCalled();
+      const [, items] = formatDataListSpy.mock.calls[0];
+      
+      // checkフラグが正しく設定されていることを期待（現在はfalseになっているはず）
+      expect(items[0].check).toBe(true);  // '1' -> true
+      expect(items[1].check).toBe(false); // '0' -> false  
+      expect(items[2].check).toBe(false); // 'invalid' -> false
+      
+      expect(mockInteraction.editReply).toHaveBeenCalledWith({
+        content: '✅ スプレッドシートから3件のアイテムを取得し、このチャンネルに表示しました'
+      });
+    });
   });
 
   describe('デフォルトカテゴリー処理テスト', () => {

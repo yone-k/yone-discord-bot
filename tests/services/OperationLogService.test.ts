@@ -105,7 +105,7 @@ describe('OperationLogService', () => {
 
       // Assert
       expect(formattedMessage).toMatch(/^\[\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}\]/);
-      expect(formattedMessage).toContain('2024/01/01 12:00:00');
+      expect(formattedMessage).toContain('2024/01/01 21:00:00'); // UTC 12:00 → JST 21:00
     });
 
     it('メンション形式（@ユーザー名）が正しいこと', () => {

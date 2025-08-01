@@ -32,13 +32,15 @@ export class OperationLogService {
     timestamp: Date = new Date(),
     details?: OperationDetails
   ): string {
-    // 日時を「YYYY/MM/DD HH:mm:ss」形式でフォーマット（UTC）
-    const year = timestamp.getUTCFullYear();
-    const month = String(timestamp.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(timestamp.getUTCDate()).padStart(2, '0');
-    const hours = String(timestamp.getUTCHours()).padStart(2, '0');
-    const minutes = String(timestamp.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(timestamp.getUTCSeconds()).padStart(2, '0');
+    // 日時を「YYYY/MM/DD HH:mm:ss」形式でフォーマット（JST）
+    const jstOffset = 9 * 60; // JST is UTC+9
+    const jstDate = new Date(timestamp.getTime() + (jstOffset * 60 * 1000));
+    const year = jstDate.getUTCFullYear();
+    const month = String(jstDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(jstDate.getUTCDate()).padStart(2, '0');
+    const hours = String(jstDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(jstDate.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(jstDate.getUTCSeconds()).padStart(2, '0');
     const formattedTimestamp = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
 
     // ユーザーを「<@userId>」形式でメンション

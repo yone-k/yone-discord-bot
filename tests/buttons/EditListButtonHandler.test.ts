@@ -148,7 +148,7 @@ describe('EditListButtonHandler', () => {
 
       const modalCall = mockInteraction.showModal.mock.calls[0][0];
       const textInput = modalCall.components[0].components[0];
-      expect(textInput.data.value).toBe('牛乳,食品,,\nパン,,,\nシャンプー,日用品,,');
+      expect(textInput.data.value).toBe('牛乳,食品,,\nシャンプー,日用品,,\nパン,,,');
     });
 
     it('should preserve empty categories without converting to "その他"', async () => {
@@ -166,7 +166,7 @@ describe('EditListButtonHandler', () => {
       const modalCall = mockInteraction.showModal.mock.calls[0][0];
       const textInput = modalCall.components[0].components[0];
       // カテゴリが空の場合は空のままCSVに変換される
-      expect(textInput.data.value).toBe('牛乳,,,\nパン,,,\n卵,食材,,');
+      expect(textInput.data.value).toBe('卵,食材,,\n牛乳,,,\nパン,,,');
     });
 
     it('should return error result when channelId is missing', async () => {
@@ -315,6 +315,112 @@ describe('EditListButtonHandler', () => {
       const result = handler['convertToCsvText'](items);
       expect(result).toBe('完了アイテム,テスト,,1\n未完了アイテム1,テスト,,\n未完了アイテム2,テスト,,');
     });
+  });
+
+  it('should display defaultCategory for empty categories in CSV', () => {
+    const items = [
+      {
+        name: 'アイテム1',
+        category: null, // 空のカテゴリ
+        until: null,
+        check: false
+      },
+      {
+        name: 'アイテム2',
+        category: '', // 空文字列のカテゴリ
+        until: null,
+        check: false
+      },
+      {
+        name: 'アイテム3',
+        category: '食品' as any,
+        until: null,
+        check: false
+      }
+    ];
+
+    // defaultCategoryを指定してCSV変換
+    const result = handler['convertToCsvText'](items, '日用品');
+      
+    // 期待値: 空のカテゴリは'日用品'で表示される
+    expect(result).toBe('アイテム3,食品,,\nアイテム1,日用品,,\nアイテム2,日用品,,');
+  });
+
+  it('should sort items in same order as ListFormatter display', () => {
+    const items = [
+      {
+        name: '通常アイテム',
+        category: '通常' as any,
+        until: null,
+        check: false
+      },
+      {
+        name: 'その他アイテム',
+        category: null, // null -> デフォルトカテゴリ（'その他'）に変換される
+        until: null,
+        check: false
+      },
+      {
+        name: '重要アイテム',
+        category: '重要' as any,
+        until: null,
+        check: false
+      }
+    ];
+
+    const result = handler['convertToCsvText'](items);
+    // 期待値: '重要' → '通常' → 'その他' の順序（カテゴリ別ソート）
+    expect(result).toBe('重要アイテム,重要,,\n通常アイテム,通常,,\nその他アイテム,,,');
+  });
+
+  it('should maintain item order within same category', () => {
+    const items = [
+      {
+        name: 'アイテム2',
+        category: '食品' as any,
+        until: null,
+        check: false
+      },
+      {
+        name: 'アイテム1',
+        category: '食品' as any,
+        until: null,
+        check: false
+      },
+      {
+        name: 'アイテムC',
+        category: '食品' as any,
+        until: null,
+        check: false
+      }
+    ];
+
+    const result = handler['convertToCsvText'](items);
+    // 同一カテゴリ内では元の順序を保持
+    expect(result).toBe('アイテム2,食品,,\nアイテム1,食品,,\nアイテムC,食品,,');
+  });
+
+  it('should match ListFormatter category ordering exactly', async () => {
+    const items = [
+      { name: 'その他1', category: null, until: null, check: false },
+      { name: 'B項目', category: 'B' as any, until: null, check: false },
+      { name: 'A項目', category: 'A' as any, until: null, check: false },
+      { name: 'その他2', category: 'その他' as any, until: null, check: false }
+    ];
+
+    // ListFormatterの結果と比較するために、実際のListFormatterも呼び出す
+    const ListFormatterModule = await import('../../src/ui/ListFormatter');
+    const embed = await ListFormatterModule.ListFormatter.formatDataList('テスト', items, 'test-channel');
+    const embedDescription = embed.data.description || '';
+      
+    const csvResult = handler['convertToCsvText'](items);
+      
+    // カテゴリの出現順序を抽出
+    const embedCategoryOrder = embedDescription.match(/### \S+ (.+)/g)?.map(match => match.replace(/### \S+ /, '')) || [];
+    const csvCategoryOrder = csvResult.split('\n').map(line => line.split(',')[1] || 'その他').filter((cat, i, arr) => arr.indexOf(cat) === i);
+      
+    // カテゴリの順序が一致することを確認
+    expect(csvCategoryOrder).toEqual(embedCategoryOrder);
   });
 
   describe('isHeaderRow', () => {

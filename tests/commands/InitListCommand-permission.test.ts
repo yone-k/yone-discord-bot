@@ -84,7 +84,8 @@ describe('InitListCommand Permission Error Tests', () => {
         reply: vi.fn(),
         client: {} as any,
         options: {
-          getString: vi.fn().mockReturnValue(null)
+          getString: vi.fn().mockReturnValue(null),
+          getBoolean: vi.fn().mockReturnValue(true) // enable-logオプションのデフォルト値
         }
       } as any
     };

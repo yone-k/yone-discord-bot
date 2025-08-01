@@ -352,7 +352,8 @@ export class MessageManager {
     messageId: string,
     listTitle: string,
     existingMetadata?: ChannelMetadata,
-    defaultCategory?: string
+    defaultCategory?: string,
+    operationLogThreadId?: string
   ): Promise<MetadataOperationResult> {
     try {
       if (existingMetadata) {
@@ -362,7 +363,8 @@ export class MessageManager {
           messageId,
           listTitle,
           lastSyncTime: new Date(),
-          ...(defaultCategory && { defaultCategory })
+          ...(defaultCategory && { defaultCategory }),
+          ...(operationLogThreadId !== undefined && { operationLogThreadId })
         };
         
         return await this.metadataManager.updateChannelMetadata(channelId, updatedMetadata);
@@ -373,7 +375,8 @@ export class MessageManager {
           messageId,
           listTitle,
           lastSyncTime: new Date(),
-          defaultCategory: defaultCategory || DEFAULT_CATEGORY
+          defaultCategory: defaultCategory || DEFAULT_CATEGORY,
+          ...(operationLogThreadId && { operationLogThreadId })
         };
         
         return await this.metadataManager.createChannelMetadata(channelId, newMetadata);
@@ -396,7 +399,9 @@ export class MessageManager {
     listTitle: string,
     client: Client,
     commandName?: string,
-    defaultCategory?: string
+    defaultCategory?: string,
+    operationLogThreadId?: string,
+    createOperationLogThread?: boolean
   ): Promise<MessageOperationResult> {
     return this.withChannelLock(channelId, async () => {
       try {
@@ -431,13 +436,62 @@ export class MessageManager {
           return messageResult;
         }
         
-        // ステップ4: メタデータ更新（既存メタデータを渡して重複取得を防ぐ）
+        // ステップ4: スレッド作成統合機能（createOperationLogThread=trueの場合）
+        let finalOperationLogThreadId = operationLogThreadId;
+        if (createOperationLogThread) {
+          // 既存のスレッドIDをチェック（メタデータから取得 or 引数から取得）
+          const existingThreadId = metadataResult.success && metadataResult.metadata?.operationLogThreadId 
+            ? metadataResult.metadata.operationLogThreadId 
+            : operationLogThreadId;
+
+          let shouldCreateNewThread = true;
+
+          if (existingThreadId) {
+            // 既存スレッドの有効性を確認
+            try {
+              const existingThread = await client.channels.fetch(existingThreadId);
+              if (existingThread && existingThread.isThread()) {
+                // 既存スレッドが有効な場合はそれを使用
+                finalOperationLogThreadId = existingThreadId;
+                shouldCreateNewThread = false;
+                console.log(`Using existing operation log thread: ${existingThreadId}`);
+              } else {
+                throw new Error('Existing thread is not valid');
+              }
+            } catch (error) {
+              console.warn(`Existing thread ${existingThreadId} is not accessible, creating new one: ${(error as Error).message}`);
+              // 既存スレッドが無効な場合は新しいスレッドを作成
+              shouldCreateNewThread = true;
+            }
+          }
+
+          // 既存スレッドがない、または無効な場合のみ新しいスレッドを作成
+          if (shouldCreateNewThread) {
+            try {
+              const threadResult = await messageResult.message.startThread({
+                name: '操作ログ',
+                autoArchiveDuration: 1440 // 24時間
+              });
+              
+              if (threadResult) {
+                finalOperationLogThreadId = threadResult.id;
+                console.log(`Created new operation log thread: ${threadResult.id}`);
+              }
+            } catch (error) {
+              console.warn(`Failed to create operation log thread: ${(error as Error).message}`);
+              // スレッド作成失敗は非侵襲的（メッセージ作成は成功のまま継続）
+            }
+          }
+        }
+
+        // ステップ5: メタデータ更新（既存メタデータを渡して重複取得を防ぐ）
         const metadataUpdateResult = await this.updateMessageMetadataInternal(
           channelId,
           messageResult.message.id,
           listTitle,
           metadataResult.success ? metadataResult.metadata : undefined,
-          defaultCategory
+          defaultCategory,
+          finalOperationLogThreadId
         );
         
         if (!metadataUpdateResult.success) {
@@ -445,7 +499,7 @@ export class MessageManager {
           // メッセージ作成は成功しているので、警告のみ出力して処理は継続
         }
         
-        // ステップ5: メッセージのピン留めを確認・実行
+        // ステップ6: メッセージのピン留めを確認・実行
         const pinResult = await this.ensureMessagePinned(
           channelId,
           messageResult.message.id,

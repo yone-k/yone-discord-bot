@@ -1,5 +1,6 @@
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import { Logger } from '../utils/logger';
+import { OperationResult, OperationInfo } from '../models/types/OperationLog';
 
 export type ConfirmationCallback = (context: ModalHandlerContext) => Promise<string>;
 
@@ -13,18 +14,42 @@ export class ConfirmationModalHandler extends BaseModalHandler {
     this.actionCallback = actionCallback;
   }
 
-  protected async executeAction(context: ModalHandlerContext): Promise<void> {
-    if (!this.actionCallback) {
-      throw new Error('Action callback is not defined');
+  protected async executeAction(context: ModalHandlerContext): Promise<OperationResult> {
+    try {
+      if (!this.actionCallback) {
+        return {
+          success: false,
+          message: 'Action callback is not defined',
+          error: new Error('Action callback is not defined')
+        };
+      }
+
+      // コールバック関数を実行し、結果メッセージを取得
+      const resultMessage = await this.actionCallback(context);
+
+      // 結果をユーザーに表示
+      await context.interaction.editReply({
+        content: resultMessage
+      });
+
+      return {
+        success: true,
+        message: resultMessage
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : '確認処理中にエラーが発生しました',
+        error: error instanceof Error ? error : new Error('Unknown error')
+      };
     }
+  }
 
-    // コールバック関数を実行し、結果メッセージを取得
-    const resultMessage = await this.actionCallback(context);
-
-    // 結果をユーザーに表示
-    await context.interaction.editReply({
-      content: resultMessage
-    });
+  protected getOperationInfo(_context: ModalHandlerContext): OperationInfo {
+    return {
+      operationType: 'confirmation',
+      actionName: '確認処理'
+    };
   }
 
   protected getSuccessMessage(): string {

@@ -70,9 +70,20 @@ export class DeleteAllMessageLogic {
   private async fetchAllMessages(channel: TextChannel): Promise<Collection<string, Message>> {
     const messages = new Collection<string, Message>();
     let lastMessageId: string | undefined;
+    let iterationCount = 0;
+    const maxIterations = 1000; // 安全のための上限
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
+      if (iterationCount >= maxIterations) {
+        this.logger.warn('Reached maximum iterations while fetching messages', {
+          channelId: channel.id,
+          iterationCount,
+          messageCount: messages.size
+        });
+        break;
+      }
+
       const fetchedMessages = await channel.messages.fetch({
         limit: 100,
         before: lastMessageId
@@ -82,12 +93,41 @@ export class DeleteAllMessageLogic {
         break;
       }
 
+      const previousSize = messages.size;
       for (const [id, message] of fetchedMessages) {
         messages.set(id, message);
       }
 
-      lastMessageId = fetchedMessages.last()?.id;
+      // 新しいメッセージが追加されなかった場合は無限ループを防ぐために終了
+      if (messages.size === previousSize) {
+        this.logger.warn('No new messages added, breaking fetch loop', {
+          channelId: channel.id,
+          messageCount: messages.size
+        });
+        break;
+      }
+
+      const newLastMessageId = fetchedMessages.last()?.id;
+      
+      // lastMessageIdが変わらない場合は無限ループを防ぐために終了
+      if (newLastMessageId === lastMessageId) {
+        this.logger.warn('LastMessageId did not change, breaking fetch loop', {
+          channelId: channel.id,
+          lastMessageId,
+          messageCount: messages.size
+        });
+        break;
+      }
+
+      lastMessageId = newLastMessageId;
+      iterationCount++;
     }
+
+    this.logger.debug('Finished fetching messages', {
+      channelId: channel.id,
+      totalMessages: messages.size,
+      iterations: iterationCount
+    });
 
     return messages;
   }

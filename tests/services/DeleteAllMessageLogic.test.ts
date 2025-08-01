@@ -53,6 +53,7 @@ describe('DeleteAllMessageLogic', () => {
   describe('メッセージ削除処理', () => {
     test('削除対象がない場合は0を返す', async () => {
       const mockChannel = {
+        id: 'test-channel-id',
         messages: {
           fetch: vi.fn().mockResolvedValue(new Collection())
         }
@@ -62,6 +63,11 @@ describe('DeleteAllMessageLogic', () => {
 
       expect(result.deletedCount).toBe(0);
       expect(result.message).toBe('削除対象のメッセージはありませんでした。');
+      expect(mockLogger.debug).toHaveBeenCalledWith('Finished fetching messages', {
+        channelId: 'test-channel-id',
+        totalMessages: 0,
+        iterations: 0
+      });
     });
 
     test('新しいメッセージ（14日以内）はbulkDeleteで削除', async () => {
@@ -85,7 +91,10 @@ describe('DeleteAllMessageLogic', () => {
       const bulkDeletedMessages = new Collection();
       bulkDeletedMessages.set('recent-msg-1', recentMessage as Message);
 
-      mockChannel.messages.fetch.mockResolvedValue(messages);
+      // 最初の呼び出しでメッセージを返し、2回目の呼び出しで空のCollectionを返す
+      mockChannel.messages.fetch
+        .mockResolvedValueOnce(messages)
+        .mockResolvedValueOnce(new Collection());
       mockChannel.bulkDelete.mockResolvedValue(bulkDeletedMessages);
 
       const result = await logic.deleteAllMessages(mockChannel, 'test-user-id');
@@ -97,6 +106,11 @@ describe('DeleteAllMessageLogic', () => {
         channelId: 'test-channel-id',
         deletedCount: 1,
         userId: 'test-user-id'
+      });
+      expect(mockLogger.debug).toHaveBeenCalledWith('Finished fetching messages', {
+        channelId: 'test-channel-id',
+        totalMessages: 1,
+        iterations: 1
       });
     });
 
@@ -118,13 +132,21 @@ describe('DeleteAllMessageLogic', () => {
       const messages = new Collection();
       messages.set('old-msg-1', oldMessage as any);
 
-      mockChannel.messages.fetch.mockResolvedValue(messages);
+      // 最初の呼び出しでメッセージを返し、2回目の呼び出しで空のCollectionを返す
+      mockChannel.messages.fetch
+        .mockResolvedValueOnce(messages)
+        .mockResolvedValueOnce(new Collection());
 
       const result = await logic.deleteAllMessages(mockChannel, 'test-user-id');
 
       expect(oldMessage.delete).toHaveBeenCalled();
       expect(result.deletedCount).toBe(1);
       expect(result.message).toBe('1件のメッセージを削除しました。');
+      expect(mockLogger.debug).toHaveBeenCalledWith('Finished fetching messages', {
+        channelId: 'test-channel-id',
+        totalMessages: 1,
+        iterations: 1
+      });
     });
 
     test('bulkDelete失敗時は個別削除にフォールバック', async () => {
@@ -145,7 +167,10 @@ describe('DeleteAllMessageLogic', () => {
       const messages = new Collection();
       messages.set('recent-msg-1', recentMessage as any);
 
-      mockChannel.messages.fetch.mockResolvedValue(messages);
+      // 最初の呼び出しでメッセージを返し、2回目の呼び出しで空のCollectionを返す
+      mockChannel.messages.fetch
+        .mockResolvedValueOnce(messages)
+        .mockResolvedValueOnce(new Collection());
 
       const result = await logic.deleteAllMessages(mockChannel, 'test-user-id');
 
@@ -157,16 +182,27 @@ describe('DeleteAllMessageLogic', () => {
         channelId: 'test-channel-id',
         messageCount: 1
       });
+      expect(mockLogger.debug).toHaveBeenCalledWith('Finished fetching messages', {
+        channelId: 'test-channel-id',
+        totalMessages: 1,
+        iterations: 1
+      });
     });
 
     test('メッセージ取得でエラーが発生した場合', async () => {
       const mockChannel = {
+        id: 'test-channel-id',
         messages: {
           fetch: vi.fn().mockRejectedValue(new Error('Fetch failed'))
         }
       } as any;
 
       await expect(logic.deleteAllMessages(mockChannel, 'test-user-id')).rejects.toThrow('Failed to fetch messages: Fetch failed');
+      expect(mockLogger.error).toHaveBeenCalledWith('Failed to delete messages', {
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        error: 'Fetch failed'
+      });
     });
   });
 

@@ -12,6 +12,8 @@ import { ModalManager } from './services/ModalManager';
 import { ButtonManager } from './services/ButtonManager';
 import { registerAllButtons } from './registry/RegisterButtons';
 import { registerAllModals } from './registry/RegisterModals';
+import { OperationLogService } from './services/OperationLogService';
+import { MetadataManager } from './services/MetadataManager';
 
 class DiscordBot {
   private client: Client;
@@ -23,6 +25,8 @@ class DiscordBot {
   private buttonManager!: ButtonManager;
   private httpServer!: express.Application;
   private server: Server | null = null;
+  private operationLogService!: OperationLogService;
+  private metadataManager!: MetadataManager;
 
   constructor() {
     try {
@@ -60,12 +64,16 @@ class DiscordBot {
 
   private registerReactionAndModalHandlers(): void {
     try {
+      // MetadataManagerとOperationLogServiceを初期化
+      this.metadataManager = new MetadataManager();
+      this.operationLogService = new OperationLogService(this.logger, this.metadataManager);
+      
       this.reactionManager = new ReactionManager(this.logger);
       this.modalManager = new ModalManager(this.logger);
-      this.buttonManager = new ButtonManager(this.logger);
+      this.buttonManager = new ButtonManager(this.logger, this.operationLogService, this.metadataManager);
 
       // 新しいレジストリ関数を使用してハンドラーを登録
-      registerAllButtons(this.buttonManager, this.logger);
+      registerAllButtons(this.buttonManager, this.logger, this.operationLogService, this.metadataManager);
       registerAllModals(this.modalManager, this.logger);
 
       this.logger.info('Button and modal handlers registered successfully');

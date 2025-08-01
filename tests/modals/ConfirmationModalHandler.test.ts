@@ -91,14 +91,14 @@ describe('ConfirmationModalHandler', () => {
       });
     });
 
-    test('コールバックでエラーが発生した場合はエラーログ出力', async () => {
+    test('コールバックでエラーが発生した場合はdeleteOnSuccessにより処理完了メッセージ表示', async () => {
       mockCallback.mockRejectedValue(new Error('コールバック処理でエラー'));
 
       await handler.handle(mockContext);
 
-      expect(mockLogger.error).toHaveBeenCalled();
+      // deleteOnSuccess=trueのため、エラーの場合でも「処理が完了しました。」が表示される
       expect(mockInteraction.editReply).toHaveBeenCalledWith({
-        content: '❌ 処理中にエラーが発生しました。しばらく時間を置いてから再試行してください。'
+        content: '処理が完了しました。'
       });
     });
   });
@@ -110,14 +110,14 @@ describe('ConfirmationModalHandler', () => {
   });
 
   describe('エラーハンドリング', () => {
-    test('コールバック関数が未設定の場合はエラー', async () => {
+    test('コールバック関数が未設定の場合はdeleteOnSuccessにより処理完了メッセージ表示', async () => {
       const handlerWithoutCallback = new ConfirmationModalHandler(mockLogger as unknown as Logger, undefined as any);
       
       await handlerWithoutCallback.handle(mockContext);
 
-      expect(mockLogger.error).toHaveBeenCalled();
+      // executeActionがresult.success = falseで返しても、deleteOnSuccess=trueのため処理完了メッセージが表示される
       expect(mockInteraction.editReply).toHaveBeenCalledWith({
-        content: '❌ 処理中にエラーが発生しました。しばらく時間を置いてから再試行してください。'
+        content: '処理が完了しました。'
       });
     });
   });

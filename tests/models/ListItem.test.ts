@@ -8,26 +8,43 @@ describe('ListItem', () => {
       const listItem: ListItem = {
         name: 'テスト商品',
         category: '重要',
-        until: until
+        until: until,
+        check: false
       };
 
       expect(listItem.name).toBe('テスト商品');
       expect(listItem.category).toBe('重要');
       expect(listItem.until).toBe(until);
+      expect(listItem.check).toBe(false);
+    });
+
+    it('should create a ListItem object with check=true', () => {
+      const listItem: ListItem = {
+        name: 'チェック済みアイテム',
+        category: null,
+        until: null,
+        check: true
+      };
+
+      expect(listItem.name).toBe('チェック済みアイテム');
+      expect(listItem.check).toBe(true);
     });
 
     it('should allow null values for category and until', () => {
       const listItem: ListItem = {
         name: 'テスト',
         category: null,
-        until: null
+        until: null,
+        check: false
       };
 
       expect(listItem).toHaveProperty('name');
       expect(listItem).toHaveProperty('category');
       expect(listItem).toHaveProperty('until');
+      expect(listItem).toHaveProperty('check');
       expect(listItem.category).toBeNull();
       expect(listItem.until).toBeNull();
+      expect(listItem.check).toBe(false);
     });
   });
 
@@ -38,6 +55,7 @@ describe('ListItem', () => {
       expect(result.name).toBe('りんご');
       expect(result.category).toBe('重要');
       expect(result.until).toBeNull();
+      expect(result.check).toBe(false);
     });
 
     it('should create ListItem with name only', () => {
@@ -46,6 +64,7 @@ describe('ListItem', () => {
       expect(result.name).toBe('ミニマルテスト');
       expect(result.category).toBeNull();
       expect(result.until).toBeNull();
+      expect(result.check).toBe(false);
     });
 
     it('should create ListItem with until date', () => {
@@ -55,6 +74,23 @@ describe('ListItem', () => {
       expect(result.name).toBe('期限テスト');
       expect(result.category).toBe('テスト');
       expect(result.until).toBe(until);
+      expect(result.check).toBe(false);
+    });
+
+    it('should create ListItem with check=true', () => {
+      const result = createListItem('完了済みテスト', 'テスト', null, true);
+
+      expect(result.name).toBe('完了済みテスト');
+      expect(result.category).toBe('テスト');
+      expect(result.until).toBeNull();
+      expect(result.check).toBe(true);
+    });
+
+    it('should create ListItem with check=false by default', () => {
+      const result = createListItem('デフォルトテスト', 'テスト', null);
+
+      expect(result.name).toBe('デフォルトテスト');
+      expect(result.check).toBe(false);
     });
 
     it('should trim whitespace from name', () => {
@@ -62,6 +98,7 @@ describe('ListItem', () => {
 
       expect(result.name).toBe('牛乳');
       expect(result.category).toBe('通常');
+      expect(result.check).toBe(false);
     });
   });
 
@@ -70,7 +107,8 @@ describe('ListItem', () => {
       const validItem: ListItem = {
         name: 'バナナ',
         category: '重要',
-        until: null
+        until: null,
+        check: false
       };
 
       expect(() => validateListItem(validItem)).not.toThrow();
@@ -80,17 +118,19 @@ describe('ListItem', () => {
       const validItem: ListItem = {
         name: 'バナナ',
         category: null,
-        until: null
+        until: null,
+        check: false
       };
 
       expect(() => validateListItem(validItem)).not.toThrow();
     });
 
-    it('should validate ListItem with partial null values', () => {
+    it('should validate ListItem with check=true', () => {
       const validItem: ListItem = {
         name: 'バナナ',
         category: null,
-        until: null
+        until: null,
+        check: true
       };
 
       expect(() => validateListItem(validItem)).not.toThrow();
@@ -100,7 +140,8 @@ describe('ListItem', () => {
       const invalidItem: ListItem = {
         name: '',
         category: '重要',
-        until: null
+        until: null,
+        check: false
       };
 
       expect(() => validateListItem(invalidItem)).toThrow('名前は必須です');
@@ -110,7 +151,8 @@ describe('ListItem', () => {
       const validItem: ListItem = {
         name: 'テスト商品',
         category: null,
-        until: null
+        until: null,
+        check: true
       };
 
       expect(() => validateListItem(validItem)).not.toThrow();
@@ -120,7 +162,8 @@ describe('ListItem', () => {
       const invalidItem: ListItem = {
         name: 'テスト商品',
         category: '重要',
-        until: new Date('invalid')
+        until: new Date('invalid'),
+        check: false
       };
 
       expect(() => validateListItem(invalidItem)).toThrow('期限日時が無効です');

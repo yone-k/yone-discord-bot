@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ModalSubmitInteraction } from 'discord.js';
 import { Logger } from '../../src/utils/logger';
 import { BaseModalHandler, ModalHandlerContext } from '../../src/base/BaseModalHandler';
+import { OperationResult, OperationInfo } from '../../src/models/types/OperationLog';
 
 class TestModalHandler extends BaseModalHandler {
   constructor(logger: Logger, ephemeral = true, deleteOnSuccess = false) {
@@ -10,8 +11,18 @@ class TestModalHandler extends BaseModalHandler {
     this.deleteOnSuccess = deleteOnSuccess;
   }
 
-  protected async executeAction(_context: ModalHandlerContext): Promise<void> {
-    // テスト用の最小実装
+  protected async executeAction(_context: ModalHandlerContext): Promise<OperationResult> {
+    return {
+      success: true,
+      message: 'テスト処理が完了しました'
+    };
+  }
+
+  protected getOperationInfo(_context: ModalHandlerContext): OperationInfo {
+    return {
+      operationType: 'test',
+      actionName: 'テスト処理'
+    };
   }
 
   protected getSuccessMessage(): string {
@@ -56,7 +67,11 @@ describe('BaseModalHandler', () => {
 
   describe('handle', () => {
     it('should handle valid modal submission', async () => {
-      const executeActionSpy = vi.spyOn(handler as any, 'executeAction').mockResolvedValue(undefined);
+      const mockResult: OperationResult = {
+        success: true,
+        message: 'テスト処理が完了しました'
+      };
+      const executeActionSpy = vi.spyOn(handler as any, 'executeAction').mockResolvedValue(mockResult);
       
       await handler.handle(context);
 
@@ -83,7 +98,11 @@ describe('BaseModalHandler', () => {
     });
 
     it('should handle reply error', async () => {
-      const executeActionSpy = vi.spyOn(handler as any, 'executeAction').mockResolvedValue(undefined);
+      const mockResult: OperationResult = {
+        success: true,
+        message: 'テスト処理が完了しました'
+      };
+      const executeActionSpy = vi.spyOn(handler as any, 'executeAction').mockResolvedValue(mockResult);
       const replyError = new Error('Reply failed');
       mockInteraction.editReply = vi.fn().mockRejectedValue(replyError);
 
@@ -119,7 +138,8 @@ describe('BaseModalHandler', () => {
   describe('ephemeral option', () => {
     it('should use ephemeral: false when set to false', async () => {
       const handler = new TestModalHandler(logger, false, false);
-      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(undefined);
+      const mockResult: OperationResult = { success: true, message: 'テスト処理が完了しました' };
+      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(mockResult);
       
       await handler.handle(context);
 
@@ -128,7 +148,8 @@ describe('BaseModalHandler', () => {
 
     it('should use ephemeral: true by default', async () => {
       const handler = new TestModalHandler(logger);
-      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(undefined);
+      const mockResult: OperationResult = { success: true, message: 'テスト処理が完了しました' };
+      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(mockResult);
       
       await handler.handle(context);
 
@@ -144,7 +165,8 @@ describe('BaseModalHandler', () => {
 
     it('should delete message when deleteOnSuccess is true', async () => {
       const handler = new TestModalHandler(logger, true, true);
-      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(undefined);
+      const mockResult: OperationResult = { success: true, message: 'テスト処理が完了しました' };
+      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(mockResult);
       
       await handler.handle(context);
 
@@ -154,7 +176,8 @@ describe('BaseModalHandler', () => {
 
     it('should not delete message when deleteOnSuccess is false', async () => {
       const handler = new TestModalHandler(logger, true, false);
-      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(undefined);
+      const mockResult: OperationResult = { success: true, message: 'テスト処理が完了しました' };
+      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(mockResult);
       
       await handler.handle(context);
 

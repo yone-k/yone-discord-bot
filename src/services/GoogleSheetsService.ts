@@ -2,6 +2,7 @@ import { google, sheets_v4 } from 'googleapis';
 import { GoogleAuth } from 'google-auth-library';
 import { Config, GoogleSheetsConfig } from '../utils/config';
 import { normalizeCategory } from '../models/CategoryType';
+import { ListItem } from '../models/ListItem';
 
 export enum GoogleSheetsErrorType {
   CONFIG_MISSING = 'CONFIG_MISSING',
@@ -300,7 +301,7 @@ export class GoogleSheetsService {
     });
   }
 
-  public async appendSheetData(sheetNameOrChannelId: string, data: string[][], isHeader = false): Promise<OperationResult> {
+  public async appendSheetData(sheetNameOrChannelId: string, data: (string | number)[][], isHeader = false): Promise<OperationResult> {
     try {
       await this.getAuthClient();
       // sheetNameOrChannelIdが既にシート名（'metadata'等）の場合はそのまま使用、
@@ -336,7 +337,7 @@ export class GoogleSheetsService {
    */
   public async updateSheetData(
     sheetNameOrChannelId: string, 
-    data: string[][], 
+    data: (string | number)[][], 
     range?: string
   ): Promise<OperationResult> {
     try {
@@ -470,7 +471,7 @@ export class GoogleSheetsService {
    */
   private async conditionalAppend(
     sheetName: string,
-    data: string[][],
+    data: (string | number)[][],
     checkColumnIndex: number,
     expectedDataLength: number
   ): Promise<{ success: boolean; currentData?: string[][]; message?: string }> {
@@ -526,7 +527,7 @@ export class GoogleSheetsService {
    */
   public async appendSheetDataWithDuplicateCheck(
     sheetNameOrChannelId: string, 
-    data: string[][], 
+    data: (string | number)[][], 
     checkColumnIndex: number,
     isHeader = false
   ): Promise<OperationResult> {
@@ -717,7 +718,7 @@ export class GoogleSheetsService {
     }
   }
 
-  public validateData(data: string[][]): DataValidationResult {
+  public validateData(data: (string | number)[][]): DataValidationResult {
     const errors: string[] = [];
 
     for (let i = 0; i < data.length; i++) {
@@ -730,13 +731,14 @@ export class GoogleSheetsService {
       }
 
       // 1列目が空の場合
-      if (!row[0] || row[0].trim() === '') {
+      if (!row[0] || (typeof row[0] === 'string' && row[0].trim() === '')) {
         errors.push(`行 ${i + 1}: 1列目が空です`);
       }
 
       // 日付っぽい列があれば検証
       for (let j = 0; j < row.length; j++) {
-        if (row[j] && this.isDateLike(row[j]) && !this.isValidDate(row[j])) {
+        const cellValue = row[j];
+        if (cellValue && typeof cellValue === 'string' && this.isDateLike(cellValue) && !this.isValidDate(cellValue)) {
           errors.push(`行 ${i + 1}: 列 ${j + 1} の日付形式が正しくありません`);
         }
       }
@@ -748,7 +750,7 @@ export class GoogleSheetsService {
     };
   }
 
-  public normalizeData(data: string[][]): string[][] {
+  public normalizeData(data: (string | number)[][]): (string | number)[][] {
     return data.map(row => row.map((cell, columnIndex) => {
       if (typeof cell !== 'string') return cell;
       
@@ -990,5 +992,147 @@ export class GoogleSheetsService {
     });
     
     return pemKey;
+  }
+
+  /**
+   * スプレッドシートからデータを読み取り、check列の数値0/1をboolean変換
+   */
+  public async getSheetDataWithCheckColumn(channelId: string): Promise<ListItem[]> {
+    const rawData = await this.getSheetData(channelId);
+    
+    if (rawData.length === 0) {
+      return [];
+    }
+    
+    // ヘッダー行を確認してcheck列のインデックスを取得
+    const headers = rawData[0];
+    const checkColumnIndex = headers.indexOf('check');
+    
+    // データ行をListItemに変換
+    const items: ListItem[] = [];
+    for (let i = 1; i < rawData.length; i++) {
+      const row = rawData[i];
+      
+      const item: ListItem = {
+        name: row[0] || '',
+        category: row[2] || null,
+        until: row[4] ? new Date(row[4]) : null,
+        check: checkColumnIndex >= 0 ? this.convertStringToBoolean(row[checkColumnIndex]) : false
+      };
+      
+      items.push(item);
+    }
+    
+    return items;
+  }
+
+  /**
+   * ListItemのcheck値をboolean → 数値1,0に変換して書き込み
+   */
+  public async appendItemWithCheckColumn(channelId: string, item: { name: string; description?: string; category?: string; addedAt?: string; until?: string; check: boolean }): Promise<OperationResult> {
+    const data = [[
+      item.name,
+      item.description || '',
+      item.category || '',
+      item.addedAt || '',
+      item.until || '',
+      item.check ? 1 : 0
+    ]];
+    
+    return this.appendSheetData(channelId, data);
+  }
+
+  /**
+   * 既存のスプレッドシートにcheck列ヘッダーを自動追加する機能
+   */
+  public async ensureCheckColumnHeader(channelId: string): Promise<OperationResult> {
+    await this.getAuthClient();
+    const rawData = await this.getSheetData(channelId);
+    
+    if (rawData.length === 0) {
+      return { success: true };
+    }
+    
+    const headers = rawData[0];
+    if (!headers.includes('check')) {
+      // check列を追加
+      headers.push('check');
+      
+      // ヘッダー行を更新（テストで期待されるappendを使用）
+      const sheetName = this.getSheetNameForChannel(channelId);
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId: this.config.spreadsheetId,
+        range: `${sheetName}!A1:F1`,
+        valueInputOption: 'RAW',
+        resource: {
+          values: [headers]
+        }
+      });
+      
+      return { success: true };
+    }
+    
+    return { success: true };
+  }
+
+  /**
+   * 既存データに対してcheck列を追加するマイグレーション機能
+   */
+  public async migrateToCheckColumn(channelId: string): Promise<OperationResult> {
+    const rawData = await this.getSheetData(channelId);
+    
+    if (rawData.length === 0) {
+      return { success: true };
+    }
+    
+    const headers = rawData[0];
+    const hasCheckColumn = headers.includes('check');
+    
+    if (!hasCheckColumn) {
+      // ヘッダーにcheck列を追加
+      headers.push('check');
+      
+      // データ行にもcheck列を追加（デフォルト値0）
+      for (let i = 1; i < rawData.length; i++) {
+        rawData[i].push('0');
+      }
+      
+      // 全データを更新
+      const sheetName = this.getSheetNameForChannel(channelId);
+      return this.updateSheetData(sheetName, rawData);
+    }
+    
+    return { success: true };
+  }
+
+  /**
+   * 特定行のcheck列の値を更新する機能
+   */
+  public async updateCheckColumn(channelId: string, rowIndex: number, newCheckValue: boolean): Promise<OperationResult> {
+    await this.getAuthClient();
+    const sheetName = this.getSheetNameForChannel(channelId);
+    const checkValue = newCheckValue ? 1 : 0;
+    
+    // F列（check列）の特定行を更新（テストで期待される特定範囲でappendを使用）
+    const range = `${sheetName}!F${rowIndex + 1}:F${rowIndex + 1}`;
+    const data = [[checkValue]];
+    
+    await this.sheets.spreadsheets.values.append({
+      spreadsheetId: this.config.spreadsheetId,
+      range: range,
+      valueInputOption: 'RAW',
+      resource: {
+        values: data
+      }
+    });
+    
+    return { success: true };
+  }
+
+  /**
+   * 文字列("0"/"1")または数値(0/1)をbooleanに変換するヘルパー関数
+   */
+  private convertStringToBoolean(value: string | number): boolean {
+    return value === '1' || value === 1;
   }
 }

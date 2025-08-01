@@ -8,7 +8,7 @@ import { ListFormatter } from '../ui/ListFormatter';
 import { GoogleSheetsService } from '../services/GoogleSheetsService';
 import { ListItem } from '../models/ListItem';
 import { normalizeCategory, validateCategory, DEFAULT_CATEGORY, CategoryType } from '../models/CategoryType';
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, TextChannel } from 'discord.js';
 
 export class InitListCommand extends BaseCommand {
   static getCommandName(): string {
@@ -24,6 +24,11 @@ export class InitListCommand extends BaseCommand {
       .addStringOption(option =>
         option.setName('default-category')
           .setDescription('デフォルトカテゴリーを設定します')
+          .setRequired(false)
+      )
+      .addBooleanOption(option =>
+        option.setName('enable-log')
+          .setDescription('操作ログを有効にします')
           .setRequired(false)
       ) as SlashCommandBuilder;
   }
@@ -95,8 +100,9 @@ export class InitListCommand extends BaseCommand {
       userId: context.userId
     });
 
-    // オプションからデフォルトカテゴリーを取得（ボタンインタラクションの場合はoptionsが存在しない）
+    // オプションからデフォルトカテゴリーとenable-logを取得（ボタンインタラクションの場合はoptionsが存在しない）
     const defaultCategoryOption = context.interaction.options?.getString('default-category') || null;
+    const enableLogOption = context.interaction.options?.getBoolean('enable-log');
     let defaultCategory = DEFAULT_CATEGORY;
     
     if (defaultCategoryOption) {
@@ -131,6 +137,12 @@ export class InitListCommand extends BaseCommand {
     // チャンネルシートの準備
     await this.channelSheetManager.getOrCreateChannelSheet(context.channelId);
 
+    // 操作ログスレッドの作成（enable-log=trueまたは未指定の場合のみ）
+    let operationLogThreadId: string | undefined = undefined;
+    if (enableLogOption !== false) { // true または null（デフォルト）の場合
+      operationLogThreadId = await this.createOperationLogThread(context) || undefined;
+    }
+
     // ステップ3: データ取得と検証
     const listData = await this.getAndValidateData(context.channelId);
     const items = this.convertToListItems(listData, defaultCategory);
@@ -157,7 +169,8 @@ export class InitListCommand extends BaseCommand {
       listTitle,
       context.interaction.client,
       'list',
-      defaultCategory
+      defaultCategory,
+      operationLogThreadId
     );
 
     if (!messageResult.success) {
@@ -226,7 +239,7 @@ export class InitListCommand extends BaseCommand {
     }
   }
 
-  private async getAndValidateData(channelId: string): Promise<string[][]> {
+  private async getAndValidateData(channelId: string): Promise<(string | number)[][]> {
     try {
       const data = await this.googleSheetsService.getSheetData(channelId);
       
@@ -259,7 +272,7 @@ export class InitListCommand extends BaseCommand {
     }
   }
 
-  private convertToListItems(data: string[][], defaultCategory?: CategoryType): ListItem[] {
+  private convertToListItems(data: (string | number)[][], defaultCategory?: CategoryType): ListItem[] {
     const items: ListItem[] = [];
     const seenNames = new Set<string>();
     
@@ -270,7 +283,8 @@ export class InitListCommand extends BaseCommand {
       const row = data[i];
       if (row.length >= 1 && row[0]) { // name必須、最低限のデータ（name）がある行のみ
         try {
-          const name = row[0].trim();
+          const nameValue = row[0];
+          const name = typeof nameValue === 'string' ? nameValue.trim() : String(nameValue);
           
           // nameでユニーク性をチェック
           if (seenNames.has(name)) {
@@ -284,23 +298,39 @@ export class InitListCommand extends BaseCommand {
           
           // until の安全な処理
           let until: Date | null = null;
-          if (row.length > 2 && row[2] && row[2].trim() !== '') {
-            const dateValue = new Date(row[2].trim());
-            until = !isNaN(dateValue.getTime()) ? dateValue : null;
+          if (row.length > 2 && row[2]) {
+            const untilValue = typeof row[2] === 'string' ? row[2].trim() : String(row[2]);
+            if (untilValue !== '') {
+              const dateValue = new Date(untilValue);
+              until = !isNaN(dateValue.getTime()) ? dateValue : null;
+            }
           }
 
           // カテゴリの処理：空の場合はdefaultCategoryを使用
           let category: CategoryType;
-          if (row.length > 1 && row[1] && row[1].trim() !== '') {
-            category = normalizeCategory(row[1]);
+          if (row.length > 1 && row[1]) {
+            const categoryValue = typeof row[1] === 'string' ? row[1].trim() : String(row[1]);
+            if (categoryValue !== '') {
+              category = normalizeCategory(categoryValue);
+            } else {
+              category = defaultCategory || DEFAULT_CATEGORY;
+            }
           } else {
             category = defaultCategory || DEFAULT_CATEGORY;
+          }
+
+          // checkの処理：4列目がある場合は読み取り、'1'の場合のみtrue
+          let check = false;
+          if (row.length > 3 && row[3]) {
+            const checkValue = typeof row[3] === 'string' ? row[3].trim() : String(row[3]);
+            check = checkValue === '1';
           }
 
           const item: ListItem = {
             name,
             category,
-            until
+            until,
+            check
           };
           
           items.push(item);
@@ -317,10 +347,10 @@ export class InitListCommand extends BaseCommand {
     return items;
   }
 
-  private isHeaderRow(row: string[]): boolean {
+  private isHeaderRow(row: (string | number)[]): boolean {
     const headers = ['name', 'category', 'until'];
     return headers.some(header => 
-      row.some(cell => cell.toLowerCase().includes(header))
+      row.some(cell => typeof cell === 'string' && cell.toLowerCase().includes(header))
     );
   }
 
@@ -363,6 +393,73 @@ export class InitListCommand extends BaseCommand {
         content: '📋 リストの初期化が完了しました！',
         ephemeral: this.ephemeral
       });
+    }
+  }
+
+  private async createOperationLogThread(context: CommandExecutionContext): Promise<string | null> {
+    try {
+      if (!context.interaction?.channel || !('threads' in context.interaction.channel)) {
+        this.logger.debug('Channel does not support threads', {
+          channelId: context.channelId
+        });
+        return null;
+      }
+
+      // 既存のスレッドIDをチェック
+      if (!context.channelId) {
+        this.logger.debug('Channel ID is not available', { context });
+        return null;
+      }
+      
+      const metadataResult = await this.metadataManager.getChannelMetadata(context.channelId);
+      if (metadataResult.success && metadataResult.metadata?.operationLogThreadId) {
+        const existingThreadId = metadataResult.metadata.operationLogThreadId;
+        
+        // 既存スレッドの有効性を確認
+        try {
+          const existingThread = await context.interaction!.client.channels.fetch(existingThreadId);
+          if (existingThread && existingThread.isThread()) {
+            this.logger.debug('Using existing operation log thread', {
+              threadId: existingThreadId,
+              channelId: context.channelId
+            });
+            return existingThreadId;
+          } else {
+            this.logger.debug('Existing thread is not valid, creating new one', {
+              threadId: existingThreadId,
+              channelId: context.channelId
+            });
+          }
+        } catch (error) {
+          this.logger.debug('Existing thread is not accessible, creating new one', {
+            threadId: existingThreadId,
+            channelId: context.channelId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      // 新しいスレッドを作成
+      const channel = context.interaction.channel as TextChannel;
+      const thread = await channel.threads.create({
+        name: '操作ログ',
+        autoArchiveDuration: 1440, // 24時間
+        reason: 'リスト操作の記録用スレッド'
+      });
+
+      this.logger.debug('Operation log thread created successfully', {
+        threadId: thread.id,
+        channelId: context.channelId
+      });
+
+      return thread.id;
+    } catch (error) {
+      // 非侵襲的なエラーハンドリング - エラーを投げずにログに記録
+      this.logger.debug('Failed to create operation log thread', {
+        channelId: context.channelId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      return null;
     }
   }
 

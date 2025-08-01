@@ -7,86 +7,140 @@ import { MetadataManager } from '../services/MetadataManager';
 import { ListFormatter } from '../ui/ListFormatter';
 import { ListItem, createListItem, validateListItem } from '../models/ListItem';
 import { normalizeCategory, CategoryType } from '../models/CategoryType';
+import { OperationLogService } from '../services/OperationLogService';
+import { OperationResult, OperationInfo } from '../models/types/OperationLog';
 
 export class AddListModalHandler extends BaseModalHandler {
   private googleSheetsService: GoogleSheetsService;
   private messageManager: MessageManager;
-  private metadataManager: MetadataManager;
 
   constructor(
     logger: Logger, 
     googleSheetsService?: GoogleSheetsService,
     messageManager?: MessageManager,
-    metadataManager?: MetadataManager
+    metadataManager?: MetadataManager,
+    operationLogService?: OperationLogService
   ) {
-    super('add-list-modal', logger);
+    super('add-list-modal', logger, operationLogService, metadataManager);
     this.deleteOnSuccess = true;
     this.ephemeral = false;
     this.googleSheetsService = googleSheetsService || GoogleSheetsService.getInstance();
     this.messageManager = messageManager || new MessageManager();
-    this.metadataManager = metadataManager || new MetadataManager();
   }
 
-  protected async executeAction(context: ModalHandlerContext): Promise<void> {
-    const channelId = context.interaction.channelId;
-    if (!channelId) {
-      throw new Error('チャンネルIDが取得できません');
-    }
-
-    // モーダルからデータを取得
-    const categoryText = context.interaction.fields.getTextInputValue('category');
-    const itemsText = context.interaction.fields.getTextInputValue('items');
-    
-    if (!itemsText || itemsText.trim() === '') {
-      throw new Error('追加するアイテムが入力されていません');
-    }
-
-    // カテゴリーの処理
-    const category: CategoryType | null = categoryText && categoryText.trim() !== '' 
-      ? normalizeCategory(categoryText)
-      : null;
-
-    // 既存のリストデータを取得
-    const existingData = await this.googleSheetsService.getSheetData(channelId);
-    const existingItems = this.convertToListItems(existingData);
-    const existingNames = new Set(existingItems.map(item => item.name));
-
-    // 新しいアイテムをパース
-    const newItems = this.parseItemsText(itemsText, category);
-    
-    // 重複チェックとフィルタリング
-    const filteredNewItems = newItems.filter(item => {
-      if (existingNames.has(item.name)) {
-        this.logger.warn('Duplicate name found, skipping', { name: item.name });
-        return false;
+  protected async executeAction(context: ModalHandlerContext): Promise<OperationResult> {
+    try {
+      const channelId = context.interaction.channelId;
+      if (!channelId) {
+        return {
+          success: false,
+          message: 'チャンネルIDが取得できません',
+          error: new Error('チャンネルIDが取得できません')
+        };
       }
-      return true;
-    });
 
-    // 合計アイテム数チェック
-    const totalItemsCount = existingItems.length + filteredNewItems.length;
-    if (totalItemsCount > 100) {
-      throw new Error('アイテム数が多すぎます（最大100件）');
+      // モーダルからデータを取得
+      const categoryText = context.interaction.fields.getTextInputValue('category');
+      const itemsText = context.interaction.fields.getTextInputValue('items');
+      
+      if (!itemsText || itemsText.trim() === '') {
+        return {
+          success: false,
+          message: '追加するアイテムが入力されていません',
+          error: new Error('追加するアイテムが入力されていません')
+        };
+      }
+
+      // カテゴリーの処理
+      const category: CategoryType | null = categoryText && categoryText.trim() !== '' 
+        ? normalizeCategory(categoryText)
+        : null;
+
+      // 既存のリストデータを取得
+      const existingData = await this.googleSheetsService.getSheetData(channelId);
+      const existingItems = this.convertToListItems(existingData);
+      const existingNames = new Set(existingItems.map(item => item.name));
+
+      // 新しいアイテムをパース
+      const newItems = this.parseItemsText(itemsText, category);
+      
+      // 重複チェックとフィルタリング
+      const filteredNewItems = newItems.filter(item => {
+        if (existingNames.has(item.name)) {
+          this.logger.warn('Duplicate name found, skipping', { name: item.name });
+          return false;
+        }
+        return true;
+      });
+
+      if (filteredNewItems.length === 0) {
+        return {
+          success: false,
+          message: '追加できるアイテムがありません（重複またはエラー）',
+          affectedItems: 0
+        };
+      }
+
+      // 合計アイテム数チェック
+      const totalItemsCount = existingItems.length + filteredNewItems.length;
+      if (totalItemsCount > 100) {
+        return {
+          success: false,
+          message: 'アイテム数が多すぎます（最大100件）',
+          error: new Error('アイテム数が多すぎます（最大100件）')
+        };
+      }
+
+      // データをバリデーション
+      this.validateItems(filteredNewItems);
+      
+      // 既存データと新しいデータをマージ
+      const allItems = [...existingItems, ...filteredNewItems];
+      
+      // Google Sheetsに書き込み
+      await this.updateSheetData(channelId, allItems);
+      
+      // Discord上のリストメッセージを更新
+      await this.updateDiscordMessage(channelId, allItems, context.interaction.client);
+
+      this.logger.info('List items added successfully', {
+        channelId,
+        newItemsCount: filteredNewItems.length,
+        totalItemsCount: allItems.length,
+        userId: context.interaction.user.id
+      });
+
+      // 操作結果を返す
+      return {
+        success: true,
+        message: `${filteredNewItems.length}件のアイテムを追加しました`,
+        affectedItems: filteredNewItems.length,
+        details: {
+          changes: {
+            added: filteredNewItems
+          },
+          items: filteredNewItems.map(item => ({
+            name: item.name,
+            quantity: 1,
+            category: item.category || 'その他',
+            until: item.until || undefined
+          }))
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : '追加処理中にエラーが発生しました',
+        error: error instanceof Error ? error : new Error('Unknown error')
+      };
     }
+  }
 
-    // データをバリデーション
-    this.validateItems(filteredNewItems);
-    
-    // 既存データと新しいデータをマージ
-    const allItems = [...existingItems, ...filteredNewItems];
-    
-    // Google Sheetsに書き込み
-    await this.updateSheetData(channelId, allItems);
-    
-    // Discord上のリストメッセージを更新
-    await this.updateDiscordMessage(channelId, allItems, context.interaction.client);
-
-    this.logger.info('List items added successfully', {
-      channelId,
-      newItemsCount: filteredNewItems.length,
-      totalItemsCount: allItems.length,
-      userId: context.interaction.user.id
-    });
+  protected getOperationInfo(_context: ModalHandlerContext): OperationInfo {
+    return {
+      operationType: 'add',
+      actionName: 'アイテム追加'
+    };
   }
 
   protected getSuccessMessage(): string {
@@ -166,11 +220,13 @@ export class AddListModalHandler extends BaseModalHandler {
           const name = row[0].trim();
           const category = row.length > 1 && row[1] && row[1].trim() !== '' ? normalizeCategory(row[1]) : null;
           const until = row.length > 2 && row[2] ? this.parseDate(row[2]) : null;
+          const check = row.length > 3 && row[3] && row[3].trim() === '1' ? true : false;
 
           const item: ListItem = {
             name,
             category,
-            until
+            until,
+            check
           };
 
           items.push(item);
@@ -213,18 +269,19 @@ export class AddListModalHandler extends BaseModalHandler {
     }
   }
 
-  private convertItemsToSheetData(items: ListItem[]): string[][] {
-    const data: string[][] = [];
+  private convertItemsToSheetData(items: ListItem[]): (string | number)[][] {
+    const data: (string | number)[][] = [];
     
     // ヘッダー行を追加
-    data.push(['name', 'category', 'until']);
+    data.push(['name', 'category', 'until', 'check']);
     
     // データ行を追加
     for (const item of items) {
       const row = [
         item.name,
         item.category || '',
-        item.until ? this.formatDateForSheet(item.until) : ''
+        item.until ? this.formatDateForSheet(item.until) : '',
+        item.check ? 1 : 0
       ];
       data.push(row);
     }
@@ -259,9 +316,11 @@ export class AddListModalHandler extends BaseModalHandler {
       // metadataからdefaultCategoryを取得
       let defaultCategory;
       try {
-        const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
-        if (metadataResult.success && metadataResult.metadata?.defaultCategory) {
-          defaultCategory = metadataResult.metadata.defaultCategory;
+        if (this.metadataManager) {
+          const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+          if (metadataResult.success && metadataResult.metadata?.defaultCategory) {
+            defaultCategory = metadataResult.metadata.defaultCategory;
+          }
         }
       } catch (error) {
         this.logger.warn('Failed to get metadata for defaultCategory', {

@@ -32,6 +32,44 @@ describe('ChannelMetadata', () => {
       expect(metadata).toHaveProperty('listTitle');
       expect(metadata).toHaveProperty('lastSyncTime');
     });
+
+    it('should allow operationLogThreadId as optional field', () => {
+      const now = new Date();
+      const metadataWithOperationLog: ChannelMetadata = {
+        channelId: '123456789012345678',
+        messageId: '987654321098765432',
+        listTitle: 'テストリスト',
+        lastSyncTime: now,
+        operationLogThreadId: '111222333444555666'
+      };
+
+      expect(metadataWithOperationLog.operationLogThreadId).toBe('111222333444555666');
+    });
+
+    it('should allow operationLogThreadId to be undefined', () => {
+      const now = new Date();
+      const metadataWithoutOperationLog: ChannelMetadata = {
+        channelId: '123456789012345678',
+        messageId: '987654321098765432',
+        listTitle: 'テストリスト',
+        lastSyncTime: now,
+        operationLogThreadId: undefined
+      };
+
+      expect(metadataWithoutOperationLog.operationLogThreadId).toBeUndefined();
+    });
+
+    it('should work without operationLogThreadId field', () => {
+      const now = new Date();
+      const metadataWithoutField: ChannelMetadata = {
+        channelId: '123456789012345678',
+        messageId: '987654321098765432',
+        listTitle: 'テストリスト',
+        lastSyncTime: now
+      };
+
+      expect(metadataWithoutField.operationLogThreadId).toBeUndefined();
+    });
   });
 
   describe('createChannelMetadata helper', () => {
@@ -57,6 +95,35 @@ describe('ChannelMetadata', () => {
       );
 
       expect(result.listTitle).toBe('タスクリスト');
+    });
+
+    it('should accept operationLogThreadId parameter', () => {
+      const result = createChannelMetadata(
+        '123456789012345678',
+        '987654321098765432',
+        '操作ログ付きリスト',
+        '111222333444555666'
+      );
+
+      expect(result.channelId).toBe('123456789012345678');
+      expect(result.messageId).toBe('987654321098765432');
+      expect(result.listTitle).toBe('操作ログ付きリスト');
+      expect(result.operationLogThreadId).toBe('111222333444555666');
+      expect(result.lastSyncTime).toBeInstanceOf(Date);
+    });
+
+    it('should set operationLogThreadId to undefined when not provided', () => {
+      const result = createChannelMetadata(
+        '123456789012345678',
+        '987654321098765432',
+        '通常のリスト'
+      );
+
+      expect(result.channelId).toBe('123456789012345678');
+      expect(result.messageId).toBe('987654321098765432');
+      expect(result.listTitle).toBe('通常のリスト');
+      expect(result.operationLogThreadId).toBeUndefined();
+      expect(result.lastSyncTime).toBeInstanceOf(Date);
     });
   });
 
@@ -103,6 +170,41 @@ describe('ChannelMetadata', () => {
       };
 
       expect(() => validateChannelMetadata(invalidMetadata)).toThrow('リストタイトルは必須です');
+    });
+
+    it('should validate ChannelMetadata with operationLogThreadId', () => {
+      const validMetadataWithOperationLog: ChannelMetadata = {
+        channelId: '123456789012345678',
+        messageId: '987654321098765432',
+        listTitle: '操作ログ付きリスト',
+        lastSyncTime: new Date(),
+        operationLogThreadId: '111222333444555666'
+      };
+
+      expect(() => validateChannelMetadata(validMetadataWithOperationLog)).not.toThrow();
+    });
+
+    it('should validate ChannelMetadata with undefined operationLogThreadId', () => {
+      const validMetadataWithUndefinedOperationLog: ChannelMetadata = {
+        channelId: '123456789012345678',
+        messageId: '987654321098765432',
+        listTitle: '通常のリスト',
+        lastSyncTime: new Date(),
+        operationLogThreadId: undefined
+      };
+
+      expect(() => validateChannelMetadata(validMetadataWithUndefinedOperationLog)).not.toThrow();
+    });
+
+    it('should validate ChannelMetadata without operationLogThreadId field', () => {
+      const validMetadataWithoutField: ChannelMetadata = {
+        channelId: '123456789012345678',
+        messageId: '987654321098765432',
+        listTitle: '通常のリスト',
+        lastSyncTime: new Date()
+      };
+
+      expect(() => validateChannelMetadata(validMetadataWithoutField)).not.toThrow();
     });
 
   });

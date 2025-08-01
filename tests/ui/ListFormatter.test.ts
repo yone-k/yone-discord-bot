@@ -9,7 +9,8 @@ describe('ListFormatter', () => {
         {
           name: 'Test Item',
           category: '重要',
-          until: null
+          until: null,
+          check: false
         }
       ];
 
@@ -27,12 +28,14 @@ describe('ListFormatter', () => {
         {
           name: 'Item 1',
           category: '重要',
-          until: null
+          until: null,
+          check: false
         },
         {
           name: 'Item 2',
           category: '通常',
-          until: new Date('2024-01-10')
+          until: new Date('2024-01-10'),
+          check: false
         }
       ];
 
@@ -42,6 +45,73 @@ describe('ListFormatter', () => {
       expect(result.fields[0].name).toBe('Item 1');
       expect(result.fields[1].name).toBe('Item 2');
       expect(result.fields[1].value).toContain('⏰ 期限:');
+    });
+
+    it('should display strikethrough for completed items (check=true)', () => {
+      const items: ListItem[] = [
+        {
+          name: 'Completed Item',
+          category: '重要',
+          until: null,
+          check: true
+        }
+      ];
+
+      const result = ListFormatter.formatToDiscordEmbed(items);
+
+      expect(result.fields[0].name).toBe('~~Completed Item~~');
+    });
+
+    it('should display strikethrough including deadline for completed items with until date', () => {
+      const items: ListItem[] = [
+        {
+          name: 'Completed Task',
+          category: '重要',
+          until: new Date('2024-01-15'),
+          check: true
+        }
+      ];
+
+      const result = ListFormatter.formatToDiscordEmbed(items);
+
+      expect(result.fields[0].name).toBe('~~Completed Task (期限: 2024/1/15)~~');
+    });
+
+    it('should display normal text for incomplete items (check=false)', () => {
+      const items: ListItem[] = [
+        {
+          name: 'Incomplete Item',
+          category: '重要',
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = ListFormatter.formatToDiscordEmbed(items);
+
+      expect(result.fields[0].name).toBe('Incomplete Item');
+    });
+
+    it('should handle mixed completed and incomplete items', () => {
+      const items: ListItem[] = [
+        {
+          name: 'Complete Task',
+          category: '重要',
+          until: null,
+          check: true
+        },
+        {
+          name: 'Incomplete Task',
+          category: '通常',
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = ListFormatter.formatToDiscordEmbed(items);
+
+      expect(result.fields[0].name).toBe('~~Complete Task~~');
+      expect(result.fields[1].name).toBe('Incomplete Task');
     });
 
     it('should handle empty list', () => {
@@ -58,7 +128,8 @@ describe('ListFormatter', () => {
         {
           name: 'Tech Item',
           category: '通常',
-          until: null
+          until: null,
+          check: false
         }
       ];
 
@@ -72,7 +143,8 @@ describe('ListFormatter', () => {
         {
           name: 'Test Item',
           category: '重要',
-          until: null
+          until: null,
+          check: false
         }
       ];
 
@@ -139,6 +211,75 @@ describe('ListFormatter', () => {
     });
   });
 
+  describe('formatCategoryItems', () => {
+    // private method testing through formatDataList
+    it('should format completed items with strikethrough', async () => {
+      const title = 'テストリスト';
+      const channelId = 'test-channel-id';
+      const items: ListItem[] = [
+        {
+          name: '完了済みアイテム',
+          category: '重要',
+          until: null,
+          check: true
+        }
+      ];
+
+      const result = await ListFormatter.formatDataList(title, items, channelId);
+
+      // formatCategoryItems should apply strikethrough for check=true
+      expect(result.data.description).toContain('~~完了済みアイテム~~');
+    });
+
+    it('should format incomplete items without strikethrough', async () => {
+      const title = 'テストリスト';
+      const channelId = 'test-channel-id';
+      const items: ListItem[] = [
+        {
+          name: '未完了アイテム',
+          category: '重要',
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = await ListFormatter.formatDataList(title, items, channelId);
+
+      // formatCategoryItems should not apply strikethrough for check=false
+      expect(result.data.description).toContain('• 未完了アイテム');
+      expect(result.data.description).not.toContain('~~未完了アイテム~~');
+    });
+
+    it('should handle mixed completion status with deadlines', async () => {
+      const title = 'テストリスト';
+      const channelId = 'test-channel-id';
+      const items: ListItem[] = [
+        {
+          name: '完了済み期限付き',
+          category: '重要',
+          until: new Date('2024-01-15'),
+          check: true
+        },
+        {
+          name: '未完了期限付き',
+          category: '重要',
+          until: new Date('2024-01-20'),
+          check: false
+        }
+      ];
+
+      const result = await ListFormatter.formatDataList(title, items, channelId);
+
+      // Completed item should have strikethrough including deadline
+      expect(result.data.description).toContain('~~完了済み期限付き (期限: 1/15)~~');
+      
+      // Incomplete item should not have strikethrough
+      expect(result.data.description).toContain('• 未完了期限付き');
+      expect(result.data.description).toContain('期限: 1/20');
+      expect(result.data.description).not.toContain('~~未完了期限付き~~');
+    });
+  });
+
   describe('formatDataList', () => {
     it('should use defaultCategory for items with null category', async () => {
       const title = 'テストリスト';
@@ -148,7 +289,8 @@ describe('ListFormatter', () => {
         {
           name: 'テストアイテム',  
           category: null,
-          until: null
+          until: null,
+          check: false
         }
       ];
 
@@ -167,7 +309,8 @@ describe('ListFormatter', () => {
         {
           name: 'テストアイテム',
           category: '重要',
-          until: null
+          until: null,
+          check: false
         }
       ];
 
@@ -185,7 +328,8 @@ describe('ListFormatter', () => {
         {
           name: 'テストアイテム',
           category: null,
-          until: null
+          until: null,
+          check: false
         }
       ];
 
@@ -195,6 +339,116 @@ describe('ListFormatter', () => {
       expect(result.data.description).toContain('テストアイテム');
     });
 
+    it('should display strikethrough for completed items in category items', async () => {
+      const title = 'テストリスト';
+      const channelId = 'test-channel-id';
+      const items: ListItem[] = [
+        {
+          name: '完了済みアイテム',
+          category: '重要',
+          until: null,
+          check: true
+        }
+      ];
+
+      const result = await ListFormatter.formatDataList(title, items, channelId);
+
+      expect(result.data.description).toContain('~~完了済みアイテム~~');
+    });
+
+    it('should display normal text for incomplete items in category items', async () => {
+      const title = 'テストリスト';
+      const channelId = 'test-channel-id';
+      const items: ListItem[] = [
+        {
+          name: '未完了アイテム',
+          category: '重要',
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = await ListFormatter.formatDataList(title, items, channelId);
+
+      expect(result.data.description).toContain('• 未完了アイテム');
+      expect(result.data.description).not.toContain('~~未完了アイテム~~');
+    });
+
+    it('should handle mixed completed and incomplete items in same category', async () => {
+      const title = 'テストリスト';
+      const channelId = 'test-channel-id';
+      const items: ListItem[] = [
+        {
+          name: '完了済みタスク',
+          category: '重要',
+          until: null,
+          check: true
+        },
+        {
+          name: '未完了タスク',
+          category: '重要',
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = await ListFormatter.formatDataList(title, items, channelId);
+
+      expect(result.data.description).toContain('~~完了済みタスク~~');
+      expect(result.data.description).toContain('• 未完了タスク');
+      expect(result.data.description).not.toContain('~~未完了タスク~~');
+    });
+
+    it('should handle all completed items', async () => {
+      const title = 'テストリスト';
+      const channelId = 'test-channel-id'; 
+      const items: ListItem[] = [
+        {
+          name: 'タスク1',
+          category: '重要',
+          until: null,
+          check: true
+        },
+        {
+          name: 'タスク2',
+          category: '通常',
+          until: null,
+          check: true
+        }
+      ];
+
+      const result = await ListFormatter.formatDataList(title, items, channelId);
+
+      expect(result.data.description).toContain('~~タスク1~~');
+      expect(result.data.description).toContain('~~タスク2~~');
+    });
+
+    it('should handle all incomplete items', async () => {
+      const title = 'テストリスト';
+      const channelId = 'test-channel-id';
+      const items: ListItem[] = [
+        {
+          name: 'タスク1',
+          category: '重要',
+          until: null,
+          check: false
+        },
+        {
+          name: 'タスク2',
+          category: '通常',
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = await ListFormatter.formatDataList(title, items, channelId);
+
+      expect(result.data.description).toContain('• タスク1');
+      expect(result.data.description).toContain('• タスク2');
+      expect(result.data.description).not.toContain('~~タスク1~~');
+      expect(result.data.description).not.toContain('~~タスク2~~');
+    });
+
     it('should include spreadsheet URL with gid parameter in description', async () => {
       const title = 'テストリスト';
       const channelId = 'test-channel-id';
@@ -202,7 +456,8 @@ describe('ListFormatter', () => {
         {
           name: 'テストアイテム',
           category: '重要',
-          until: null
+          until: null,
+          check: false
         }
       ];
 

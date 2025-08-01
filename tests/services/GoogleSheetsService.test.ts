@@ -137,10 +137,10 @@ describe('GoogleSheetsService', () => {
     });
 
     it('認証に失敗した場合、AUTHENTICATION_FAILEDエラーがスローされる', async () => {
-      // GoogleAuth コンストラクタがエラーをスローするようにモック
-      mockGoogleAuth.mockImplementationOnce(() => {
-        throw new Error('Authentication failed');
-      });
+      // GoogleAuth getClient がエラーをスローするようにモック
+      mockGoogleAuth.mockImplementationOnce(() => ({
+        getClient: vi.fn().mockRejectedValue(new Error('Authentication failed'))
+      }));
 
       process.env.GOOGLE_PRIVATE_KEY = 'invalid-key'
       ;(Config as any).instance = undefined
@@ -264,6 +264,268 @@ describe('GoogleSheetsService', () => {
       );
 
       await expect(service.getSheetData(channelId)).rejects.toThrow();
+    });
+  });
+
+  describe('check列の0/1変換機能', () => {
+    describe('データ読み込み時のcheck列変換', () => {
+      it('スプレッドシートの"0"をboolean falseに変換する', async () => {
+        const service = GoogleSheetsService.getInstance();
+        const channelId = '123456789';
+        
+        // check列に"0"が含まれるデータをモック
+        mockSheets.values.get.mockResolvedValueOnce({
+          data: {
+            values: [
+              ['name', 'description', 'category', 'addedAt', 'until', 'check'],
+              ['テスト項目', '説明', 'カテゴリ', '2025-01-01', '2025-01-31', '0']
+            ]
+          }
+        });
+
+        const data = await service.getSheetDataWithCheckColumn(channelId);
+        expect(data[0].check).toBe(false);
+      });
+
+      it('スプレッドシートの"1"をboolean trueに変換する', async () => {
+        const service = GoogleSheetsService.getInstance();
+        const channelId = '123456789';
+        
+        // check列に"1"が含まれるデータをモック
+        mockSheets.values.get.mockResolvedValueOnce({
+          data: {
+            values: [
+              ['name', 'description', 'category', 'addedAt', 'until', 'check'],
+              ['テスト項目', '説明', 'カテゴリ', '2025-01-01', '2025-01-31', '1']
+            ]
+          }
+        });
+
+        const data = await service.getSheetDataWithCheckColumn(channelId);
+        expect(data[0].check).toBe(true);
+      });
+
+      it('check列が存在しない場合、デフォルト値（false）を設定する', async () => {
+        const service = GoogleSheetsService.getInstance();
+        const channelId = '123456789';
+        
+        // check列が含まれないデータをモック
+        mockSheets.values.get.mockResolvedValueOnce({
+          data: {
+            values: [
+              ['name', 'description', 'category', 'addedAt', 'until'],
+              ['テスト項目', '説明', 'カテゴリ', '2025-01-01', '2025-01-31']
+            ]
+          }
+        });
+
+        const data = await service.getSheetDataWithCheckColumn(channelId);
+        expect(data[0].check).toBe(false);
+      });
+
+      it('不正な値（0,1以外）の場合、デフォルト値（false）を設定する', async () => {
+        const service = GoogleSheetsService.getInstance();
+        const channelId = '123456789';
+        
+        // check列に不正な値が含まれるデータをモック
+        mockSheets.values.get.mockResolvedValueOnce({
+          data: {
+            values: [
+              ['name', 'description', 'category', 'addedAt', 'until', 'check'],
+              ['テスト項目1', '説明', 'カテゴリ', '2025-01-01', '2025-01-31', 'invalid'],
+              ['テスト項目2', '説明', 'カテゴリ', '2025-01-01', '2025-01-31', '2'],
+              ['テスト項目3', '説明', 'カテゴリ', '2025-01-01', '2025-01-31', 'true']
+            ]
+          }
+        });
+
+        const data = await service.getSheetDataWithCheckColumn(channelId);
+        expect(data[0].check).toBe(false);
+        expect(data[1].check).toBe(false);
+        expect(data[2].check).toBe(false);
+      });
+
+      it('複数行の混合データを正しく変換する', async () => {
+        const service = GoogleSheetsService.getInstance();
+        const channelId = '123456789';
+        
+        // 0と1が混在するデータをモック
+        mockSheets.values.get.mockResolvedValueOnce({
+          data: {
+            values: [
+              ['name', 'description', 'category', 'addedAt', 'until', 'check'],
+              ['項目1', '説明1', 'カテゴリ', '2025-01-01', '2025-01-31', '0'],
+              ['項目2', '説明2', 'カテゴリ', '2025-01-01', '2025-01-31', '1'],
+              ['項目3', '説明3', 'カテゴリ', '2025-01-01', '2025-01-31', '0']
+            ]
+          }
+        });
+
+        const data = await service.getSheetDataWithCheckColumn(channelId);
+        expect(data[0].check).toBe(false);
+        expect(data[1].check).toBe(true);
+        expect(data[2].check).toBe(false);
+      });
+    });
+
+    describe('データ書き込み時のcheck列変換', () => {
+      it('boolean trueを数値1に変換して書き込む', async () => {
+        const service = GoogleSheetsService.getInstance();
+        const channelId = '123456789';
+        const itemData = {
+          name: 'テスト項目',
+          description: '説明',
+          category: 'カテゴリ',
+          addedAt: '2025-01-01',
+          until: '2025-01-31',
+          check: true
+        };
+
+        await service.appendItemWithCheckColumn(channelId, itemData);
+        
+        // appendが正しい形式で呼ばれたかを検証
+        expect(mockSheets.values.append).toHaveBeenCalledWith(
+          expect.objectContaining({
+            range: expect.stringContaining('list_123456789'),
+            valueInputOption: 'RAW',
+            resource: {
+              values: [['テスト項目', '説明', 'カテゴリ', '2025-01-01', '2025-01-31', 1]]
+            }
+          })
+        );
+      });
+
+      it('boolean falseを数値0に変換して書き込む', async () => {
+        const service = GoogleSheetsService.getInstance();
+        const channelId = '123456789';
+        const itemData = {
+          name: 'テスト項目',
+          description: '説明',
+          category: 'カテゴリ',
+          addedAt: '2025-01-01',
+          until: '2025-01-31',
+          check: false
+        };
+
+        await service.appendItemWithCheckColumn(channelId, itemData);
+        
+        // appendが正しい形式で呼ばれたかを検証
+        expect(mockSheets.values.append).toHaveBeenCalledWith(
+          expect.objectContaining({
+            range: expect.stringContaining('list_123456789'),
+            valueInputOption: 'RAW',
+            resource: {
+              values: [['テスト項目', '説明', 'カテゴリ', '2025-01-01', '2025-01-31', 0]]
+            }
+          })
+        );
+      });
+
+      it('check列ヘッダーを自動追加する', async () => {
+        const service = GoogleSheetsService.getInstance();
+        const channelId = '123456789';
+        
+        // 既存のヘッダーにcheck列がない場合をモック
+        mockSheets.values.get.mockResolvedValueOnce({
+          data: {
+            values: [
+              ['name', 'description', 'category', 'addedAt', 'until']
+            ]
+          }
+        });
+
+        await service.ensureCheckColumnHeader(channelId);
+        
+        // ヘッダー行の更新が呼ばれたかを検証
+        expect(mockSheets.values.append).toHaveBeenCalledWith(
+          expect.objectContaining({
+            range: expect.stringContaining('list_123456789!A1:F1'),
+            valueInputOption: 'RAW',
+            resource: {
+              values: [['name', 'description', 'category', 'addedAt', 'until', 'check']]
+            }
+          })
+        );
+      });
+    });
+
+    describe('既存データ互換性', () => {
+      it('check列が未定義の既存データを正しく読み込む', async () => {
+        const service = GoogleSheetsService.getInstance();
+        const channelId = '123456789';
+        
+        // check列なしの既存データをモック
+        mockSheets.values.get.mockResolvedValueOnce({
+          data: {
+            values: [
+              ['name', 'description', 'category', 'addedAt', 'until'],
+              ['既存項目1', '説明1', 'カテゴリ', '2025-01-01', '2025-01-31'],
+              ['既存項目2', '説明2', 'カテゴリ', '2025-01-01', '2025-01-31']
+            ]
+          }
+        });
+
+        const data = await service.getSheetDataWithCheckColumn(channelId);
+        expect(data).toHaveLength(2);
+        expect(data[0].check).toBe(false);
+        expect(data[1].check).toBe(false);
+        expect(data[0].name).toBe('既存項目1');
+        expect(data[1].name).toBe('既存項目2');
+      });
+
+      it('既存データへのcheck列追加が正しく動作する', async () => {
+        const service = GoogleSheetsService.getInstance();
+        const channelId = '123456789';
+        
+        // 段階的にデータが更新される様子をモック
+        mockSheets.values.get
+          .mockResolvedValueOnce({
+            // 最初: check列なし
+            data: {
+              values: [
+                ['name', 'description', 'category', 'addedAt', 'until'],
+                ['既存項目', '説明', 'カテゴリ', '2025-01-01', '2025-01-31']
+              ]
+            }
+          })
+          .mockResolvedValueOnce({
+            // 後: check列追加後
+            data: {
+              values: [
+                ['name', 'description', 'category', 'addedAt', 'until', 'check'],
+                ['既存項目', '説明', 'カテゴリ', '2025-01-01', '2025-01-31', '0']
+              ]
+            }
+          });
+
+        // check列を追加
+        await service.migrateToCheckColumn(channelId);
+        
+        // 既存データにcheck列が追加されていることを確認
+        const data = await service.getSheetDataWithCheckColumn(channelId);
+        expect(data[0].check).toBe(false);
+        expect(data[0].name).toBe('既存項目');
+      });
+
+      it('check列を更新する', async () => {
+        const service = GoogleSheetsService.getInstance();
+        const channelId = '123456789';
+        const rowIndex = 1; // 2行目のデータ（ヘッダーの次の行）
+        const newCheckValue = true;
+
+        await service.updateCheckColumn(channelId, rowIndex, newCheckValue);
+        
+        // 特定のセルの更新が呼ばれたかを検証
+        expect(mockSheets.values.append).toHaveBeenCalledWith(
+          expect.objectContaining({
+            range: expect.stringContaining('list_123456789!F2:F2'),
+            valueInputOption: 'RAW',
+            resource: {
+              values: [[1]]
+            }
+          })
+        );
+      });
     });
   });
 

@@ -150,12 +150,23 @@ export class ListFormatter {
     }
 
     return items.map(item => {
-      let itemText = `• ${item.name}`;
+      let itemText = '• ';
       
-      // 期限がある場合は追加
-      if (item.until) {
-        const untilDate = this.formatDateShort(item.until);
-        itemText += ` (期限: ${untilDate})`;
+      // 完了フラグが立っている場合、期限も含めて全体を打ち消し線にする
+      if (item.check) {
+        if (item.until) {
+          const untilDate = this.formatDateShort(item.until);
+          itemText += `~~${item.name} (期限: ${untilDate})~~`;
+        } else {
+          itemText += `~~${item.name}~~`;
+        }
+      } else {
+        // 未完了の場合は通常表示
+        itemText += item.name;
+        if (item.until) {
+          const untilDate = this.formatDateShort(item.until);
+          itemText += ` (期限: ${untilDate})`;
+        }
       }
       
       return itemText;
@@ -205,10 +216,26 @@ export class ListFormatter {
     title: string;
     fields: Array<{ name: string; value: string }>;
   } {
-    const fields = items.map(item => ({
-      name: item.name,
-      value: this.formatItemValue(item, defaultCategory)
-    }));
+    const fields = items.map(item => {
+      let itemName = item.name;
+      let itemValue = this.formatItemValue(item, defaultCategory);
+
+      // 完了アイテムの場合、期限もnameフィールドに含めて全体を打ち消し線にする
+      if (item.check) {
+        if (item.until) {
+          itemName = `~~${item.name} (期限: ${this.formatDate(item.until)})~~`;
+          // 期限情報をvalueから除去してカテゴリのみにする
+          itemValue = `📂 カテゴリ: ${item.category || defaultCategory || DEFAULT_CATEGORY}`;
+        } else {
+          itemName = `~~${item.name}~~`;
+        }
+      }
+
+      return {
+        name: itemName,
+        value: itemValue
+      };
+    });
 
     return {
       title: 'リスト',

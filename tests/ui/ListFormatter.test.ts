@@ -62,6 +62,21 @@ describe('ListFormatter', () => {
       expect(result.fields[0].name).toBe('~~Completed Item~~');
     });
 
+    it('should display strikethrough including deadline for completed items with until date', () => {
+      const items: ListItem[] = [
+        {
+          name: 'Completed Task',
+          category: '重要',
+          until: new Date('2024-01-15'),
+          check: true
+        }
+      ];
+
+      const result = ListFormatter.formatToDiscordEmbed(items);
+
+      expect(result.fields[0].name).toBe('~~Completed Task (期限: 2024/1/15)~~');
+    });
+
     it('should display normal text for incomplete items (check=false)', () => {
       const items: ListItem[] = [
         {
@@ -255,9 +270,8 @@ describe('ListFormatter', () => {
 
       const result = await ListFormatter.formatDataList(title, items, channelId);
 
-      // Completed item should have strikethrough even with deadline
-      expect(result.data.description).toContain('~~完了済み期限付き~~');
-      expect(result.data.description).toContain('期限: 1/15');
+      // Completed item should have strikethrough including deadline
+      expect(result.data.description).toContain('~~完了済み期限付き (期限: 1/15)~~');
       
       // Incomplete item should not have strikethrough
       expect(result.data.description).toContain('• 未完了期限付き');

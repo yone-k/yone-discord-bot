@@ -7,56 +7,225 @@ import { MetadataManager } from '../services/MetadataManager';
 import { ListFormatter } from '../ui/ListFormatter';
 import { ListItem, createListItem, validateListItem } from '../models/ListItem';
 import { normalizeCategory, CategoryType } from '../models/CategoryType';
+import { OperationLogService } from '../services/OperationLogService';
+import { OperationResult, OperationInfo } from '../models/types/OperationLog';
 
 export class EditListModalHandler extends BaseModalHandler {
   private googleSheetsService: GoogleSheetsService;
   private messageManager: MessageManager;
-  private metadataManager: MetadataManager;
 
   constructor(
     logger: Logger, 
     googleSheetsService?: GoogleSheetsService,
     messageManager?: MessageManager,
-    metadataManager?: MetadataManager
+    metadataManager?: MetadataManager,
+    operationLogService?: OperationLogService
   ) {
-    super('edit-list-modal', logger);
+    super('edit-list-modal', logger, operationLogService, metadataManager);
     this.deleteOnSuccess = true;
     this.ephemeral = false;
     this.googleSheetsService = googleSheetsService || GoogleSheetsService.getInstance();
     this.messageManager = messageManager || new MessageManager();
-    this.metadataManager = metadataManager || new MetadataManager();
   }
 
-  protected async executeAction(context: ModalHandlerContext): Promise<void> {
-    const channelId = context.interaction.channelId;
-    if (!channelId) {
-      throw new Error('チャンネルIDが取得できません');
+  protected async executeAction(context: ModalHandlerContext): Promise<OperationResult> {
+    try {
+      const channelId = context.interaction.channelId;
+      if (!channelId) {
+        return {
+          success: false,
+          message: 'チャンネルIDが取得できません',
+          error: new Error('チャンネルIDが取得できません')
+        };
+      }
+
+      // 編集前の既存データを取得
+      const existingData = await this.googleSheetsService.getSheetData(channelId);
+      const existingItems = this.convertToListItems(existingData);
+
+      // モーダルからデータを取得
+      const listDataText = context.interaction.fields.getTextInputValue('list-data');
+      
+      // CSVテキストをListItemsに変換（編集時はdefaultCategoryを使用しない）
+      const editedItems = this.parseCsvText(listDataText);
+      
+      // データをバリデーション
+      this.validateItems(editedItems);
+      
+      // 変更差分を計算
+      const changes = this.calculateChanges(existingItems, editedItems);
+      
+      // Google Sheetsに書き込み
+      await this.updateSheetData(channelId, editedItems);
+      
+      // Discord上のリストメッセージを更新
+      await this.updateDiscordMessage(channelId, editedItems, context.interaction.client);
+
+      this.logger.info('List edited successfully', {
+        channelId,
+        itemCount: editedItems.length,
+        userId: context.interaction.user.id,
+        changesCount: changes.added.length + changes.removed.length + changes.modified.length
+      });
+
+      // 操作結果を返す
+      return {
+        success: true,
+        message: `リストを編集しました（${changes.added.length}件追加、${changes.removed.length}件削除、${changes.modified.length}件変更）`,
+        affectedItems: editedItems.length,
+        details: {
+          changes: {
+            added: changes.added,
+            removed: changes.removed,
+            modified: changes.modified
+          },
+          items: editedItems.map(item => ({
+            name: item.name,
+            quantity: 1,
+            category: item.category || 'その他',
+            until: item.until || undefined
+          }))
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : '編集処理中にエラーが発生しました',
+        error: error instanceof Error ? error : new Error('Unknown error')
+      };
     }
+  }
 
-    // モーダルからデータを取得
-    const listDataText = context.interaction.fields.getTextInputValue('list-data');
-    
-    // CSVテキストをListItemsに変換（編集時はdefaultCategoryを使用しない）
-    const listItems = this.parseCsvText(listDataText);
-    
-    // データをバリデーション
-    this.validateItems(listItems);
-    
-    // Google Sheetsに書き込み
-    await this.updateSheetData(channelId, listItems);
-    
-    // Discord上のリストメッセージを更新
-    await this.updateDiscordMessage(channelId, listItems, context.interaction.client);
-
-    this.logger.info('List edited successfully', {
-      channelId,
-      itemCount: listItems.length,
-      userId: context.interaction.user.id
-    });
+  protected getOperationInfo(_context: ModalHandlerContext): OperationInfo {
+    return {
+      operationType: 'edit',
+      actionName: 'アイテム編集'
+    };
   }
 
   protected getSuccessMessage(): string {
     return '✅ リストが正常に更新されました！';
+  }
+
+  /**
+   * 編集前後の変更差分を計算する
+   */
+  private calculateChanges(existingItems: ListItem[], editedItems: ListItem[]): { added: ListItem[]; removed: ListItem[]; modified: Array<{ name: string; before: Partial<ListItem>; after: Partial<ListItem> }> } {
+    const existingMap = new Map(existingItems.map(item => [item.name, item]));
+    const editedMap = new Map(editedItems.map(item => [item.name, item]));
+
+    const added: ListItem[] = [];
+    const removed: ListItem[] = [];
+    const modified: Array<{ name: string; before: Partial<ListItem>; after: Partial<ListItem> }> = [];
+
+    // 追加されたアイテムを検出
+    for (const [name, item] of editedMap) {
+      if (!existingMap.has(name)) {
+        added.push(item);
+      }
+    }
+
+    // 削除されたアイテムを検出
+    for (const [name, item] of existingMap) {
+      if (!editedMap.has(name)) {
+        removed.push(item);
+      }
+    }
+
+    // 変更されたアイテムを検出
+    for (const [name, editedItem] of editedMap) {
+      const existingItem = existingMap.get(name);
+      if (existingItem) {
+        const changes = this.getItemChanges(existingItem, editedItem);
+        if (Object.keys(changes.before).length > 0) {
+          modified.push({
+            name,
+            before: changes.before,
+            after: changes.after
+          });
+        }
+      }
+    }
+
+    return { added, removed, modified };
+  }
+
+  /**
+   * 個別アイテムの変更を検出する
+   */
+  private getItemChanges(before: ListItem, after: ListItem): { before: Partial<ListItem>; after: Partial<ListItem> } {
+    const beforeChanges: Partial<ListItem> = {};
+    const afterChanges: Partial<ListItem> = {};
+
+    if (before.category !== after.category) {
+      beforeChanges.category = before.category;
+      afterChanges.category = after.category;
+    }
+
+    if (before.check !== after.check) {
+      beforeChanges.check = before.check;
+      afterChanges.check = after.check;
+    }
+
+    const beforeUntilStr = before.until?.toISOString();
+    const afterUntilStr = after.until?.toISOString();
+    if (beforeUntilStr !== afterUntilStr) {
+      beforeChanges.until = before.until;
+      afterChanges.until = after.until;
+    }
+
+    return { before: beforeChanges, after: afterChanges };
+  }
+
+  /**
+   * Google Sheetsのデータを ListItem[] に変換する（AddListModalHandlerから移植）
+   */
+  private convertToListItems(data: string[][]): ListItem[] {
+    const items: ListItem[] = [];
+    
+    // ヘッダー行をスキップ（存在する場合）
+    const startIndex = data.length > 0 && this.isHeaderRow(data[0]) ? 1 : 0;
+    
+    for (let i = startIndex; i < data.length; i++) {
+      const row = data[i];
+      if (row.length >= 1 && row[0]) {
+        try {
+          const name = row[0].trim();
+          const category = row.length > 1 && row[1] && row[1].trim() !== '' ? normalizeCategory(row[1]) : null;
+          const until = row.length > 2 && row[2] ? this.parseDate(row[2]) : null;
+          const check = row.length > 3 && row[3] && row[3].trim() === '1' ? true : false;
+
+          const item: ListItem = {
+            name,
+            category,
+            until,
+            check
+          };
+
+          items.push(item);
+        } catch (error) {
+          this.logger.warn('Failed to parse row, skipping', { 
+            rowIndex: i, 
+            row,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+    }
+
+    return items;
+  }
+
+  /**
+   * ヘッダー行かどうかを判定する
+   */
+  private isHeaderRow(row: string[]): boolean {
+    const headers = ['name', 'category', 'until', '名前', 'カテゴリ'];
+    return row.some(cell => 
+      headers.some(header => 
+        cell && cell.toLowerCase().includes(header.toLowerCase())
+      )
+    );
   }
 
   private parseCsvText(csvText: string): ListItem[] {
@@ -240,9 +409,11 @@ export class EditListModalHandler extends BaseModalHandler {
       // metadataからdefaultCategoryを取得
       let defaultCategory;
       try {
-        const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
-        if (metadataResult.success && metadataResult.metadata?.defaultCategory) {
-          defaultCategory = metadataResult.metadata.defaultCategory;
+        if (this.metadataManager) {
+          const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+          if (metadataResult.success && metadataResult.metadata?.defaultCategory) {
+            defaultCategory = metadataResult.metadata.defaultCategory;
+          }
         }
       } catch (error) {
         this.logger.warn('Failed to get metadata for defaultCategory', {

@@ -1,14 +1,28 @@
 import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
+import { OperationInfo, OperationResult } from '../models/types/OperationLog';
+import { OperationLogService } from '../services/OperationLogService';
+import { MetadataManager } from '../services/MetadataManager';
 
 export class AddListButtonHandler extends BaseButtonHandler {
-  constructor(logger: Logger) {
-    super('add-list-button', logger);
+  constructor(
+    logger: Logger, 
+    operationLogService?: OperationLogService,
+    metadataManager?: MetadataManager
+  ) {
+    super('add-list-button', logger, operationLogService, metadataManager);
     this.ephemeral = true;
   }
 
-  protected async executeAction(context: ButtonHandlerContext): Promise<void> {
+  protected getOperationInfo(): OperationInfo {
+    return {
+      operationType: 'add',
+      actionName: 'アイテム追加'
+    };
+  }
+
+  protected async executeAction(context: ButtonHandlerContext): Promise<OperationResult> {
     const channelId = context.interaction.channelId;
     const userId = context.interaction.user.id;
 
@@ -21,7 +35,28 @@ export class AddListButtonHandler extends BaseButtonHandler {
       userId
     });
 
-    await this.showAddListModal(context);
+    try {
+      await this.showAddListModal(context);
+      return {
+        success: true,
+        message: '追加モーダルを表示しました',
+        affectedItems: 1,
+        details: {
+          items: [{
+            name: '新しいアイテム',
+            quantity: 1,
+            category: 'その他',
+            until: undefined
+          }]
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'モーダル表示に失敗しました',
+        error: error instanceof Error ? error : new Error('未知のエラー')
+      };
+    }
   }
 
   private async showAddListModal(context: ButtonHandlerContext): Promise<void> {

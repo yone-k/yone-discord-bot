@@ -1,3 +1,5 @@
+import { ListItem } from '../ListItem';
+
 /**
  * 操作結果を表すインターフェース
  */
@@ -10,6 +12,8 @@ export interface OperationResult {
   error?: Error;
   /** 影響を受けたアイテム数（オプション） */
   affectedItems?: number;
+  /** 操作の詳細情報（オプション） */
+  details?: OperationDetails;
 }
 
 /**
@@ -25,8 +29,19 @@ export interface OperationDetails {
   }>;
   /** 操作前後の変更内容（オプション） */
   changes?: {
-    before: Record<string, unknown>;
-    after: Record<string, unknown>;
+    /** 追加されたアイテム一覧 */
+    added?: ListItem[];
+    /** 削除されたアイテム一覧 */
+    removed?: ListItem[];
+    /** 変更されたアイテムの詳細 */
+    modified?: Array<{
+      name: string;
+      before: Partial<ListItem>;
+      after: Partial<ListItem>;
+    }>;
+    /** レガシー形式の変更内容（下位互換性のため保持） */
+    before?: Record<string, unknown>;
+    after?: Record<string, unknown>;
   };
   /** キャンセル理由（オプション） */
   cancelReason?: string;

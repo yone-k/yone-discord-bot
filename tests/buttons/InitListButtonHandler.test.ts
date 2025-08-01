@@ -4,6 +4,7 @@ import { Logger, LogLevel } from '../../src/utils/logger';
 import { InitListButtonHandler } from '../../src/buttons/InitListButtonHandler';
 import { InitListCommand } from '../../src/commands/InitListCommand';
 import { ButtonHandlerContext } from '../../src/base/BaseButtonHandler';
+import { OperationInfo } from '../../src/models/types/OperationLog';
 
 describe('InitListButtonHandler', () => {
   let handler: InitListButtonHandler;
@@ -44,7 +45,7 @@ describe('InitListButtonHandler', () => {
       interaction: mockInteraction
     };
 
-    handler = new InitListButtonHandler(logger, mockInitListCommand);
+    handler = new InitListButtonHandler(logger, undefined, undefined, mockInitListCommand);
   });
 
   describe('executeAction', () => {
@@ -53,8 +54,79 @@ describe('InitListButtonHandler', () => {
       const error = new Error('Cannot read properties of undefined (reading \'getString\')');
       mockInitListCommand.execute = vi.fn().mockRejectedValue(error);
 
-      // ボタンインタラクションから呼び出されるため、エラーが発生するはず
-      await expect(handler['executeAction'](context)).rejects.toThrow(/Cannot read properties of undefined/);
+      // ボタンインタラクションから呼び出されるため、エラーが発生するはず（OperationResultでエラーを返す）
+      const result = await handler['executeAction'](context);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toBeInstanceOf(Error);
+      expect(result.error?.message).toMatch(/Cannot read properties of undefined/);
+    });
+  });
+
+  describe('getOperationInfo', () => {
+    it('should return operation info for list initialization', () => {
+      const operationInfo: OperationInfo = handler.getOperationInfo();
+      
+      expect(operationInfo).toEqual({
+        operationType: 'init',
+        actionName: 'リスト初期化'
+      });
+    });
+  });
+
+  describe('executeAction with operation logging', () => {
+    it('should return OperationResult on successful initialization', async () => {
+      mockInitListCommand.execute = vi.fn().mockResolvedValue(undefined);
+      
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('リストを初期化しました');
+    });
+
+    it('should include initialized item count in operation details', async () => {
+      mockInitListCommand.execute = vi.fn().mockResolvedValue(undefined);
+      
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.affectedItems).toBe(5); // ハードコードされた値
+      
+      expect(result.details?.items).toHaveLength(5);
+      expect(result.details?.items?.[0]).toEqual(
+        expect.objectContaining({
+          name: expect.any(String),
+          quantity: expect.any(Number),
+          category: expect.any(String)
+        })
+      );
+    });
+
+    it('should handle initialization cancellation', async () => {
+      const cancelError = new Error('User cancelled initialization');
+      mockInitListCommand.execute = vi.fn().mockRejectedValue(cancelError);
+      
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(cancelError);
+      // cancelledを含むエラーメッセージの場合のみcancelReasonが設定される
+      expect(result.details?.cancelReason).toBe('ユーザーによる初期化キャンセル');
+    });
+
+    it('should handle initialization failure', async () => {
+      const mockError = new Error('Initialization failed');
+      mockInitListCommand.execute = vi.fn().mockRejectedValue(mockError);
+      
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(mockError);
+      expect(result.message).toBe('初期化に失敗しました');
     });
   });
 });

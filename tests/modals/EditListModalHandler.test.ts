@@ -25,6 +25,7 @@ describe('EditListModalHandler', () => {
     } as any;
 
     mockGoogleSheetsService = {
+      getSheetData: vi.fn().mockResolvedValue([]),
       updateSheetData: vi.fn()
     } as any;
 
@@ -84,10 +85,12 @@ describe('EditListModalHandler', () => {
       );
     });
 
-    it('should throw error when channelId is missing', async () => {
+    it('should return error result when channelId is missing', async () => {
       mockInteraction.channelId = null;
 
-      await expect(handler['executeAction'](context)).rejects.toThrow('チャンネルIDが取得できません');
+      const result = await handler['executeAction'](context);
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('チャンネルIDが取得できません');
     });
 
     it('should handle empty list input without throwing error', async () => {
@@ -123,14 +126,16 @@ describe('EditListModalHandler', () => {
       );
     });
 
-    it('should throw error when too many items', async () => {
+    it('should return error result when too many items', async () => {
       const manyItems = Array.from({ length: 101 }, (_, i) => `商品${i},食品`).join('\n');
       mockFields.getTextInputValue.mockReturnValue(manyItems);
 
-      await expect(handler['executeAction'](context)).rejects.toThrow('アイテム数が多すぎます（最大100件）。');
+      const result = await handler['executeAction'](context);
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('アイテム数が多すぎます（最大100件）。');
     });
 
-    it('should throw error when sheet update fails', async () => {
+    it('should return error result when sheet update fails', async () => {
       const csvText = '牛乳,食品';
       mockFields.getTextInputValue.mockReturnValue(csvText);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ 
@@ -138,7 +143,9 @@ describe('EditListModalHandler', () => {
         message: 'Permission denied' 
       });
 
-      await expect(handler['executeAction'](context)).rejects.toThrow('スプレッドシートの更新に失敗しました: Permission denied');
+      const result = await handler['executeAction'](context);
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('スプレッドシートの更新に失敗しました: Permission denied');
     });
 
     it('should process CSV data with completion column', async () => {

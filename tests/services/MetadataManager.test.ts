@@ -395,7 +395,7 @@ describe('MetadataManager', () => {
               'テストリスト',
               expect.any(String), // 日付文字列
               'general',
-              undefined
+              ''
             ]]
           }
         })

@@ -8,7 +8,7 @@ import { ListFormatter } from '../ui/ListFormatter';
 import { GoogleSheetsService } from '../services/GoogleSheetsService';
 import { ListItem } from '../models/ListItem';
 import { normalizeCategory, validateCategory, DEFAULT_CATEGORY, CategoryType } from '../models/CategoryType';
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, TextChannel } from 'discord.js';
 
 export class InitListCommand extends BaseCommand {
   static getCommandName(): string {
@@ -24,6 +24,11 @@ export class InitListCommand extends BaseCommand {
       .addStringOption(option =>
         option.setName('default-category')
           .setDescription('デフォルトカテゴリーを設定します')
+          .setRequired(false)
+      )
+      .addBooleanOption(option =>
+        option.setName('enable-log')
+          .setDescription('操作ログを有効にします')
           .setRequired(false)
       ) as SlashCommandBuilder;
   }
@@ -95,8 +100,9 @@ export class InitListCommand extends BaseCommand {
       userId: context.userId
     });
 
-    // オプションからデフォルトカテゴリーを取得（ボタンインタラクションの場合はoptionsが存在しない）
+    // オプションからデフォルトカテゴリーとenable-logを取得（ボタンインタラクションの場合はoptionsが存在しない）
     const defaultCategoryOption = context.interaction.options?.getString('default-category') || null;
+    const enableLogOption = context.interaction.options?.getBoolean('enable-log');
     let defaultCategory = DEFAULT_CATEGORY;
     
     if (defaultCategoryOption) {
@@ -131,6 +137,12 @@ export class InitListCommand extends BaseCommand {
     // チャンネルシートの準備
     await this.channelSheetManager.getOrCreateChannelSheet(context.channelId);
 
+    // 操作ログスレッドの作成（enable-log=trueまたは未指定の場合のみ）
+    let operationLogThreadId: string | undefined = undefined;
+    if (enableLogOption !== false) { // true または null（デフォルト）の場合
+      operationLogThreadId = await this.createOperationLogThread(context) || undefined;
+    }
+
     // ステップ3: データ取得と検証
     const listData = await this.getAndValidateData(context.channelId);
     const items = this.convertToListItems(listData, defaultCategory);
@@ -157,7 +169,8 @@ export class InitListCommand extends BaseCommand {
       listTitle,
       context.interaction.client,
       'list',
-      defaultCategory
+      defaultCategory,
+      operationLogThreadId
     );
 
     if (!messageResult.success) {
@@ -380,6 +393,38 @@ export class InitListCommand extends BaseCommand {
         content: '📋 リストの初期化が完了しました！',
         ephemeral: this.ephemeral
       });
+    }
+  }
+
+  private async createOperationLogThread(context: CommandExecutionContext): Promise<string | null> {
+    try {
+      if (!context.interaction?.channel || !('threads' in context.interaction.channel)) {
+        this.logger.debug('Channel does not support threads', {
+          channelId: context.channelId
+        });
+        return null;
+      }
+
+      const channel = context.interaction.channel as TextChannel;
+      const thread = await channel.threads.create({
+        name: '操作ログ',
+        autoArchiveDuration: 1440, // 24時間
+        reason: 'リスト操作の記録用スレッド'
+      });
+
+      this.logger.debug('Operation log thread created successfully', {
+        threadId: thread.id,
+        channelId: context.channelId
+      });
+
+      return thread.id;
+    } catch (error) {
+      // 非侵襲的なエラーハンドリング - エラーを投げずにログに記録
+      this.logger.debug('Failed to create operation log thread', {
+        channelId: context.channelId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      return null;
     }
   }
 

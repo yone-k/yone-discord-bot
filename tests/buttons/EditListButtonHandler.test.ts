@@ -4,6 +4,7 @@ import { Logger } from '../../src/utils/logger';
 import { EditListButtonHandler } from '../../src/buttons/EditListButtonHandler';
 import { GoogleSheetsService } from '../../src/services/GoogleSheetsService';
 import { ButtonHandlerContext } from '../../src/base/BaseButtonHandler';
+import { OperationInfo } from '../../src/models/types/OperationLog';
 
 describe('EditListButtonHandler', () => {
   let handler: EditListButtonHandler;
@@ -38,7 +39,7 @@ describe('EditListButtonHandler', () => {
       interaction: mockInteraction
     };
 
-    handler = new EditListButtonHandler(logger, mockGoogleSheetsService);
+    handler = new EditListButtonHandler(logger, undefined, undefined, mockGoogleSheetsService);
   });
 
   describe('executeAction', () => {
@@ -168,10 +169,15 @@ describe('EditListButtonHandler', () => {
       expect(textInput.data.value).toBe('牛乳,,,\nパン,,,\n卵,食材,,');
     });
 
-    it('should throw error when channelId is missing', async () => {
+    it('should return error result when channelId is missing', async () => {
       mockInteraction.channelId = null;
 
-      await expect(handler['executeAction'](context)).rejects.toThrow('チャンネルIDが取得できません');
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('チャンネルIDが取得できません');
+      expect(result.error).toBeInstanceOf(Error);
     });
 
     it('should handle completion data from Google Sheets correctly', async () => {
@@ -349,6 +355,83 @@ describe('EditListButtonHandler', () => {
       const date = new Date('2025/07/24');
       const result = handler['formatDateForCsv'](date);
       expect(result).toBe('2025-07-24'); // 1日前にならないことを確認
+    });
+  });
+
+  describe('getOperationInfo', () => {
+    it('should return operation info for item editing', () => {
+      const operationInfo: OperationInfo = handler.getOperationInfo();
+      
+      expect(operationInfo).toEqual({
+        operationType: 'edit',
+        actionName: 'アイテム編集'
+      });
+    });
+  });
+
+  describe('executeAction with operation logging', () => {
+    it('should return OperationResult when modal is shown', async () => {
+      mockGoogleSheetsService.getSheetData = vi.fn().mockResolvedValue([]);
+      
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('編集モーダルを表示しました');
+    });
+
+    it('should include change details for completion status change', async () => {
+      const beforeData = [
+        ['名前', 'カテゴリ', '期限', '完了'],
+        ['牛乳', '食品', '', '']
+      ];
+      const _afterData = [
+        ['名前', 'カテゴリ', '期限', '完了'],
+        ['牛乳', '食品', '', '1']
+      ];
+      
+      mockGoogleSheetsService.getSheetData = vi.fn().mockResolvedValue(beforeData);
+      
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      // const expectedDetails: OperationDetails = {
+      //   changes: {
+      //     before: { '牛乳': { completed: false } },
+      //     after: { '牛乳': { completed: true } }
+      //   }
+      // };
+      
+      // 今後の実装で完了状態変更の詳細が記録されることを期待
+      expect(result.details?.changes).toBeDefined();
+    });
+
+    it('should include multiple item changes in operation details', async () => {
+      const sheetData = [
+        ['名前', 'カテゴリ', '期限', '完了'],
+        ['牛乳', '食品', '', ''],
+        ['パン', '食品', '', '1']
+      ];
+      
+      mockGoogleSheetsService.getSheetData = vi.fn().mockResolvedValue(sheetData);
+      
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      expect(result.affectedItems).toBe(2);
+      expect(result.details?.items).toHaveLength(2);
+    });
+
+    it('should handle Google Sheets service error', async () => {
+      const mockError = new Error('Google Sheets API error');
+      mockGoogleSheetsService.getSheetData = vi.fn().mockRejectedValue(mockError);
+      
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(mockError);
+      expect(result.message).toBe('データ取得に失敗しました');
     });
   });
 });

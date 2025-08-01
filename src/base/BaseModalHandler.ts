@@ -1,5 +1,8 @@
 import { ModalSubmitInteraction } from 'discord.js';
 import { Logger } from '../utils/logger';
+import { OperationLogService } from '../services/OperationLogService';
+import { MetadataManager } from '../services/MetadataManager';
+import { OperationResult, OperationInfo } from '../models/types/OperationLog';
 
 export interface ModalHandlerContext {
   interaction: ModalSubmitInteraction;
@@ -10,10 +13,19 @@ export abstract class BaseModalHandler {
   protected readonly logger: Logger;
   protected ephemeral: boolean = true;
   protected deleteOnSuccess: boolean = false;
+  protected operationLogService?: OperationLogService;
+  protected metadataManager?: MetadataManager;
 
-  constructor(customId: string, logger: Logger) {
+  constructor(
+    customId: string, 
+    logger: Logger, 
+    operationLogService?: OperationLogService,
+    metadataManager?: MetadataManager
+  ) {
     this.customId = customId;
     this.logger = logger;
+    this.operationLogService = operationLogService;
+    this.metadataManager = metadataManager;
   }
 
   public async handle(context: ModalHandlerContext): Promise<void> {
@@ -24,7 +36,11 @@ export abstract class BaseModalHandler {
 
       await context.interaction.deferReply({ ephemeral: this.ephemeral });
 
-      await this.executeAction(context);
+      // 操作を実行してOperationResultを取得
+      const result = await this.executeAction(context);
+
+      // 操作ログの記録を試行
+      await this.tryLogOperation(context, result);
 
       // 成功時にメッセージを削除
       if (this.deleteOnSuccess) {
@@ -47,10 +63,19 @@ export abstract class BaseModalHandler {
         }
       } else {
         await context.interaction.editReply({
-          content: this.getSuccessMessage()
+          content: result.success ? this.getSuccessMessage() : (result.message || 'エラーが発生しました')
         });
       }
     } catch (error) {
+      // executeActionでエラーが発生した場合の操作ログ記録
+      const failureResult: OperationResult = {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error : new Error('Unknown error')
+      };
+      
+      await this.tryLogOperation(context, failureResult);
+
       this.logger.error(
         `Failed to handle modal submission for customId "${this.customId}"`,
         { 
@@ -81,7 +106,55 @@ export abstract class BaseModalHandler {
     return this.customId;
   }
 
-  protected abstract executeAction(context: ModalHandlerContext): Promise<void>;
+  /**
+   * 操作ログの記録を試行する（非侵襲的）
+   */
+  private async tryLogOperation(context: ModalHandlerContext, result: OperationResult): Promise<void> {
+    try {
+      // 操作ログサービスとメタデータマネージャーが注入されていない場合はスキップ
+      if (!this.operationLogService || !this.metadataManager) {
+        return;
+      }
 
+      // guild、channelが存在しない場合はスキップ
+      if (!context.interaction.guild || !context.interaction.channelId) {
+        return;
+      }
+
+      const channelId = context.interaction.channelId;
+
+      // MetadataManagerからoperationLogThreadIdを取得
+      const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+      
+      if (!metadataResult.success || !metadataResult.metadata?.operationLogThreadId) {
+        // operationLogThreadIdが存在しない場合はログ記録をスキップ
+        return;
+      }
+
+      // 操作情報を取得
+      const operationInfo = this.getOperationInfo(context);
+
+      // 操作ログを記録
+      await this.operationLogService.logOperation(
+        channelId,
+        operationInfo, 
+        result,
+        context.interaction.user.id,
+        context.interaction.client,
+        result.details
+      );
+
+    } catch (error) {
+      // 非侵襲的設計：例外を投げずに警告ログのみ記録
+      this.logger.warn('Failed to log operation', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        customId: this.customId,
+        userId: context.interaction.user.id
+      });
+    }
+  }
+
+  protected abstract executeAction(context: ModalHandlerContext): Promise<OperationResult>;
+  protected abstract getOperationInfo(context: ModalHandlerContext): OperationInfo;
   protected abstract getSuccessMessage(): string;
 }

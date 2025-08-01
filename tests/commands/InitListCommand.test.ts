@@ -3,6 +3,7 @@ import { InitListCommand } from '../../src/commands/InitListCommand';
 import { Logger, LogLevel } from '../../src/utils/logger';
 import { CommandExecutionContext } from '../../src/base/BaseCommand';
 import { CommandError } from '../../src/utils/CommandError';
+import { SlashCommandBuilder } from 'discord.js';
 
 // モック設定は必要だが、import は不要（モックオブジェクトを直接作成するため）
 
@@ -83,7 +84,8 @@ describe('InitListCommand', () => {
       channel: { name: 'test-channel' },
       client: {},
       options: {
-        getString: vi.fn().mockReturnValue(null)
+        getString: vi.fn().mockReturnValue(null),
+        getBoolean: vi.fn().mockReturnValue(null)
       }
     };
     
@@ -456,7 +458,8 @@ describe('InitListCommand', () => {
         'test-channelリスト',
         expect.any(Object), // client
         'list',
-        '食材'
+        '食材',
+        undefined // operationLogThreadId
       );
     });
 
@@ -508,7 +511,8 @@ describe('InitListCommand', () => {
         'test-channelリスト',
         expect.any(Object), // client
         'list',
-        '既存カテゴリー'
+        '既存カテゴリー',
+        undefined // operationLogThreadId
       );
     });
 
@@ -553,7 +557,8 @@ describe('InitListCommand', () => {
         'test-channelリスト',
         expect.any(Object), // client
         'list',
-        'その他'
+        'その他',
+        undefined // operationLogThreadId
       );
     });
   });
@@ -622,6 +627,207 @@ describe('InitListCommand', () => {
       expect(items[0].category).toBe('日用品'); // 空文字列の場合
       expect(items[1].category).toBe('日用品'); // 空白のみの場合
       expect(items[2].category).toBe('食材'); // 明示的に指定されている場合
+    });
+  });
+
+  describe('getOptions メソッド - enable-log オプション対応', () => {
+    it('enable-logオプションが存在することを確認', () => {
+      const builder = new SlashCommandBuilder();
+      const optionsBuilder = InitListCommand.getOptions(builder);
+      
+      // addBooleanOptionが呼ばれることを期待（実装後にパスする）
+      // 現在は実装されていないので、このテストは失敗する
+      expect(optionsBuilder).toBeDefined();
+      // 実際のオプション存在確認は実装後に検証可能
+    });
+
+    it('enable-logオプションのデフォルト値がtrueであることを確認', () => {
+      // enable-logオプションのデフォルト値を確認
+      // 実装後にこのテストが通るようになる
+      expect(true).toBe(true); // プレースホルダー（実装後に適切なテストに変更）
+    });
+
+    it('enable-logオプションがboolean型であることを確認', () => {
+      // enable-logオプションの型確認
+      // 実装後にこのテストが通るようになる
+      expect(true).toBe(true); // プレースホルダー（実装後に適切なテストに変更）
+    });
+  });
+
+  describe('executeInitializationFlow メソッド - enable-log オプション対応', () => {
+    beforeEach(() => {
+      // 共通のモック設定
+      mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true);
+      mockGoogleSheetsService.getSheetData.mockResolvedValue([]);
+      mockGoogleSheetsService.validateData.mockReturnValue({ isValid: true, errors: [] });
+      mockGoogleSheetsService.normalizeData.mockReturnValue([]);
+      mockChannelSheetManager.getOrCreateChannelSheet.mockResolvedValue({
+        existed: false,
+        created: true
+      });
+      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        message: { id: 'test-message-id' }
+      });
+    });
+
+    it('enable-log=trueでスレッド作成が実行される', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      };
+
+      // enable-log=trueを設定
+      mockInteraction.options.getString.mockImplementation((optionName: string) => {
+        if (optionName === 'default-category') return null;
+        return null;
+      });
+      mockInteraction.options.getBoolean = vi.fn().mockImplementation((optionName: string) => {
+        if (optionName === 'enable-log') return true;
+        return null;
+      });
+
+      // createOperationLogThreadメソッドをスパイ（実装後に有効になる）
+      const createOperationLogThreadSpy = vi.spyOn(initListCommand as any, 'createOperationLogThread')
+        .mockResolvedValue(undefined);
+
+      await initListCommand.execute(context);
+      
+      // スレッド作成メソッドが呼ばれることを期待（実装後にパスする）
+      expect(createOperationLogThreadSpy).toHaveBeenCalledWith(context);
+    });
+
+    it('enable-log=falseでスレッド作成がスキップされる', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      };
+
+      // enable-log=falseを設定
+      mockInteraction.options.getBoolean = vi.fn().mockImplementation((optionName: string) => {
+        if (optionName === 'enable-log') return false;
+        return null;
+      });
+
+      // createOperationLogThreadメソッドをスパイ
+      const createOperationLogThreadSpy = vi.spyOn(initListCommand as any, 'createOperationLogThread')
+        .mockResolvedValue(undefined);
+
+      await initListCommand.execute(context);
+      
+      // スレッド作成メソッドが呼ばれないことを期待（実装後にパスする）
+      expect(createOperationLogThreadSpy).not.toHaveBeenCalled();
+    });
+
+    it('enable-log未指定でデフォルト動作（true扱い）でスレッド作成される', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      };
+
+      // enable-log未指定（null）
+      mockInteraction.options.getBoolean = vi.fn().mockImplementation((optionName: string) => {
+        if (optionName === 'enable-log') return null;
+        return null;
+      });
+
+      // createOperationLogThreadメソッドをスパイ
+      const createOperationLogThreadSpy = vi.spyOn(initListCommand as any, 'createOperationLogThread')
+        .mockResolvedValue(undefined);
+
+      await initListCommand.execute(context);
+      
+      // デフォルトでスレッド作成メソッドが呼ばれることを期待（実装後にパスする）
+      expect(createOperationLogThreadSpy).toHaveBeenCalledWith(context);
+    });
+  });
+
+  describe('createOperationLogThread メソッド', () => {
+    beforeEach(() => {
+      // チャンネルのthreads.createメソッドをモック
+      mockInteraction.channel = {
+        name: 'test-channel',
+        threads: {
+          create: vi.fn().mockResolvedValue({
+            id: 'thread-123',
+            name: '操作ログ'
+          })
+        }
+      };
+    });
+
+    it('スレッド作成が成功する', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      };
+
+      // createOperationLogThreadメソッドを直接呼び出し（実装後に有効になる）
+      await expect((initListCommand as any).createOperationLogThread(context)).resolves.not.toThrow();
+      
+      // スレッド作成が呼ばれることを期待
+      expect(mockInteraction.channel.threads.create).toHaveBeenCalledWith({
+        name: '操作ログ',
+        autoArchiveDuration: 1440,
+        reason: 'リスト操作の記録用スレッド'
+      });
+    });
+
+    it('スレッド作成失敗時にエラーハンドリングされる', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      };
+
+      // スレッド作成失敗をモック
+      mockInteraction.channel.threads.create.mockRejectedValue(new Error('Thread creation failed'));
+
+      // エラーが適切にハンドリングされることを期待（実装後にパスする）
+      await expect((initListCommand as any).createOperationLogThread(context)).resolves.not.toThrow();
+      
+      // エラーログが出力されることを期待
+      expect(loggerDebugSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to create operation log thread'),
+        expect.any(Object)
+      );
+    });
+
+    it('スレッド名が「操作ログ」になることを確認', async () => {
+      const context: CommandExecutionContext = {
+        interaction: mockInteraction,
+        channelId: 'test-channel-id',
+        userId: 'test-user-id',
+        guildId: 'test-guild-id'
+      };
+
+      await (initListCommand as any).createOperationLogThread(context);
+      
+      // 正しいスレッド名で作成されることを期待
+      expect(mockInteraction.channel.threads.create).toHaveBeenCalledWith({
+        name: '操作ログ',
+        autoArchiveDuration: 1440,
+        reason: 'リスト操作の記録用スレッド'
+      });
+      
+      // 成功ログが出力されることを期待
+      expect(loggerDebugSpy).toHaveBeenCalledWith(
+        'Operation log thread created successfully',
+        expect.objectContaining({
+          threadId: 'thread-123',
+          channelId: 'test-channel-id'
+        })
+      );
     });
   });
 

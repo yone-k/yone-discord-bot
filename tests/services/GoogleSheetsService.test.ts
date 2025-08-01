@@ -137,10 +137,10 @@ describe('GoogleSheetsService', () => {
     });
 
     it('認証に失敗した場合、AUTHENTICATION_FAILEDエラーがスローされる', async () => {
-      // GoogleAuth コンストラクタがエラーをスローするようにモック
-      mockGoogleAuth.mockImplementationOnce(() => {
-        throw new Error('Authentication failed');
-      });
+      // GoogleAuth getClient がエラーをスローするようにモック
+      mockGoogleAuth.mockImplementationOnce(() => ({
+        getClient: vi.fn().mockRejectedValue(new Error('Authentication failed'))
+      }));
 
       process.env.GOOGLE_PRIVATE_KEY = 'invalid-key'
       ;(Config as any).instance = undefined

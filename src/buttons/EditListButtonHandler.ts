@@ -4,49 +4,95 @@ import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandl
 import { GoogleSheetsService } from '../services/GoogleSheetsService';
 import { ListItem } from '../models/ListItem';
 import { normalizeCategory } from '../models/CategoryType';
+import { OperationInfo, OperationResult } from '../models/types/OperationLog';
+import { OperationLogService } from '../services/OperationLogService';
+import { MetadataManager } from '../services/MetadataManager';
 
 export class EditListButtonHandler extends BaseButtonHandler {
   private googleSheetsService: GoogleSheetsService;
 
-  constructor(logger: Logger, googleSheetsService?: GoogleSheetsService) {
-    super('edit-list-button', logger);
+  constructor(
+    logger: Logger, 
+    operationLogService?: OperationLogService,
+    metadataManager?: MetadataManager,
+    googleSheetsService?: GoogleSheetsService
+  ) {
+    super('edit-list-button', logger, operationLogService, metadataManager);
     this.googleSheetsService = googleSheetsService || GoogleSheetsService.getInstance();
   }
 
-  protected async executeAction(context: ButtonHandlerContext): Promise<void> {
-    const channelId = context.interaction.channelId;
-    if (!channelId) {
-      throw new Error('チャンネルIDが取得できません');
+  protected getOperationInfo(): OperationInfo {
+    return {
+      operationType: 'edit',
+      actionName: 'アイテム編集'
+    };
+  }
+
+  protected async executeAction(context: ButtonHandlerContext): Promise<OperationResult> {
+    try {
+      const channelId = context.interaction.channelId;
+      if (!channelId) {
+        return {
+          success: false,
+          message: 'チャンネルIDが取得できません',
+          error: new Error('チャンネルIDが取得できません')
+        };
+      }
+
+      // 現在のリストデータを取得
+      const sheetData = await this.googleSheetsService.getSheetData(channelId);
+      const listItems = this.convertToListItems(sheetData);
+
+      // CSV風テキストに変換
+      const csvText = this.convertToCsvText(listItems);
+
+      // モーダルを作成
+      const modal = new ModalBuilder()
+        .setCustomId('edit-list-modal')
+        .setTitle('リスト編集');
+
+      const textInput = new TextInputBuilder()
+        .setCustomId('list-data')
+        .setLabel('リスト内容（名前,カテゴリ,期限,完了 の形式）')
+        .setStyle(TextInputStyle.Paragraph)
+        .setValue(csvText)
+        .setPlaceholder('例: 牛乳,食品,2024-12-31,1\nパン,食品,,\nシャンプー,日用品,2024-06-30,\n※完了列：1=完了、空文字=未完了')
+        .setMaxLength(4000)
+        .setRequired(false);
+
+      const firstActionRow = new ActionRowBuilder<TextInputBuilder>()
+        .addComponents(textInput);
+
+      modal.addComponents(firstActionRow);
+
+      // モーダルを表示
+      await context.interaction.showModal(modal);
+
+      return {
+        success: true,
+        message: '編集モーダルを表示しました',
+        affectedItems: listItems.length,
+        details: {
+          items: listItems.map(item => ({
+            name: item.name,
+            quantity: 1,
+            category: item.category || 'その他',
+            until: item.until || undefined
+          })),
+          changes: {
+            before: { completionStatus: 'mixed' },
+            after: { completionStatus: 'updated' }
+          }
+        }
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error && error.message.includes('Google Sheets') ? 'データ取得に失敗しました' : 'モーダルの表示に失敗しました';
+      return {
+        success: false,
+        message: errorMessage,
+        error: error instanceof Error ? error : new Error('未知のエラー')
+      };
     }
-
-    // 現在のリストデータを取得
-    const sheetData = await this.googleSheetsService.getSheetData(channelId);
-    const listItems = this.convertToListItems(sheetData);
-
-    // CSV風テキストに変換
-    const csvText = this.convertToCsvText(listItems);
-
-    // モーダルを作成
-    const modal = new ModalBuilder()
-      .setCustomId('edit-list-modal')
-      .setTitle('リスト編集');
-
-    const textInput = new TextInputBuilder()
-      .setCustomId('list-data')
-      .setLabel('リスト内容（名前,カテゴリ,期限,完了 の形式）')
-      .setStyle(TextInputStyle.Paragraph)
-      .setValue(csvText)
-      .setPlaceholder('例: 牛乳,食品,2024-12-31,1\nパン,食品,,\nシャンプー,日用品,2024-06-30,\n※完了列：1=完了、空文字=未完了')
-      .setMaxLength(4000)
-      .setRequired(false);
-
-    const firstActionRow = new ActionRowBuilder<TextInputBuilder>()
-      .addComponents(textInput);
-
-    modal.addComponents(firstActionRow);
-
-    // モーダルを表示
-    await context.interaction.showModal(modal);
   }
 
   private convertToListItems(data: string[][]): ListItem[] {

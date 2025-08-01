@@ -70,7 +70,7 @@ describe('AddListModalHandler', () => {
   });
 
   describe('executeAction', () => {
-    it('should add new items to existing list with category', async () => {
+    it('should add new items to existing list with category and return success result', async () => {
       const category = '食品';
       const items = '牛乳,2024-12-31\nパン';
       
@@ -87,7 +87,7 @@ describe('AddListModalHandler', () => {
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
       mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
 
-      await handler['executeAction'](context);
+      const result = await handler['executeAction'](context);
 
       expect(mockFields.getTextInputValue).toHaveBeenCalledWith('category');
       expect(mockFields.getTextInputValue).toHaveBeenCalledWith('items');
@@ -110,6 +110,12 @@ describe('AddListModalHandler', () => {
           userId: 'user123'
         })
       );
+      
+      // OperationResultをチェック
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.affectedItems).toBe(2);
+      expect(result.details?.items).toHaveLength(2);
     });
 
     it('should add new items without category (null category)', async () => {
@@ -125,7 +131,7 @@ describe('AddListModalHandler', () => {
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
       mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
 
-      await handler['executeAction'](context);
+      const result = await handler['executeAction'](context);
 
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
@@ -135,6 +141,11 @@ describe('AddListModalHandler', () => {
           ['パン', '', '', 0]
         ])
       );
+      
+      // OperationResultをチェック
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.affectedItems).toBe(2);
     });
 
     it('should handle empty existing list', async () => {
@@ -150,7 +161,7 @@ describe('AddListModalHandler', () => {
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
       mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
 
-      await handler['executeAction'](context);
+      const result = await handler['executeAction'](context);
 
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
@@ -159,20 +170,35 @@ describe('AddListModalHandler', () => {
           ['牛乳', '食品', '', 0]
         ]
       );
+      
+      // OperationResultをチェック
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.affectedItems).toBe(1);
     });
 
-    it('should throw error when channelId is missing', async () => {
+    it('should return error result when channelId is missing', async () => {
       mockInteraction.channelId = null;
 
-      await expect(handler['executeAction'](context)).rejects.toThrow('チャンネルIDが取得できません');
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('チャンネルIDが取得できません');
+      expect(result.error).toBeInstanceOf(Error);
     });
 
-    it('should throw error when items field is empty', async () => {
+    it('should return error result when items field is empty', async () => {
       mockFields.getTextInputValue
         .mockReturnValueOnce('食品')
         .mockReturnValueOnce('');
 
-      await expect(handler['executeAction'](context)).rejects.toThrow('追加するアイテムが入力されていません');
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('追加するアイテムが入力されていません');
+      expect(result.error).toBeInstanceOf(Error);
     });
 
     it('should skip duplicate names', async () => {
@@ -191,7 +217,7 @@ describe('AddListModalHandler', () => {
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
       mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
 
-      await handler['executeAction'](context);
+      const result = await handler['executeAction'](context);
 
       // 重複する「既存アイテム」はスキップされ、「牛乳」と「パン」のみ追加される
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
@@ -209,9 +235,14 @@ describe('AddListModalHandler', () => {
           name: '既存アイテム'
         })
       );
+      
+      // OperationResultをチェック（重複スキップでも成功）
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.affectedItems).toBe(2); // 牛乳とパンのみ追加
     });
 
-    it('should handle too many items error', async () => {
+    it('should return error result when too many items', async () => {
       const category = '食品';
       const longItemsList = Array.from({ length: 150 }, (_, i) => `アイテム${i}`).join('\n');
       
@@ -222,7 +253,12 @@ describe('AddListModalHandler', () => {
       const existingData = [['name', 'category', 'until']];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
 
-      await expect(handler['executeAction'](context)).rejects.toThrow('アイテム数が多すぎます');
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('アイテム数が多すぎます（最大100件）');
+      expect(result.error).toBeInstanceOf(Error);
     });
 
     it('should parse date correctly', async () => {
@@ -238,7 +274,7 @@ describe('AddListModalHandler', () => {
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
       mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
 
-      await handler['executeAction'](context);
+      const result = await handler['executeAction'](context);
 
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
@@ -249,9 +285,14 @@ describe('AddListModalHandler', () => {
           ['シャンプー', '食品', '2024-06-15', 0]
         ]
       );
+      
+      // OperationResultをチェック
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.affectedItems).toBe(3);
     });
 
-    it('should handle GoogleSheets service error', async () => {
+    it('should return error result when GoogleSheets service fails', async () => {
       const category = '食品';
       const items = '牛乳';
       
@@ -266,7 +307,12 @@ describe('AddListModalHandler', () => {
         message: 'Sheet update failed' 
       });
 
-      await expect(handler['executeAction'](context)).rejects.toThrow('スプレッドシートの更新に失敗しました: Sheet update failed');
+      const result = await handler['executeAction'](context);
+      
+      expect(result).toBeDefined();
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('スプレッドシートの更新に失敗しました: Sheet update failed');
+      expect(result.error).toBeInstanceOf(Error);
     });
 
     it('should preserve check status when adding new items to existing list with completed items', async () => {
@@ -287,7 +333,7 @@ describe('AddListModalHandler', () => {
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
       mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
 
-      await handler['executeAction'](context);
+      const result = await handler['executeAction'](context);
 
       // 既存の完了状態が保持され、新しいアイテムは未完了状態で追加される
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
@@ -300,6 +346,11 @@ describe('AddListModalHandler', () => {
           ['パン', '食品', '', 0]
         ])
       );
+      
+      // OperationResultをチェック
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.affectedItems).toBe(2); // 牛乳とパンが追加
     });
   });
 

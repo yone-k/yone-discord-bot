@@ -78,8 +78,49 @@ export class OperationLogService {
       }
 
       if (details?.changes) {
-        logMessage += `- 変更前: ${JSON.stringify(details.changes.before)}\n`;
-        logMessage += `- 変更後: ${JSON.stringify(details.changes.after)}\n`;
+        // 新しい詳細形式（added/removed/modified）をサポート
+        if (details.changes.added && details.changes.added.length > 0) {
+          logMessage += `- 追加アイテム (${details.changes.added.length}件):\n`;
+          details.changes.added.forEach(item => {
+            logMessage += `  • ${item.name}`;
+            if (item.category) logMessage += ` (${item.category})`;
+            if (item.until) logMessage += ` - ${item.until.toLocaleDateString()}まで`;
+            logMessage += '\n';
+          });
+        }
+
+        if (details.changes.removed && details.changes.removed.length > 0) {
+          logMessage += `- 削除アイテム (${details.changes.removed.length}件):\n`;
+          details.changes.removed.forEach(item => {
+            logMessage += `  • ${item.name}`;
+            if (item.category) logMessage += ` (${item.category})`;
+            logMessage += '\n';
+          });
+        }
+
+        if (details.changes.modified && details.changes.modified.length > 0) {
+          logMessage += `- 変更アイテム (${details.changes.modified.length}件):\n`;
+          details.changes.modified.forEach(change => {
+            logMessage += `  • ${change.name}:\n`;
+            if (change.before.check !== undefined && change.after.check !== undefined) {
+              logMessage += `    完了状態: ${change.before.check ? '完了' : '未完了'} → ${change.after.check ? '完了' : '未完了'}\n`;
+            }
+            if (change.before.category !== undefined && change.after.category !== undefined) {
+              logMessage += `    カテゴリ: ${change.before.category || '未設定'} → ${change.after.category || '未設定'}\n`;
+            }
+            if (change.before.until !== undefined && change.after.until !== undefined) {
+              const beforeDate = change.before.until ? change.before.until.toLocaleDateString() : '未設定';
+              const afterDate = change.after.until ? change.after.until.toLocaleDateString() : '未設定';
+              logMessage += `    期限: ${beforeDate} → ${afterDate}\n`;
+            }
+          });
+        }
+
+        // レガシー形式の変更内容もサポート（下位互換性のため）
+        if (details.changes.before && details.changes.after) {
+          logMessage += `- 変更前: ${JSON.stringify(details.changes.before)}\n`;
+          logMessage += `- 変更後: ${JSON.stringify(details.changes.after)}\n`;
+        }
       }
 
       if (details?.cancelReason) {

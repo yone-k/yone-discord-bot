@@ -5,14 +5,32 @@ import { ConfirmationModalHandler, ConfirmationCallback } from '../modals/Confir
 import { DeleteAllMessageLogic } from '../services/DeleteAllMessageLogic';
 import { Logger } from '../utils/logger';
 import { TextChannel } from 'discord.js';
+import { OperationLogService } from '../services/OperationLogService';
+import { MetadataManager } from '../services/MetadataManager';
 
 export function registerAllModals(modalManager: ModalManager, logger: Logger): void {
-  // EditListModalHandlerを明示的に登録
-  const editListModalHandler = new EditListModalHandler(logger);
+  // 操作ログ関連のサービスを初期化
+  const metadataManager = new MetadataManager();
+  const operationLogService = new OperationLogService(logger, metadataManager);
+  
+  // EditListModalHandlerを明示的に登録（操作ログサービス付き）
+  const editListModalHandler = new EditListModalHandler(
+    logger,
+    undefined, // GoogleSheetsService (default)
+    undefined, // MessageManager (default)
+    metadataManager,
+    operationLogService
+  );
   modalManager.registerHandler(editListModalHandler);
   
-  // AddListModalHandlerを明示的に登録
-  const addListModalHandler = new AddListModalHandler(logger);
+  // AddListModalHandlerを明示的に登録（操作ログサービス付き）
+  const addListModalHandler = new AddListModalHandler(
+    logger,
+    undefined, // GoogleSheetsService (default)
+    undefined, // MessageManager (default)
+    metadataManager,
+    operationLogService
+  );
   modalManager.registerHandler(addListModalHandler);
   
   // DeleteAllMessageLogicのコールバック関数を作成

@@ -1,7 +1,8 @@
 # Discord Bot
 
 ## 概要
-このプロジェクトはTypeScriptとdiscord.jsを使用したDiscordボットです。
+このプロジェクトはTypeScriptとdiscord.jsを使用したDiscordボットです。  
+個人チャンネルでの利用を前提としているので、個人的にほしい機能だけを実装しています。
 
 ## 必要な環境
 - Node.js (v18以上推奨)
@@ -58,19 +59,6 @@ discord-bot/
 ├── .env           # 環境変数（gitignore対象）
 └── package.json   # プロジェクト設定
 ```
-
-## 開発
-
-### コード規約
-- ESLint + Prettier による自動フォーマット
-- TypeScriptの型安全性を重視
-- コミット前のlintチェック
-
-### 貢献方法
-1. このリポジトリをフォーク
-2. フィーチャーブランチを作成
-3. 変更をコミット
-4. プルリクエストを作成
 
 ## ライセンス
 ISC

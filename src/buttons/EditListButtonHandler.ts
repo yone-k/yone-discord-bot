@@ -3,7 +3,7 @@ import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { GoogleSheetsService } from '../services/GoogleSheetsService';
 import { ListItem } from '../models/ListItem';
-import { normalizeCategory } from '../models/CategoryType';
+import { normalizeCategory, DEFAULT_CATEGORY } from '../models/CategoryType';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
 import { MetadataManager } from '../services/MetadataManager';
@@ -43,8 +43,24 @@ export class EditListButtonHandler extends BaseButtonHandler {
       const sheetData = await this.googleSheetsService.getSheetData(channelId);
       const listItems = this.convertToListItems(sheetData);
 
+      // metadataからdefaultCategoryを取得
+      let defaultCategory;
+      try {
+        if (this.metadataManager) {
+          const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+          if (metadataResult.success && metadataResult.metadata?.defaultCategory) {
+            defaultCategory = metadataResult.metadata.defaultCategory;
+          }
+        }
+      } catch (error) {
+        this.logger.warn('Failed to get metadata for defaultCategory', {
+          channelId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
       // CSV風テキストに変換
-      const csvText = this.convertToCsvText(listItems);
+      const csvText = this.convertToCsvText(listItems, defaultCategory);
 
       // モーダルを作成
       const modal = new ModalBuilder()
@@ -158,18 +174,56 @@ export class EditListButtonHandler extends BaseButtonHandler {
     }
   }
 
-  private convertToCsvText(items: ListItem[]): string {
+  private convertToCsvText(items: ListItem[], defaultCategory?: string): string {
     if (items.length === 0) {
       return '名前,カテゴリ,期限,完了\n例: 牛乳,食品,2024-12-31,';
     }
 
-    return items.map(item => {
+    // ListFormatterと同じ順序でソート
+    const sortedItems = this.sortItemsByCategory(items, defaultCategory);
+
+    return sortedItems.map(item => {
       const name = item.name;
-      const category = item.category || '';
+      // 空のカテゴリの場合はdefaultCategoryを使用
+      const category = item.category || defaultCategory || '';
       const until = item.until ? this.formatDateForCsv(item.until) : '';
       const check = item.check ? '1' : '';
       return `${name},${category},${until},${check}`;
     }).join('\n');
+  }
+
+  /**
+   * ListFormatterと同じ順序でアイテムをソート
+   * 1. カテゴリ別にグループ化
+   * 2. カテゴリを日本語辞書順でソート（DEFAULT_CATEGORYは最後）
+   * 3. 同一カテゴリ内では元の順序を保持
+   */
+  private sortItemsByCategory(items: ListItem[], defaultCategory?: string): ListItem[] {
+    // カテゴリ別にグループ化
+    const grouped: Record<string, ListItem[]> = {};
+    
+    items.forEach(item => {
+      const category = item.category || defaultCategory || DEFAULT_CATEGORY;
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(item);
+    });
+    
+    // カテゴリをListFormatterと同じ順序でソート
+    const sortedCategories = Object.keys(grouped).sort((a, b) => {
+      if (a === DEFAULT_CATEGORY) return 1;  // デフォルトカテゴリを最後
+      if (b === DEFAULT_CATEGORY) return -1; // デフォルトカテゴリを最後
+      return a.localeCompare(b, 'ja');       // 日本語ソート
+    });
+    
+    // ソート済みカテゴリ順でアイテムを並べ直す
+    const sortedItems: ListItem[] = [];
+    sortedCategories.forEach(category => {
+      sortedItems.push(...grouped[category]);
+    });
+    
+    return sortedItems;
   }
 
   private formatDateForCsv(date: Date): string {

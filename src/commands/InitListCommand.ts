@@ -405,6 +405,41 @@ export class InitListCommand extends BaseCommand {
         return null;
       }
 
+      // 既存のスレッドIDをチェック
+      if (!context.channelId) {
+        this.logger.debug('Channel ID is not available', { context });
+        return null;
+      }
+      
+      const metadataResult = await this.metadataManager.getChannelMetadata(context.channelId);
+      if (metadataResult.success && metadataResult.metadata?.operationLogThreadId) {
+        const existingThreadId = metadataResult.metadata.operationLogThreadId;
+        
+        // 既存スレッドの有効性を確認
+        try {
+          const existingThread = await context.interaction!.client.channels.fetch(existingThreadId);
+          if (existingThread && existingThread.isThread()) {
+            this.logger.debug('Using existing operation log thread', {
+              threadId: existingThreadId,
+              channelId: context.channelId
+            });
+            return existingThreadId;
+          } else {
+            this.logger.debug('Existing thread is not valid, creating new one', {
+              threadId: existingThreadId,
+              channelId: context.channelId
+            });
+          }
+        } catch (error) {
+          this.logger.debug('Existing thread is not accessible, creating new one', {
+            threadId: existingThreadId,
+            channelId: context.channelId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      // 新しいスレッドを作成
       const channel = context.interaction.channel as TextChannel;
       const thread = await channel.threads.create({
         name: '操作ログ',

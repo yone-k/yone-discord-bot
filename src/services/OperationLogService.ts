@@ -58,73 +58,66 @@ export class OperationLogService {
       logMessage += `エラー: ${result.message}\n`;
     }
 
-    // 詳細情報の追加
-    if (details || result.affectedItems !== undefined) {
-      logMessage += '詳細:\n';
-      
-      if (result.affectedItems !== undefined) {
-        logMessage += `- アイテム数: ${result.affectedItems}\n`;
-      }
-
-      if (details?.items && details.items.length > 0) {
-        logMessage += '- 対象アイテム:\n';
-        details.items.forEach(item => {
-          logMessage += `  • ${item.name} (${item.quantity}個, ${item.category})`;
-          if (item.until) {
-            logMessage += ` - ${item.until.toLocaleDateString()}まで`;
-          }
-          logMessage += '\n';
-        });
-      }
+    // 詳細情報の追加（アイテム数と対象アイテムは除外）
+    if (details) {
+      const detailSections: string[] = [];
 
       if (details?.changes) {
-        // 新しい詳細形式（added/removed/modified）をサポート
+        // 新しい詳細形式（added/removed/modified）をサポート（件数は除外）
         if (details.changes.added && details.changes.added.length > 0) {
-          logMessage += `- 追加アイテム (${details.changes.added.length}件):\n`;
+          let section = '- 追加項目:\n';
           details.changes.added.forEach(item => {
-            logMessage += `  • ${item.name}`;
-            if (item.category) logMessage += ` (${item.category})`;
-            if (item.until) logMessage += ` - ${item.until.toLocaleDateString()}まで`;
-            logMessage += '\n';
+            section += `  • ${item.name}`;
+            if (item.category) section += ` (${item.category})`;
+            if (item.until) section += ` - ${item.until.toLocaleDateString()}まで`;
+            section += '\n';
           });
+          detailSections.push(section);
         }
 
         if (details.changes.removed && details.changes.removed.length > 0) {
-          logMessage += `- 削除アイテム (${details.changes.removed.length}件):\n`;
+          let section = '- 削除項目:\n';
           details.changes.removed.forEach(item => {
-            logMessage += `  • ${item.name}`;
-            if (item.category) logMessage += ` (${item.category})`;
-            logMessage += '\n';
+            section += `  • ${item.name}`;
+            if (item.category) section += ` (${item.category})`;
+            section += '\n';
           });
+          detailSections.push(section);
         }
 
         if (details.changes.modified && details.changes.modified.length > 0) {
-          logMessage += `- 変更アイテム (${details.changes.modified.length}件):\n`;
+          let section = '- 変更項目:\n';
           details.changes.modified.forEach(change => {
-            logMessage += `  • ${change.name}:\n`;
+            section += `  • ${change.name}:\n`;
             if (change.before.check !== undefined && change.after.check !== undefined) {
-              logMessage += `    完了状態: ${change.before.check ? '完了' : '未完了'} → ${change.after.check ? '完了' : '未完了'}\n`;
+              section += `    完了状態: ${change.before.check ? '完了' : '未完了'} → ${change.after.check ? '完了' : '未完了'}\n`;
             }
             if (change.before.category !== undefined && change.after.category !== undefined) {
-              logMessage += `    カテゴリ: ${change.before.category || '未設定'} → ${change.after.category || '未設定'}\n`;
+              section += `    カテゴリ: ${change.before.category || '未設定'} → ${change.after.category || '未設定'}\n`;
             }
             if (change.before.until !== undefined && change.after.until !== undefined) {
               const beforeDate = change.before.until ? change.before.until.toLocaleDateString() : '未設定';
               const afterDate = change.after.until ? change.after.until.toLocaleDateString() : '未設定';
-              logMessage += `    期限: ${beforeDate} → ${afterDate}\n`;
+              section += `    期限: ${beforeDate} → ${afterDate}\n`;
             }
           });
+          detailSections.push(section);
         }
 
         // レガシー形式の変更内容もサポート（下位互換性のため）
         if (details.changes.before && details.changes.after) {
-          logMessage += `- 変更前: ${JSON.stringify(details.changes.before)}\n`;
-          logMessage += `- 変更後: ${JSON.stringify(details.changes.after)}\n`;
+          const section = `- 変更前: ${JSON.stringify(details.changes.before)}\n- 変更後: ${JSON.stringify(details.changes.after)}\n`;
+          detailSections.push(section);
         }
       }
 
       if (details?.cancelReason) {
-        logMessage += `- キャンセル理由: ${details.cancelReason}\n`;
+        detailSections.push(`- キャンセル理由: ${details.cancelReason}\n`);
+      }
+
+      if (detailSections.length > 0) {
+        logMessage += '詳細:\n';
+        logMessage += detailSections.join('');
       }
     }
 
@@ -157,23 +150,12 @@ export class OperationLogService {
         return;
       }
 
-      let threadId = metadataResult.metadata.operationLogThreadId;
+      const threadId = metadataResult.metadata.operationLogThreadId;
 
-      // operationLogThreadIdが存在しない場合、新しいスレッドを作成
+      // operationLogThreadIdが存在しない場合、ログ記録をスキップ
       if (!threadId) {
-        try {
-          const thread = await this.createLogThread(channelId, client);
-          threadId = thread.id;
-
-          // メタデータを更新してoperationLogThreadIdを保存
-          await this.metadataManager.updateChannelMetadata(channelId, {
-            ...metadataResult.metadata,
-            operationLogThreadId: threadId
-          });
-        } catch (error) {
-          this.logger.error('操作ログスレッドの作成に失敗しました', { channelId, error });
-          return;
-        }
+        this.logger.debug('操作ログスレッドが存在しないため、ログ記録をスキップします', { channelId });
+        return;
       }
 
       // スレッドを取得してログを投稿

@@ -327,7 +327,7 @@ describe('MessageManager', () => {
       // Assert
       expect(result.success).toBe(true);
       expect(mockMessage.startThread).toHaveBeenCalledWith({
-        name: 'Operation Log',
+        name: '操作ログ',
         autoArchiveDuration: 1440 // 24時間
       });
     });

@@ -89,7 +89,7 @@ describe('OperationLogService', () => {
       // Arrange
       const operationInfo: OperationInfo = {
         operationType: 'ADD_ITEM',
-        actionName: 'アイテム追加'
+        actionName: '項目追加'
       };
       const result: OperationResult = { success: true };
       const userId = 'test-user-123';
@@ -112,7 +112,7 @@ describe('OperationLogService', () => {
       // Arrange
       const operationInfo: OperationInfo = {
         operationType: 'ADD_ITEM',
-        actionName: 'アイテム追加'
+        actionName: '項目追加'
       };
       const result: OperationResult = { success: true };
       const userId = 'test-user-123';
@@ -128,17 +128,17 @@ describe('OperationLogService', () => {
       expect(formattedMessage).toContain('<@test-user-123>');
     });
 
-    it('構造化されたログ形式が正しいこと', () => {
+    it('構造化されたログ形式が正しく、アイテム数や詳細が含まれないこと', () => {
       // Arrange
       const operationInfo: OperationInfo = {
         operationType: 'ADD_ITEM',
-        actionName: 'アイテム追加'
+        actionName: '項目追加'
       };
       const result: OperationResult = { success: true, affectedItems: 3 };
       const details: OperationDetails = {
         items: [
-          { name: 'テストアイテム1', quantity: 1, category: 'テスト' },
-          { name: 'テストアイテム2', quantity: 2, category: 'テスト' }
+          { name: 'テスト項目1', quantity: 1, category: 'テスト' },
+          { name: 'テスト項目2', quantity: 2, category: 'テスト' }
         ]
       };
       const userId = 'test-user-123';
@@ -152,17 +152,20 @@ describe('OperationLogService', () => {
         details
       );
 
-      // Assert
-      expect(formattedMessage).toContain('アイテム追加');
+      // Assert - 新仕様：項目数や詳細リストが含まれないこと
+      expect(formattedMessage).toContain('項目追加');
       expect(formattedMessage).toContain('<@test-user-123>');
-      expect(formattedMessage).toContain('アイテム数: 3');
+      expect(formattedMessage).not.toContain('アイテム数');
+      expect(formattedMessage).not.toContain('項目数');
+      expect(formattedMessage).not.toContain('テスト項目1');
+      expect(formattedMessage).not.toContain('テスト項目2');
     });
 
     it('成功時（✅）のフォーマットが正しいこと', () => {
       // Arrange
       const operationInfo: OperationInfo = {
         operationType: 'ADD_ITEM',
-        actionName: 'アイテム追加'
+        actionName: '項目追加'
       };
       const result: OperationResult = { success: true };
       const userId = 'test-user-123';
@@ -183,7 +186,7 @@ describe('OperationLogService', () => {
       // Arrange
       const operationInfo: OperationInfo = {
         operationType: 'ADD_ITEM',
-        actionName: 'アイテム追加'
+        actionName: '項目追加'
       };
       const result: OperationResult = { 
         success: false, 
@@ -211,7 +214,7 @@ describe('OperationLogService', () => {
       const channelId = 'test-channel-123';
       const operationInfo: OperationInfo = {
         operationType: 'ADD_ITEM',
-        actionName: 'アイテム追加'
+        actionName: '項目追加'
       };
       const result: OperationResult = { success: true };
       const userId = 'test-user-123';
@@ -237,7 +240,7 @@ describe('OperationLogService', () => {
       const channelId = 'test-channel-123';
       const operationInfo: OperationInfo = {
         operationType: 'ADD_ITEM',
-        actionName: 'アイテム追加'
+        actionName: '項目追加'
       };
       const result: OperationResult = { success: true };
       const userId = 'test-user-123';
@@ -267,7 +270,7 @@ describe('OperationLogService', () => {
       const channelId = 'test-channel-123';
       const operationInfo: OperationInfo = {
         operationType: 'ADD_ITEM',
-        actionName: 'アイテム追加'
+        actionName: '項目追加'
       };
       const result: OperationResult = { success: true };
       const userId = 'test-user-123';
@@ -286,12 +289,12 @@ describe('OperationLogService', () => {
       expect(mockClient.channels.fetch).toHaveBeenCalledWith('test-thread-456');
     });
 
-    it('operationLogThreadIdが存在しない場合、新しいスレッドを作成すること', async () => {
+    it('operationLogThreadIdが存在しない場合、ログ記録をスキップすること', async () => {
       // Arrange
       const channelId = 'test-channel-123';
       const operationInfo: OperationInfo = {
         operationType: 'ADD_ITEM',
-        actionName: 'アイテム追加'
+        actionName: '項目追加'
       };
       const result: OperationResult = { success: true };
       const userId = 'test-user-123';
@@ -315,17 +318,10 @@ describe('OperationLogService', () => {
         mockClient as unknown as Client
       );
 
-      // Assert
-      expect(mockTextChannel.threads.create).toHaveBeenCalledWith({
-        name: '操作ログ',
-        autoArchiveDuration: 60
-      });
-      expect(mockMetadataManager.updateChannelMetadata).toHaveBeenCalledWith(
-        channelId,
-        expect.objectContaining({
-          operationLogThreadId: 'test-thread-456'
-        })
-      );
+      // Assert - 新仕様：スレッド作成もログ投稿も行わない
+      expect(mockTextChannel.threads.create).not.toHaveBeenCalled();
+      expect(mockMetadataManager.updateChannelMetadata).not.toHaveBeenCalled();
+      expect(mockThread.send).not.toHaveBeenCalled();
     });
   });
 

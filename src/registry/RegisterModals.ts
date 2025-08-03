@@ -10,7 +10,7 @@ import { MetadataManager } from '../services/MetadataManager';
 
 export function registerAllModals(modalManager: ModalManager, logger: Logger): void {
   // 操作ログ関連のサービスを初期化
-  const metadataManager = new MetadataManager();
+  const metadataManager = MetadataManager.getInstance();
   const operationLogService = new OperationLogService(logger, metadataManager);
   
   // EditListModalHandlerを明示的に登録（操作ログサービス付き）

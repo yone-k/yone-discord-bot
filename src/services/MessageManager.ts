@@ -68,7 +68,7 @@ export class MessageManager {
   private readonly lockTimeout = 30000; // 30秒のタイムアウト
 
   constructor() {
-    this.metadataManager = new MetadataManager();
+    this.metadataManager = MetadataManager.getInstance();
     this.buttonConfigManager = ButtonConfigManager.getInstance();
   }
 
@@ -363,9 +363,20 @@ export class MessageManager {
           messageId,
           listTitle,
           lastSyncTime: new Date(),
-          ...(defaultCategory && { defaultCategory }),
-          ...(operationLogThreadId !== undefined && { operationLogThreadId })
+          ...(defaultCategory && { defaultCategory })
         };
+
+        // operationLogThreadIdの処理
+        if (operationLogThreadId !== undefined) {
+          if (operationLogThreadId === '') {
+            // 空文字列の場合は削除（undefinedを設定して既存値を削除）
+            delete updatedMetadata.operationLogThreadId;
+          } else {
+            // 空文字列以外の場合は設定
+            updatedMetadata.operationLogThreadId = operationLogThreadId;
+          }
+        }
+        // operationLogThreadIdがundefinedの場合は既存値を保持
         
         return await this.metadataManager.updateChannelMetadata(channelId, updatedMetadata);
       } else {
@@ -375,9 +386,14 @@ export class MessageManager {
           messageId,
           listTitle,
           lastSyncTime: new Date(),
-          defaultCategory: defaultCategory || DEFAULT_CATEGORY,
-          ...(operationLogThreadId && { operationLogThreadId })
+          defaultCategory: defaultCategory || DEFAULT_CATEGORY
         };
+
+        // operationLogThreadIdの処理（新規作成時）
+        if (operationLogThreadId && operationLogThreadId !== '') {
+          newMetadata.operationLogThreadId = operationLogThreadId;
+        }
+        // 空文字列またはundefinedの場合はoperationLogThreadIdフィールドを追加しない
         
         return await this.metadataManager.createChannelMetadata(channelId, newMetadata);
       }

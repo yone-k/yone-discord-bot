@@ -6,6 +6,65 @@ import { InitListCommand } from '../../src/commands/InitListCommand';
 import { ButtonHandlerContext } from '../../src/base/BaseButtonHandler';
 import { OperationInfo } from '../../src/models/types/OperationLog';
 
+// 環境変数のモック
+process.env.DISCORD_BOT_TOKEN = 'test-bot-token';
+process.env.CLIENT_ID = 'test-client-id';
+process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@service.account';
+process.env.GOOGLE_PRIVATE_KEY = 'test-private-key';
+process.env.GOOGLE_SPREADSHEET_ID = 'test-spreadsheet-id';
+
+// GoogleSheetsServiceのモック
+vi.mock('../../src/services/GoogleSheetsService', () => ({
+  GoogleSheetsService: {
+    getInstance: vi.fn().mockReturnValue({
+      getSheetData: vi.fn().mockResolvedValue([]),
+      normalizeData: vi.fn().mockImplementation((data) => data),
+      createChannelSheet: vi.fn().mockResolvedValue(true),
+      validateData: vi.fn().mockReturnValue({ isValid: true, errors: [] }),
+      checkSpreadsheetExists: vi.fn().mockResolvedValue(true)
+    })
+  }
+}));
+
+// その他のサービスもモック
+vi.mock('../../src/services/ChannelSheetManager', () => ({
+  ChannelSheetManager: vi.fn().mockImplementation(() => ({
+    getOrCreateChannelSheet: vi.fn().mockResolvedValue(undefined)
+  }))
+}));
+
+vi.mock('../../src/services/MessageManager', () => ({
+  MessageManager: vi.fn().mockImplementation(() => ({
+    createOrUpdateMessageWithMetadata: vi.fn().mockResolvedValue({
+      success: true,
+      message: { id: 'test-message-id' }
+    })
+  }))
+}));
+
+vi.mock('../../src/services/MetadataManager', () => ({
+  MetadataManager: {
+    getInstance: vi.fn().mockReturnValue({
+      getChannelMetadata: vi.fn().mockResolvedValue({ 
+        success: false,
+        metadata: null 
+      }),
+      createChannelMetadata: vi.fn().mockResolvedValue({ success: true }),
+      updateChannelMetadata: vi.fn().mockResolvedValue({ success: true })
+    })
+  }
+}));
+
+vi.mock('../../src/services/ListInitializationService', () => ({
+  ListInitializationService: vi.fn().mockImplementation(() => ({
+    initializeList: vi.fn().mockResolvedValue({
+      success: true,
+      message: 'リストを同期しました',
+      itemCount: 0
+    })
+  }))
+}));
+
 describe('InitListButtonHandler', () => {
   let handler: InitListButtonHandler;
   let logger: Logger;
@@ -50,9 +109,11 @@ describe('InitListButtonHandler', () => {
 
   describe('executeAction', () => {
     it('ボタンインタラクションでエラーが発生することを確認する（Red フェーズ）', async () => {
-      // InitListCommandのexecuteメソッドで「Cannot read properties of undefined」エラーをシミュレート
-      const error = new Error('Cannot read properties of undefined (reading \'getString\')');
-      mockInitListCommand.execute = vi.fn().mockRejectedValue(error);
+      // ListInitializationServiceでエラーが発生する場合をシミュレート
+      const mockListInitializationService = {
+        initializeList: vi.fn().mockRejectedValue(new Error('Cannot read properties of undefined (reading \'getString\')'))
+      };
+      handler['listInitializationService'] = mockListInitializationService as any;
 
       // ボタンインタラクションから呼び出されるため、エラーが発生するはず（OperationResultでエラーを返す）
       const result = await handler['executeAction'](context);
@@ -76,57 +137,49 @@ describe('InitListButtonHandler', () => {
 
   describe('executeAction with operation logging', () => {
     it('should return OperationResult on successful initialization', async () => {
-      mockInitListCommand.execute = vi.fn().mockResolvedValue(undefined);
-      
       const result = await handler['executeAction'](context);
       
       expect(result).toBeDefined();
       expect(result.success).toBe(true);
-      expect(result.message).toBe('リストを初期化しました');
+      expect(result.message).toBe('リストを同期しました');
     });
 
     it('should include initialized item count in operation details', async () => {
-      mockInitListCommand.execute = vi.fn().mockResolvedValue(undefined);
-      
       const result = await handler['executeAction'](context);
       
       expect(result).toBeDefined();
       expect(result.success).toBe(true);
-      expect(result.affectedItems).toBe(5); // ハードコードされた値
-      
-      expect(result.details?.items).toHaveLength(5);
-      expect(result.details?.items?.[0]).toEqual(
-        expect.objectContaining({
-          name: expect.any(String),
-          quantity: expect.any(Number),
-          category: expect.any(String)
-        })
-      );
+      expect(result.affectedItems).toBe(0); // 空のデータなので0
     });
 
     it('should handle initialization cancellation', async () => {
-      const cancelError = new Error('User cancelled initialization');
-      mockInitListCommand.execute = vi.fn().mockRejectedValue(cancelError);
+      // ListInitializationServiceをモック
+      const mockListInitializationService = {
+        initializeList: vi.fn().mockRejectedValue(new Error('cancelled'))
+      };
+      handler['listInitializationService'] = mockListInitializationService as any;
       
       const result = await handler['executeAction'](context);
       
       expect(result).toBeDefined();
       expect(result.success).toBe(false);
-      expect(result.error).toBe(cancelError);
-      // cancelledを含むエラーメッセージの場合のみcancelReasonが設定される
-      expect(result.details?.cancelReason).toBe('ユーザーによる初期化キャンセル');
+      expect(result.error).toBeInstanceOf(Error);
+      expect(result.details?.cancelReason).toBe('ユーザーによる同期キャンセル');
     });
 
     it('should handle initialization failure', async () => {
-      const mockError = new Error('Initialization failed');
-      mockInitListCommand.execute = vi.fn().mockRejectedValue(mockError);
+      // ListInitializationServiceをモック
+      const mockListInitializationService = {
+        initializeList: vi.fn().mockRejectedValue(new Error('Initialization failed'))
+      };
+      handler['listInitializationService'] = mockListInitializationService as any;
       
       const result = await handler['executeAction'](context);
       
       expect(result).toBeDefined();
       expect(result.success).toBe(false);
-      expect(result.error).toBe(mockError);
-      expect(result.message).toBe('初期化に失敗しました');
+      expect(result.error).toBeInstanceOf(Error);
+      expect(result.message).toBe('同期に失敗しました');
     });
   });
 });

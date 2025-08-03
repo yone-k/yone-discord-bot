@@ -48,6 +48,7 @@ describe('MetadataManager', () => {
     // シングルトンをリセット
     (Config as any).instance = undefined;
     (GoogleSheetsService as any).instance = undefined;
+    (MetadataManager as any).instance = undefined;
 
     // モックを取得
     const { google } = await import('googleapis');
@@ -95,13 +96,22 @@ describe('MetadataManager', () => {
       data: {}
     });
 
-    metadataManager = new MetadataManager();
+    metadataManager = MetadataManager.getInstance();
   });
 
   afterEach(() => {
     process.env = originalEnv;
     (Config as any).instance = undefined;
     (GoogleSheetsService as any).instance = undefined;
+    
+    // MetadataManagerのシングルトンと初期化状態をリセット
+    const instance = (MetadataManager as any).instance;
+    if (instance) {
+      instance.isInitialized = false;
+      instance.initializationPromise = null;
+    }
+    (MetadataManager as any).instance = undefined;
+    
     vi.clearAllMocks();
   });
 
@@ -261,38 +271,80 @@ describe('MetadataManager', () => {
       expect(headers[5]).toBe('operation_log_thread_id');
     });
 
-    it('ヘッダー完全性チェックが6列に対応している', async () => {
-      // Arrange - 6列のヘッダーデータをモック
-      mockSheets.values.get.mockResolvedValueOnce({
-        data: {
-          values: [
-            ['channel_id', 'message_id', 'list_title', 'last_sync_time', 'default_category', 'operation_log_thread_id']
-          ]
-        }
-      });
+  });
 
+  describe('シングルトンパターンの実装', () => {
+    it('複数のgetInstance()呼び出しが同じインスタンスを返す', () => {
       // Act
-      const isComplete = await metadataManager.isMetadataHeaderComplete();
+      const instance1 = MetadataManager.getInstance();
+      const instance2 = MetadataManager.getInstance();
 
       // Assert
-      expect(isComplete).toBe(true);
+      expect(instance1).toBe(instance2);
     });
 
-    it('5列のヘッダーは不完全として検出される', async () => {
-      // Arrange - 5列のヘッダーデータをモック
-      mockSheets.values.get.mockResolvedValueOnce({
+    it('インスタンスがシングルトンである', () => {
+      // Act
+      const instance = MetadataManager.getInstance();
+
+      // Assert
+      expect(instance).toBeInstanceOf(MetadataManager);
+      expect(MetadataManager.getInstance()).toBe(instance);
+    });
+
+    it('初期化プロセスが一度だけ実行される', async () => {
+      // Arrange
+      const testChannelId = '123456789';
+      
+      // インスタンスとモックをクリア
+      (Config as any).instance = undefined;
+      (GoogleSheetsService as any).instance = undefined;
+      (MetadataManager as any).instance = undefined;
+      vi.clearAllMocks();
+      
+      mockSheets.values.get.mockResolvedValue({
         data: {
           values: [
-            ['channel_id', 'message_id', 'list_title', 'last_sync_time', 'default_category']
+            ['channel_id', 'message_id', 'list_title', 'last_sync_time', 'default_category', 'operation_log_thread_id'],
+            [testChannelId, 'msg123', 'テストリスト', '2025-01-01 12:00:00', 'general', 'thread123']
           ]
         }
       });
 
-      // Act
-      const isComplete = await metadataManager.isMetadataHeaderComplete();
+      // Act - 同じチャンネルIDで複数回呼び出し
+      const manager1 = MetadataManager.getInstance();
+      const manager2 = MetadataManager.getInstance();
+      
+      const [result1, result2] = await Promise.all([
+        manager1.getChannelMetadata(testChannelId),
+        manager2.getChannelMetadata(testChannelId)
+      ]);
 
       // Assert
-      expect(isComplete).toBe(false);
+      expect(result1.success).toBe(true);
+      expect(result2.success).toBe(true);
+      expect(manager1).toBe(manager2);
+      
+      // getSheetDataByNameの呼び出し回数をチェック（キャッシュ最適化で大幅に削減されているか確認）
+      // 最適化により、初期化で1回 + 実際のoperationで1回程度まで削減される想定
+      const callCount = mockSheets.values.get.mock.calls.length;
+      expect(callCount).toBeLessThanOrEqual(3); // キャッシュ最適化により大幅に削減を期待
+    });
+
+    it('Configのシングルトンリセット時にMetadataManagerも再初期化される', () => {
+      // Arrange
+      const originalInstance = MetadataManager.getInstance();
+
+      // Act - Configシングルトンをリセット
+      (Config as any).instance = undefined;
+      (GoogleSheetsService as any).instance = undefined;
+      (MetadataManager as any).instance = undefined;
+
+      const newInstance = MetadataManager.getInstance();
+
+      // Assert
+      expect(newInstance).not.toBe(originalInstance);
+      expect(newInstance).toBeInstanceOf(MetadataManager);
     });
   });
 

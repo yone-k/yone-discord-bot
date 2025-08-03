@@ -4,8 +4,8 @@ import { CommandError, CommandErrorType } from '../utils/CommandError';
 import { ChannelSheetManager, ChannelSheetResult } from '../services/ChannelSheetManager';
 import { MessageManager } from '../services/MessageManager';
 import { MetadataManager } from '../services/MetadataManager';
-import { ListFormatter } from '../ui/ListFormatter';
 import { GoogleSheetsService } from '../services/GoogleSheetsService';
+import { ListInitializationService } from '../services/ListInitializationService';
 import { ListItem } from '../models/ListItem';
 import { normalizeCategory, validateCategory, DEFAULT_CATEGORY, CategoryType } from '../models/CategoryType';
 import { SlashCommandBuilder, TextChannel } from 'discord.js';
@@ -37,21 +37,29 @@ export class InitListCommand extends BaseCommand {
   private messageManager: MessageManager;
   private metadataManager: MetadataManager;
   private googleSheetsService: GoogleSheetsService;
+  private listInitializationService: ListInitializationService;
 
   constructor(
     logger: Logger,
     channelSheetManager?: ChannelSheetManager,
     messageManager?: MessageManager,
     metadataManager?: MetadataManager,
-    googleSheetsService?: GoogleSheetsService
+    googleSheetsService?: GoogleSheetsService,
+    listInitializationService?: ListInitializationService
   ) {
     super('init-list', 'リストの初期化を行います', logger);
     this.deleteOnSuccess = true;
     this.ephemeral = true;
     this.channelSheetManager = channelSheetManager || new ChannelSheetManager();
     this.messageManager = messageManager || new MessageManager();
-    this.metadataManager = metadataManager || new MetadataManager();
+    this.metadataManager = metadataManager || MetadataManager.getInstance();
     this.googleSheetsService = googleSheetsService || GoogleSheetsService.getInstance();
+    this.listInitializationService = listInitializationService || new ListInitializationService(
+      this.googleSheetsService,
+      this.messageManager,
+      this.metadataManager,
+      this.channelSheetManager
+    );
   }
 
   async execute(context?: CommandExecutionContext): Promise<void> {
@@ -100,7 +108,7 @@ export class InitListCommand extends BaseCommand {
       userId: context.userId
     });
 
-    // オプションからデフォルトカテゴリーとenable-logを取得（ボタンインタラクションの場合はoptionsが存在しない）
+    // オプションからデフォルトカテゴリーとenable-logを取得
     const defaultCategoryOption = context.interaction.options?.getString('default-category') || null;
     const enableLogOption = context.interaction.options?.getBoolean('enable-log');
     let defaultCategory = DEFAULT_CATEGORY;
@@ -134,62 +142,45 @@ export class InitListCommand extends BaseCommand {
       }
     }
 
-    // チャンネルシートの準備
-    await this.channelSheetManager.getOrCreateChannelSheet(context.channelId);
-
-    // 操作ログスレッドの作成（enable-log=trueまたは未指定の場合のみ）
-    let operationLogThreadId: string | undefined = undefined;
-    if (enableLogOption !== false) { // true または null（デフォルト）の場合
-      operationLogThreadId = await this.createOperationLogThread(context) || undefined;
-    }
-
-    // ステップ3: データ取得と検証
-    const listData = await this.getAndValidateData(context.channelId);
-    const items = this.convertToListItems(listData, defaultCategory);
+    // ListInitializationServiceを使用してリスト初期化を実行
+    // enable-logオプションの処理：未指定（null）の場合は既存状態保持
+    const enableLog: boolean | null = enableLogOption; // null: 既存状態保持, true: 有効, false: 無効
     
-    this.logger.info('Data retrieved and converted', {
-      channelId: context.channelId,
-      itemCount: items.length
-    });
-
-    // ステップ4: チャンネル名を取得してリストタイトルを動的生成
-    const channelName = (context.interaction.channel && 'name' in context.interaction.channel) 
-      ? context.interaction.channel.name 
-      : 'リスト';
-    const listTitle = `${channelName}リスト`;
-
-    // ステップ4: Embed形式変換と固定メッセージ処理
-    const embed = items.length > 0 
-      ? await ListFormatter.formatDataList(listTitle, items, context.channelId, defaultCategory)
-      : await ListFormatter.formatEmptyList(listTitle, context.channelId, undefined, defaultCategory);
-
-    const messageResult = await this.messageManager.createOrUpdateMessageWithMetadata(
-      context.channelId,
-      embed,
-      listTitle,
-      context.interaction.client,
-      'list',
-      defaultCategory,
-      operationLogThreadId
+    const result = await this.listInitializationService.initializeList(
+      context,
+      enableLog, // null: 既存状態保持, true: 有効, false: 無効
+      defaultCategory
     );
 
-    if (!messageResult.success) {
+    if (!result.success) {
       throw new CommandError(
         CommandErrorType.EXECUTION_FAILED,
         'init-list',
-        `Failed to create or update message: ${messageResult.errorMessage}`,
-        'リストメッセージの作成・更新に失敗しました。'
+        result.errorMessage || 'Unknown error during list initialization',
+        'リスト初期化中にエラーが発生しました。'
       );
     }
 
-    // ステップ5: メタデータ保存（MessageManagerで既に実行済み）
-    this.logger.info('Metadata saved successfully', {
+    this.logger.info('List initialization completed', {
       channelId: context.channelId,
-      messageId: messageResult.message?.id
+      messageId: result.message?.id,
+      operationLogThreadId: result.operationLogThreadId
     });
 
-    // ステップ6: 完了通知メッセージ
-    await this.sendCompletionMessage(context, items.length);
+    // 完了通知メッセージを送信（簡単な件数取得）
+    try {
+      const listData = await this.googleSheetsService.getSheetData(context.channelId);
+      const normalizedData = this.googleSheetsService.normalizeData(listData);
+      const items = this.convertToListItems(normalizedData, defaultCategory);
+      await this.sendCompletionMessage(context, items.length);
+    } catch (error) {
+      // 完了メッセージ送信でエラーが起きても、本処理には影響しない
+      this.logger.warn('Failed to send completion message', {
+        channelId: context.channelId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      await this.sendCompletionMessage(context, 0);
+    }
   }
 
   private async verifySheetAccess(): Promise<void> {

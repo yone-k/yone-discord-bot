@@ -65,7 +65,7 @@ class DiscordBot {
   private registerReactionAndModalHandlers(): void {
     try {
       // MetadataManagerとOperationLogServiceを初期化
-      this.metadataManager = new MetadataManager();
+      this.metadataManager = MetadataManager.getInstance();
       this.operationLogService = new OperationLogService(this.logger, this.metadataManager);
       
       this.reactionManager = new ReactionManager(this.logger);

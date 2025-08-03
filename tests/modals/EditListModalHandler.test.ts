@@ -547,6 +547,93 @@ describe('EditListModalHandler', () => {
     });
 
     // CSV完了列（4番目の列）の解析機能のテストケース
+    it('should save empty string when category matches defaultCategory', () => {
+      const items = [
+        {
+          name: '牛乳',
+          category: '食品' as any,
+          until: null,
+          check: false
+        },
+        {
+          name: 'パン',
+          category: '日用品' as any,
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = handler['convertItemsToSheetData'](items, 'channel789', '食品');
+
+      expect(result).toEqual([
+        ['name', 'category', 'until', 'check'],
+        ['牛乳', '', '', 0], // '食品'がdefaultCategoryと一致するので空文字列
+        ['パン', '日用品', '', 0] // '日用品'は異なるのでそのまま
+      ]);
+    });
+
+    it('should save category when different from defaultCategory', () => {
+      const items = [
+        {
+          name: '牛乳',
+          category: '食品' as any,
+          until: null,
+          check: false
+        },
+        {
+          name: 'パン',
+          category: '日用品' as any,
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = handler['convertItemsToSheetData'](items, 'channel789', '生活用品');
+
+      expect(result).toEqual([
+        ['name', 'category', 'until', 'check'],
+        ['牛乳', '食品', '', 0], // '食品'は異なるのでそのまま
+        ['パン', '日用品', '', 0] // '日用品'も異なるのでそのまま
+      ]);
+    });
+
+    it('should handle null defaultCategory gracefully', () => {
+      const items = [
+        {
+          name: '牛乳',
+          category: '食品' as any,
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = handler['convertItemsToSheetData'](items, 'channel789', null);
+
+      expect(result).toEqual([
+        ['name', 'category', 'until', 'check'],
+        ['牛乳', '食品', '', 0] // defaultCategoryがnullなので通常通り
+      ]);
+    });
+
+    it('should handle undefined defaultCategory gracefully', () => {
+      const items = [
+        {
+          name: '牛乳',
+          category: '食品' as any,
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = handler['convertItemsToSheetData'](items, 'channel789');
+
+      expect(result).toEqual([
+        ['name', 'category', 'until', 'check'],
+        ['牛乳', '食品', '', 0] // defaultCategoryがundefinedなので通常通り
+      ]);
+    });
+
+    // CSV完了列（4番目の列）の解析機能のテストケース
     describe('CSV completion column parsing', () => {
       it('should parse CSV with completion column as boolean true for "1"', () => {
         const csvText = '牛乳,食品,2024-12-31,1\nパン,食品,,0';
@@ -681,6 +768,238 @@ describe('EditListModalHandler', () => {
           check: false // 完了列なしなのでfalse
         }));
       });
+    });
+  });
+
+  describe('calculateChanges', () => {
+    it('should treat null category and defaultCategory as equivalent for change detection', () => {
+      const existingItems = [
+        {
+          name: '牛乳',
+          category: null,
+          until: null,
+          check: false
+        }
+      ];
+      
+      const editedItems = [
+        {
+          name: '牛乳',
+          category: '食品' as any,
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = handler['calculateChanges'](existingItems, editedItems, '食品');
+
+      // 空白→defaultCategoryは変更なしとして扱う
+      expect(result.modified).toHaveLength(0);
+    });
+
+    it('should treat defaultCategory and null category as equivalent for change detection', () => {
+      const existingItems = [
+        {
+          name: '牛乳',
+          category: '食品' as any,
+          until: null,
+          check: false
+        }
+      ];
+      
+      const editedItems = [
+        {
+          name: '牛乳',
+          category: null,
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = handler['calculateChanges'](existingItems, editedItems, '食品');
+
+      // defaultCategory→空白は変更なしとして扱う
+      expect(result.modified).toHaveLength(0);
+    });
+
+    it('should detect changes when category changes to non-defaultCategory', () => {
+      const existingItems = [
+        {
+          name: '牛乳',
+          category: null,
+          until: null,
+          check: false
+        }
+      ];
+      
+      const editedItems = [
+        {
+          name: '牛乳',
+          category: '日用品' as any,
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = handler['calculateChanges'](existingItems, editedItems, '食品');
+
+      // 空白→異なるカテゴリは変更として扱う
+      expect(result.modified).toHaveLength(1);
+      expect(result.modified[0]).toEqual({
+        name: '牛乳',
+        before: { category: null },
+        after: { category: '日用品' }
+      });
+    });
+
+    it('should detect changes when defaultCategory changes to different category', () => {
+      const existingItems = [
+        {
+          name: '牛乳',
+          category: '食品' as any,
+          until: null,
+          check: false
+        }
+      ];
+      
+      const editedItems = [
+        {
+          name: '牛乳',
+          category: '日用品' as any,
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = handler['calculateChanges'](existingItems, editedItems, '食品');
+
+      // defaultCategory→異なるカテゴリは変更として扱う
+      expect(result.modified).toHaveLength(1);
+      expect(result.modified[0]).toEqual({
+        name: '牛乳',
+        before: { category: '食品' },
+        after: { category: '日用品' }
+      });
+    });
+
+    it('should work without defaultCategory parameter', () => {
+      const existingItems = [
+        {
+          name: '牛乳',
+          category: '食品' as any,
+          until: null,
+          check: false
+        }
+      ];
+      
+      const editedItems = [
+        {
+          name: '牛乳',
+          category: '日用品' as any,
+          until: null,
+          check: false
+        }
+      ];
+
+      const result = handler['calculateChanges'](existingItems, editedItems);
+
+      // defaultCategoryなしでも従来通り動作
+      expect(result.modified).toHaveLength(1);
+      expect(result.modified[0]).toEqual({
+        name: '牛乳',
+        before: { category: '食品' },
+        after: { category: '日用品' }
+      });
+    });
+  });
+
+  describe('getItemChanges', () => {
+    it('should not detect category change when null and defaultCategory are equivalent', () => {
+      const before = {
+        name: '牛乳',
+        category: null,
+        until: null,
+        check: false
+      };
+      
+      const after = {
+        name: '牛乳',
+        category: '食品' as any,
+        until: null,
+        check: false
+      };
+
+      const result = handler['getItemChanges'](before, after, '食品');
+
+      // null→defaultCategoryは変更なし
+      expect(result.before).toEqual({});
+      expect(result.after).toEqual({});
+    });
+
+    it('should not detect category change when defaultCategory and null are equivalent', () => {
+      const before = {
+        name: '牛乳',
+        category: '食品' as any,
+        until: null,
+        check: false
+      };
+      
+      const after = {
+        name: '牛乳',
+        category: null,
+        until: null,
+        check: false
+      };
+
+      const result = handler['getItemChanges'](before, after, '食品');
+
+      // defaultCategory→nullは変更なし
+      expect(result.before).toEqual({});
+      expect(result.after).toEqual({});
+    });
+
+    it('should detect category change when changing to non-defaultCategory', () => {
+      const before = {
+        name: '牛乳',
+        category: null,
+        until: null,
+        check: false
+      };
+      
+      const after = {
+        name: '牛乳',
+        category: '日用品' as any,
+        until: null,
+        check: false
+      };
+
+      const result = handler['getItemChanges'](before, after, '食品');
+
+      // null→異なるカテゴリは変更として検出
+      expect(result.before).toEqual({ category: null });
+      expect(result.after).toEqual({ category: '日用品' });
+    });
+
+    it('should work without defaultCategory parameter (backward compatibility)', () => {
+      const before = {
+        name: '牛乳',
+        category: null,
+        until: null,
+        check: false
+      };
+      
+      const after = {
+        name: '牛乳',
+        category: '食品' as any,
+        until: null,
+        check: false
+      };
+
+      const result = handler['getItemChanges'](before, after);
+
+      // defaultCategoryなしでは従来通りの動作
+      expect(result.before).toEqual({ category: null });
+      expect(result.after).toEqual({ category: '食品' });
     });
   });
 

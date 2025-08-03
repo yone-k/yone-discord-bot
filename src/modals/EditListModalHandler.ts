@@ -43,6 +43,22 @@ export class EditListModalHandler extends BaseModalHandler {
       const existingData = await this.googleSheetsService.getSheetData(channelId);
       const existingItems = this.convertToListItems(existingData);
 
+      // metadata から defaultCategory を取得
+      let defaultCategory: string | null = null;
+      try {
+        if (this.metadataManager) {
+          const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+          if (metadataResult.success && metadataResult.metadata?.defaultCategory) {
+            defaultCategory = metadataResult.metadata.defaultCategory;
+          }
+        }
+      } catch (error) {
+        this.logger.warn('Failed to get metadata for defaultCategory', {
+          channelId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
       // モーダルからデータを取得
       const listDataText = context.interaction.fields.getTextInputValue('list-data');
       
@@ -52,8 +68,8 @@ export class EditListModalHandler extends BaseModalHandler {
       // データをバリデーション
       this.validateItems(editedItems);
       
-      // 変更差分を計算
-      const changes = this.calculateChanges(existingItems, editedItems);
+      // 変更差分を計算（defaultCategoryを考慮）
+      const changes = this.calculateChanges(existingItems, editedItems, defaultCategory);
       
       // Google Sheetsに書き込み
       await this.updateSheetData(channelId, editedItems);
@@ -110,7 +126,7 @@ export class EditListModalHandler extends BaseModalHandler {
   /**
    * 編集前後の変更差分を計算する
    */
-  private calculateChanges(existingItems: ListItem[], editedItems: ListItem[]): { added: ListItem[]; removed: ListItem[]; modified: Array<{ name: string; before: Partial<ListItem>; after: Partial<ListItem> }> } {
+  private calculateChanges(existingItems: ListItem[], editedItems: ListItem[], defaultCategory?: string | null): { added: ListItem[]; removed: ListItem[]; modified: Array<{ name: string; before: Partial<ListItem>; after: Partial<ListItem> }> } {
     const existingMap = new Map(existingItems.map(item => [item.name, item]));
     const editedMap = new Map(editedItems.map(item => [item.name, item]));
 
@@ -136,7 +152,7 @@ export class EditListModalHandler extends BaseModalHandler {
     for (const [name, editedItem] of editedMap) {
       const existingItem = existingMap.get(name);
       if (existingItem) {
-        const changes = this.getItemChanges(existingItem, editedItem);
+        const changes = this.getItemChanges(existingItem, editedItem, defaultCategory);
         if (Object.keys(changes.before).length > 0) {
           modified.push({
             name,
@@ -153,11 +169,11 @@ export class EditListModalHandler extends BaseModalHandler {
   /**
    * 個別アイテムの変更を検出する
    */
-  private getItemChanges(before: ListItem, after: ListItem): { before: Partial<ListItem>; after: Partial<ListItem> } {
+  private getItemChanges(before: ListItem, after: ListItem, defaultCategory?: string | null): { before: Partial<ListItem>; after: Partial<ListItem> } {
     const beforeChanges: Partial<ListItem> = {};
     const afterChanges: Partial<ListItem> = {};
 
-    if (before.category !== after.category) {
+    if (!this.areCategoriesEquivalent(before.category, after.category, defaultCategory)) {
       beforeChanges.category = before.category;
       afterChanges.category = after.category;
     }
@@ -175,6 +191,38 @@ export class EditListModalHandler extends BaseModalHandler {
     }
 
     return { before: beforeChanges, after: afterChanges };
+  }
+
+  /**
+   * 2つのカテゴリがdefaultCategoryを考慮して等価かどうかを判定する
+   * null/undefinedとdefaultCategoryは等価として扱う
+   */
+  private areCategoriesEquivalent(category1: string | null, category2: string | null, defaultCategory?: string | null): boolean {
+    // defaultCategoryが設定されていない場合は厳密等価で比較
+    if (!defaultCategory) {
+      return category1 === category2;
+    }
+    
+    // 両方ともnull/undefinedの場合は等価
+    if (!category1 && !category2) {
+      return true;
+    }
+    
+    // 一方がnull/undefined、もう一方がdefaultCategoryの場合は等価
+    if (!category1 && category2 === defaultCategory) {
+      return true;
+    }
+    
+    if (category1 === defaultCategory && !category2) {
+      return true;
+    }
+    
+    // 両方とも値があり、かつ同じ値の場合は等価
+    if (category1 && category2 && category1 === category2) {
+      return true;
+    }
+    
+    return false;
   }
 
   /**
@@ -353,8 +401,24 @@ export class EditListModalHandler extends BaseModalHandler {
   }
 
   private async updateSheetData(channelId: string, items: ListItem[]): Promise<void> {
+    // metadata から defaultCategory を取得
+    let defaultCategory: string | null = null;
+    try {
+      if (this.metadataManager) {
+        const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+        if (metadataResult.success && metadataResult.metadata?.defaultCategory) {
+          defaultCategory = metadataResult.metadata.defaultCategory;
+        }
+      }
+    } catch (error) {
+      this.logger.warn('Failed to get metadata for defaultCategory', {
+        channelId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+
     // 現在のシートデータを完全に置き換える
-    const sheetData = this.convertItemsToSheetData(items);
+    const sheetData = this.convertItemsToSheetData(items, channelId, defaultCategory);
     
     const result = await this.googleSheetsService.updateSheetData(channelId, sheetData);
     if (!result.success) {
@@ -362,7 +426,7 @@ export class EditListModalHandler extends BaseModalHandler {
     }
   }
 
-  private convertItemsToSheetData(items: ListItem[]): (string | number)[][] {
+  private convertItemsToSheetData(items: ListItem[], channelId?: string, defaultCategory?: string | null): (string | number)[][] {
     const data: (string | number)[][] = [];
     
     // ヘッダー行を追加
@@ -370,9 +434,10 @@ export class EditListModalHandler extends BaseModalHandler {
     
     // データ行を追加
     for (const item of items) {
+      const category = this.determineSheetCategory(item.category, defaultCategory);
       const row = [
         item.name,
-        item.category || '',
+        category,
         item.until ? this.formatDateForSheet(item.until) : '',
         item.check ? 1 : 0
       ];
@@ -380,6 +445,30 @@ export class EditListModalHandler extends BaseModalHandler {
     }
 
     return data;
+  }
+
+  /**
+   * アイテムのカテゴリとdefaultCategoryを比較して、スプレッドシートに保存すべきカテゴリを決定する
+   * defaultCategoryと一致する場合は空文字列、異なる場合は元のカテゴリを返す
+   */
+  private determineSheetCategory(itemCategory: string | null, defaultCategory?: string | null): string {
+    // defaultCategoryが設定されていない場合は通常通り
+    if (!defaultCategory) {
+      return itemCategory || '';
+    }
+    
+    // itemCategoryがnullまたは空文字列の場合は空文字列を返す
+    if (!itemCategory) {
+      return '';
+    }
+    
+    // defaultCategoryと一致する場合は空文字列を返す
+    if (itemCategory === defaultCategory) {
+      return '';
+    }
+    
+    // 一致しない場合は元のカテゴリを返す
+    return itemCategory;
   }
 
   private formatDateForSheet(date: Date): string {

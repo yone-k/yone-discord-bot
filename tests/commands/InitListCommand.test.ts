@@ -690,14 +690,14 @@ describe('InitListCommand', () => {
         return null;
       });
 
-      // createOperationLogThreadメソッドをスパイ（実装後に有効になる）
-      const createOperationLogThreadSpy = vi.spyOn(initListCommand as any, 'createOperationLogThread')
-        .mockResolvedValue(undefined);
+      // ListInitializationServiceをスパイして、enableLog=trueで呼ばれることを確認
+      const listInitSpy = vi.spyOn(initListCommand['listInitializationService'], 'initializeList')
+        .mockResolvedValue({ success: true });
 
       await initListCommand.execute(context);
       
-      // スレッド作成メソッドが呼ばれることを期待（実装後にパスする）
-      expect(createOperationLogThreadSpy).toHaveBeenCalledWith(context);
+      // ListInitializationServiceがenableLog=trueで呼ばれることを期待
+      expect(listInitSpy).toHaveBeenCalledWith(context, true, expect.any(String));
     });
 
     it('enable-log=falseでスレッド作成がスキップされる', async () => {
@@ -714,14 +714,14 @@ describe('InitListCommand', () => {
         return null;
       });
 
-      // createOperationLogThreadメソッドをスパイ
-      const createOperationLogThreadSpy = vi.spyOn(initListCommand as any, 'createOperationLogThread')
-        .mockResolvedValue(undefined);
+      // ListInitializationServiceをスパイして、enableLog=falseで呼ばれることを確認
+      const listInitSpy = vi.spyOn(initListCommand['listInitializationService'], 'initializeList')
+        .mockResolvedValue({ success: true });
 
       await initListCommand.execute(context);
       
-      // スレッド作成メソッドが呼ばれないことを期待（実装後にパスする）
-      expect(createOperationLogThreadSpy).not.toHaveBeenCalled();
+      // ListInitializationServiceがenableLog=falseで呼ばれることを期待
+      expect(listInitSpy).toHaveBeenCalledWith(context, false, expect.any(String));
     });
 
     it('enable-log未指定でデフォルト動作（true扱い）でスレッド作成される', async () => {
@@ -738,14 +738,14 @@ describe('InitListCommand', () => {
         return null;
       });
 
-      // createOperationLogThreadメソッドをスパイ
-      const createOperationLogThreadSpy = vi.spyOn(initListCommand as any, 'createOperationLogThread')
-        .mockResolvedValue(undefined);
+      // ListInitializationServiceをスパイして、enableLog=trueで呼ばれることを確認（デフォルト動作）
+      const listInitSpy = vi.spyOn(initListCommand['listInitializationService'], 'initializeList')
+        .mockResolvedValue({ success: true });
 
       await initListCommand.execute(context);
       
-      // デフォルトでスレッド作成メソッドが呼ばれることを期待（実装後にパスする）
-      expect(createOperationLogThreadSpy).toHaveBeenCalledWith(context);
+      // デフォルト動作でenableLog=trueでListInitializationServiceが呼ばれることを期待
+      expect(listInitSpy).toHaveBeenCalledWith(context, true, expect.any(String));
     });
   });
 

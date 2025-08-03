@@ -8,6 +8,13 @@ import { MetadataManager } from '../../src/services/MetadataManager';
 import { GoogleSheetsService } from '../../src/services/GoogleSheetsService';
 import type { CommandExecutionContext } from '../../src/base/BaseCommand';
 
+// 環境変数のモック
+process.env.DISCORD_BOT_TOKEN = 'test-bot-token';
+process.env.CLIENT_ID = 'test-client-id';
+process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@service.account';
+process.env.GOOGLE_PRIVATE_KEY = 'test-private-key';
+process.env.GOOGLE_SPREADSHEET_ID = 'test-spreadsheet-id';
+
 // Mock classes
 class MockLogger {
   debug = vi.fn();
@@ -245,7 +252,7 @@ describe('InitListCommand Permission Error Tests', () => {
       } catch (error) {
         const cmdError = error as CommandError;
         expect(cmdError.type).toBe(CommandErrorType.EXECUTION_FAILED);
-        expect(cmdError.userMessage).toBe('リストの初期化に失敗しました。しばらく時間を置いてから再試行してください。');
+        expect(cmdError.userMessage).toBe('リスト初期化中に予期しないエラーが発生しました。');
         expect(cmdError.message).toContain('Unexpected error');
       }
 

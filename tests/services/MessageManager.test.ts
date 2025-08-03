@@ -293,6 +293,76 @@ describe('MessageManager', () => {
         })
       );
     });
+
+    it('operationLogThreadIdが空文字列の場合、既存のoperationLogThreadIdを削除する', async () => {
+      // Arrange
+      mockMessage.pinned = false;
+      const operationLogThreadId = ''; // 空文字列で削除指示
+      const existingMetadata = {
+        channelId: 'test-channel-123',
+        messageId: 'old-message-id',
+        listTitle: '古いタイトル',
+        lastSyncTime: new Date(),
+        defaultCategory: 'テスト',
+        operationLogThreadId: 'existing-thread-id'
+      };
+      
+      const mockMetadataManager = messageManager['metadataManager'];
+      mockMetadataManager.getChannelMetadata.mockResolvedValue({
+        success: true,
+        metadata: existingMetadata
+      });
+
+      // Act
+      await messageManager.createOrUpdateMessageWithMetadata(
+        'test-channel-123',
+        testEmbed,
+        'テストリスト',
+        mockClient as any,
+        undefined, // commandName
+        undefined, // defaultCategory
+        operationLogThreadId
+      );
+
+      // Assert
+      expect(mockMetadataManager.updateChannelMetadata).toHaveBeenCalledWith(
+        'test-channel-123',
+        expect.not.objectContaining({
+          operationLogThreadId: expect.anything()
+        })
+      );
+    });
+
+    it('新規作成時にoperationLogThreadIdが空文字列の場合、フィールドを追加しない', async () => {
+      // Arrange
+      mockMessage.pinned = false;
+      const operationLogThreadId = ''; // 空文字列
+      
+      const mockMetadataManager = messageManager['metadataManager'];
+      mockMetadataManager.getChannelMetadata.mockResolvedValue({
+        success: false,
+        metadata: null
+      });
+
+      // Act
+      await messageManager.createOrUpdateMessageWithMetadata(
+        'test-channel-123',
+        testEmbed,
+        'テストリスト',
+        mockClient as any,
+        undefined, // commandName
+        undefined, // defaultCategory
+        operationLogThreadId
+      );
+
+      // Assert
+      expect(mockMetadataManager.createChannelMetadata).toHaveBeenCalledWith(
+        'test-channel-123',
+        expect.not.objectContaining({
+          operationLogThreadId: expect.anything()
+        })
+      );
+    });
   });
 
   describe('スレッド作成統合', () => {

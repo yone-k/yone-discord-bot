@@ -459,7 +459,7 @@ describe('InitListCommand', () => {
         expect.any(Object), // client
         'list',
         '食材',
-        undefined // operationLogThreadId
+        '' // operationLogThreadId
       );
     });
 
@@ -512,7 +512,7 @@ describe('InitListCommand', () => {
         expect.any(Object), // client
         'list',
         '既存カテゴリー',
-        undefined // operationLogThreadId
+        '' // operationLogThreadId
       );
     });
 
@@ -558,7 +558,7 @@ describe('InitListCommand', () => {
         expect.any(Object), // client
         'list',
         'その他',
-        undefined // operationLogThreadId
+        '' // operationLogThreadId
       );
     });
   });
@@ -724,7 +724,7 @@ describe('InitListCommand', () => {
       expect(listInitSpy).toHaveBeenCalledWith(context, false, expect.any(String));
     });
 
-    it('enable-log未指定でデフォルト動作（true扱い）でスレッド作成される', async () => {
+    it('enable-log未指定で既存状態保持（null渡し）される', async () => {
       const context: CommandExecutionContext = {
         interaction: mockInteraction,
         channelId: 'test-channel-id',
@@ -738,14 +738,14 @@ describe('InitListCommand', () => {
         return null;
       });
 
-      // ListInitializationServiceをスパイして、enableLog=trueで呼ばれることを確認（デフォルト動作）
+      // ListInitializationServiceをスパイして、enableLog=nullで呼ばれることを確認（既存状態保持）
       const listInitSpy = vi.spyOn(initListCommand['listInitializationService'], 'initializeList')
         .mockResolvedValue({ success: true });
 
       await initListCommand.execute(context);
       
-      // デフォルト動作でenableLog=trueでListInitializationServiceが呼ばれることを期待
-      expect(listInitSpy).toHaveBeenCalledWith(context, true, expect.any(String));
+      // enable-log未指定時はnullでListInitializationServiceが呼ばれることを期待（既存状態保持）
+      expect(listInitSpy).toHaveBeenCalledWith(context, null, expect.any(String));
     });
   });
 

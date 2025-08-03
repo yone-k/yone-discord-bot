@@ -143,12 +143,12 @@ export class InitListCommand extends BaseCommand {
     }
 
     // ListInitializationServiceを使用してリスト初期化を実行
-    // enable-logオプションの処理：未指定（null）の場合はtrue（有効）として扱う
-    const enableLog = enableLogOption !== false; // false以外はtrue（デフォルト有効）
+    // enable-logオプションの処理：未指定（null）の場合は既存状態保持
+    const enableLog: boolean | null = enableLogOption; // null: 既存状態保持, true: 有効, false: 無効
     
     const result = await this.listInitializationService.initializeList(
       context,
-      enableLog, // true: 有効, false: 無効
+      enableLog, // null: 既存状態保持, true: 有効, false: 無効
       defaultCategory
     );
 

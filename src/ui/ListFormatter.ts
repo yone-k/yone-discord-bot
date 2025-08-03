@@ -3,11 +3,14 @@ import { ListItem } from '../models/ListItem';
 import { CategoryType, getCategoryEmoji, DEFAULT_CATEGORY } from '../models/CategoryType';
 import { TemplateManager } from '../services/TemplateManager';
 import { GoogleSheetsService } from '../services/GoogleSheetsService';
+import { LoggerManager } from '../utils/LoggerManager';
+import { ConsoleMigrationHelper } from '../utils/ConsoleMigrationHelper';
 
 export class ListFormatter {
   private static readonly MAX_FIELD_LENGTH = 800;
   private static readonly EMBED_COLOR = 0x4CAF50; // 緑色
   private static templateManager = new TemplateManager();
+  private static logger = LoggerManager.getLogger('ListFormatter');
 
   /**
    * 空リスト用のEmbedを生成
@@ -291,7 +294,8 @@ export class ListFormatter {
           return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetMetadata.sheetId}`;
         } catch (sheetError) {
           // シートが存在しない場合は通常のスプレッドシートURLを返す
-          console.warn('Failed to get sheet metadata, falling back to main spreadsheet URL:', sheetError);
+          this.logger.warn('Failed to get sheet metadata, falling back to main spreadsheet URL', 
+            ConsoleMigrationHelper.createMetadata('ListFormatter', 'getSpreadsheetUrl', { error: String(sheetError) }));
           return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
         }
       }
@@ -304,7 +308,8 @@ export class ListFormatter {
       }
       
       // その他のエラーが発生した場合はログを出力
-      console.warn('Failed to get spreadsheet URL:', errorMessage);
+      this.logger.warn('Failed to get spreadsheet URL', 
+        ConsoleMigrationHelper.createMetadata('ListFormatter', 'getSpreadsheetUrl', { errorMessage }));
     }
     
     return '';

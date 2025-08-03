@@ -37,7 +37,8 @@ class CommandBuilder {
         this.rest = new REST({ version: '10' }).setToken(token);
       }
     } catch (error) {
-      console.error('Failed to initialize CommandBuilder:', error);
+      const logger = new Logger(LogLevel.ERROR);
+      logger.error('Failed to initialize CommandBuilder:', { error: String(error) });
       process.exit(1);
     }
   }
@@ -187,13 +188,14 @@ async function main(): Promise<void> {
     
     // ヘルプメッセージの表示（Configが不要）
     if (args.includes('--help')) {
-      console.log('Usage: npm run build-commands [options]');
-      console.log('Options:');
-      console.log('  --production  Deploy commands globally');
-      console.log('  --force       Force rebuild even if no changes detected');
-      console.log('  --dry-run     Show what would be deployed without actually deploying');
-      console.log('  --check       Check for command changes without deploying');
-      console.log('  --help        Show this help message');
+      const logger = new Logger(LogLevel.INFO);
+      logger.info('Usage: npm run build-commands [options]');
+      logger.info('Options:');
+      logger.info('  --production  Deploy commands globally');
+      logger.info('  --force       Force rebuild even if no changes detected');
+      logger.info('  --dry-run     Show what would be deployed without actually deploying');
+      logger.info('  --check       Check for command changes without deploying');
+      logger.info('  --help        Show this help message');
       return;
     }
     
@@ -210,26 +212,29 @@ async function main(): Promise<void> {
     const builder = new CommandBuilder(buildOnly);
 
     if (args.includes('--check')) {
+      const logger = new Logger(LogLevel.INFO);
       const hasChanges = await builder.checkForUpdates();
-      console.log(hasChanges ? 'Changes detected' : 'No changes detected');
+      logger.info(hasChanges ? 'Changes detected' : 'No changes detected');
       process.exit(hasChanges ? 1 : 0);
     }
 
     await builder.buildAndDeploy(options);
     
   } catch (error) {
+    const logger = new Logger(LogLevel.ERROR);
     if (error instanceof ConfigError) {
-      console.error(`Configuration Error: ${error.message}`);
+      logger.error(`Configuration Error: ${error.message}`);
     } else if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      logger.error(`Error: ${error.message}`);
     } else {
-      console.error('Unknown error occurred');
+      logger.error('Unknown error occurred');
     }
     process.exit(1);
   }
 }
 
 main().catch((error) => {
-  console.error('Fatal error:', error);
+  const logger = new Logger(LogLevel.ERROR);
+  logger.error('Fatal error:', { error: String(error) });
   process.exit(1);
 });

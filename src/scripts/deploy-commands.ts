@@ -16,7 +16,8 @@ class CommandDeployer {
       const token = this.config.getDiscordToken();
       this.rest = new REST({ version: '10' }).setToken(token);
     } catch (error) {
-      console.error('Failed to initialize CommandDeployer:', error);
+      const logger = new Logger(LogLevel.ERROR);
+      logger.error('Failed to initialize CommandDeployer:', { error: String(error) });
       process.exit(1);
     }
   }
@@ -139,6 +140,7 @@ async function main(): Promise<void> {
   try {
     const deployer = new CommandDeployer();
     const config = Config.getInstance();
+    const logger = new Logger(LogLevel.INFO);
     
     const args = process.argv.slice(2);
     const action = args[0] || 'deploy';
@@ -147,61 +149,63 @@ async function main(): Promise<void> {
     case 'deploy': {
       const guildId = config.getGuildId();
       if (guildId) {
-        console.log('Deploying to guild (development mode)');
+        logger.info('Deploying to guild (development mode)');
         await deployer.deployToGuild(guildId);
       } else {
-        console.log('No GUILD_ID specified, deploying globally');
+        logger.info('No GUILD_ID specified, deploying globally');
         await deployer.deployGlobally();
       }
       break;
     }
         
     case 'deploy-global':
-      console.log('Deploying globally');
+      logger.info('Deploying globally');
       await deployer.deployGlobally();
       break;
         
     case 'delete': {
       const deleteGuildId = config.getGuildId();
       if (deleteGuildId) {
-        console.log('Deleting guild commands');
+        logger.info('Deleting guild commands');
         await deployer.deleteGuildCommands(deleteGuildId);
       } else {
-        console.log('No GUILD_ID specified, deleting global commands');
+        logger.info('No GUILD_ID specified, deleting global commands');
         await deployer.deleteGlobalCommands();
       }
       break;
     }
         
     case 'delete-global':
-      console.log('Deleting global commands');
+      logger.info('Deleting global commands');
       await deployer.deleteGlobalCommands();
       break;
         
     default:
-      console.log('Usage: npm run deploy-commands [deploy|deploy-global|delete|delete-global]');
-      console.log('  deploy        - Deploy to guild (if GUILD_ID set) or globally');
-      console.log('  deploy-global - Deploy globally');
-      console.log('  delete        - Delete guild commands (if GUILD_ID set) or global commands');
-      console.log('  delete-global - Delete global commands');
+      logger.info('Usage: npm run deploy-commands [deploy|deploy-global|delete|delete-global]');
+      logger.info('  deploy        - Deploy to guild (if GUILD_ID set) or globally');
+      logger.info('  deploy-global - Deploy globally');
+      logger.info('  delete        - Delete guild commands (if GUILD_ID set) or global commands');
+      logger.info('  delete-global - Delete global commands');
       process.exit(1);
     }
     
-    console.log('Command deployment completed successfully!');
+    logger.info('Command deployment completed successfully!');
     
   } catch (error) {
+    const logger = new Logger(LogLevel.ERROR);
     if (error instanceof ConfigError) {
-      console.error(`Configuration Error: ${error.message}`);
+      logger.error(`Configuration Error: ${error.message}`);
     } else if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      logger.error(`Error: ${error.message}`);
     } else {
-      console.error('Unknown error occurred');
+      logger.error('Unknown error occurred');
     }
     process.exit(1);
   }
 }
 
 main().catch((error) => {
-  console.error('Fatal error:', error);
+  const logger = new Logger(LogLevel.ERROR);
+  logger.error('Fatal error:', { error: String(error) });
   process.exit(1);
 });

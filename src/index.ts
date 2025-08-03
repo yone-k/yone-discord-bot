@@ -8,6 +8,8 @@ import { CommandManager } from './utils/CommandManager';
 import { CommandExecutionContext } from './base/BaseCommand';
 import { registerAllCommands } from './registry/RegisterCommands';
 import { ReactionManager } from './services/ReactionManager';
+import { LoggerManager } from './utils/LoggerManager';
+import { ConsoleMigrationHelper } from './utils/ConsoleMigrationHelper';
 import { ModalManager } from './services/ModalManager';
 import { ButtonManager } from './services/ButtonManager';
 import { registerAllButtons } from './registry/RegisterButtons';
@@ -48,7 +50,9 @@ class DiscordBot {
       this.setupEventHandlers();
       this.setupHealthCheckServer();
     } catch (error) {
-      console.error('Failed to initialize Discord Bot:', error);
+      const logger = LoggerManager.getLogger('DiscordBot');
+      logger.error('Failed to initialize Discord Bot', 
+        ConsoleMigrationHelper.createMetadata('DiscordBot', 'constructor', { error: String(error) }));
       process.exit(1);
     }
   }
@@ -342,19 +346,25 @@ async function main(): Promise<void> {
     const bot = new DiscordBot();
     await bot.start();
   } catch (error) {
+    const logger = LoggerManager.getLogger('Main');
     if (error instanceof ConfigError) {
-      console.error(`Configuration Error: ${error.message}`);
+      logger.error('Configuration Error', 
+        ConsoleMigrationHelper.createMetadata('Main', 'main', { errorMessage: error.message }));
     } else if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      logger.error('Error occurred', 
+        ConsoleMigrationHelper.createMetadata('Main', 'main', { errorMessage: error.message }));
     } else {
-      console.error('Unknown error occurred');
+      logger.error('Unknown error occurred', 
+        ConsoleMigrationHelper.createMetadata('Main', 'main', { error: String(error) }));
     }
     process.exit(1);
   }
 }
 
 main().catch((error) => {
-  console.error('Fatal error:', error);
+  const logger = LoggerManager.getLogger('Main');
+  logger.error('Fatal error', 
+    ConsoleMigrationHelper.createMetadata('Main', 'main.catch', { error: String(error) }));
   process.exit(1);
 });
 

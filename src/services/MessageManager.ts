@@ -3,6 +3,7 @@ import { MetadataManager, MetadataOperationResult } from './MetadataManager';
 import { ChannelMetadata } from '../models/ChannelMetadata';
 import { ButtonConfigManager } from './ButtonConfigManager';
 import { DEFAULT_CATEGORY } from '../models/CategoryType';
+import { LoggerManager } from '../utils/LoggerManager';
 
 export enum MessageManagerErrorType {
   CHANNEL_NOT_FOUND = 'CHANNEL_NOT_FOUND',
@@ -63,6 +64,7 @@ export interface MessageOperationResult {
 export class MessageManager {
   private metadataManager: MetadataManager;
   private buttonConfigManager: ButtonConfigManager;
+  private logger = LoggerManager.getLogger('MessageManager');
   // チャンネル単位での並行処理制御用のロックMap
   private readonly channelLocks = new Map<string, Promise<unknown>>();
   private readonly lockTimeout = 30000; // 30秒のタイムアウト
@@ -140,7 +142,7 @@ export class MessageManager {
 
       return actionRow;
     } catch (error) {
-      console.warn(`Failed to create button action row for command ${commandName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      this.logger.warn(`Failed to create button action row for command ${commandName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return null;
     }
   }
@@ -439,7 +441,7 @@ export class MessageManager {
           
           // 更新に失敗した場合は新規作成にフォールバック
           if (!messageResult.success) {
-            console.warn(`Failed to update message ${metadataResult.metadata.messageId}, creating new message`);
+            this.logger.warn(`Failed to update message ${metadataResult.metadata.messageId}, creating new message`);
             messageResult = await this.createMessage(channelId, embed, client, commandName);
           }
         } else {
@@ -470,12 +472,12 @@ export class MessageManager {
                 // 既存スレッドが有効な場合はそれを使用
                 finalOperationLogThreadId = existingThreadId;
                 shouldCreateNewThread = false;
-                console.log(`Using existing operation log thread: ${existingThreadId}`);
+                this.logger.info(`Using existing operation log thread: ${existingThreadId}`);
               } else {
                 throw new Error('Existing thread is not valid');
               }
             } catch (error) {
-              console.warn(`Existing thread ${existingThreadId} is not accessible, creating new one: ${(error as Error).message}`);
+              this.logger.warn(`Existing thread ${existingThreadId} is not accessible, creating new one: ${(error as Error).message}`);
               // 既存スレッドが無効な場合は新しいスレッドを作成
               shouldCreateNewThread = true;
             }
@@ -491,10 +493,10 @@ export class MessageManager {
               
               if (threadResult) {
                 finalOperationLogThreadId = threadResult.id;
-                console.log(`Created new operation log thread: ${threadResult.id}`);
+                this.logger.info(`Created new operation log thread: ${threadResult.id}`);
               }
             } catch (error) {
-              console.warn(`Failed to create operation log thread: ${(error as Error).message}`);
+              this.logger.warn(`Failed to create operation log thread: ${(error as Error).message}`);
               // スレッド作成失敗は非侵襲的（メッセージ作成は成功のまま継続）
             }
           }
@@ -511,7 +513,7 @@ export class MessageManager {
         );
         
         if (!metadataUpdateResult.success) {
-          console.warn(`Failed to update metadata: ${metadataUpdateResult.message}`);
+          this.logger.warn(`Failed to update metadata: ${metadataUpdateResult.message}`);
           // メッセージ作成は成功しているので、警告のみ出力して処理は継続
         }
         
@@ -523,7 +525,7 @@ export class MessageManager {
         );
         
         if (!pinResult.success) {
-          console.warn(`Failed to pin message: ${pinResult.errorMessage}`);
+          this.logger.warn(`Failed to pin message: ${pinResult.errorMessage}`);
           // ピン留め失敗は警告のみ出力して処理は継続
         }
 

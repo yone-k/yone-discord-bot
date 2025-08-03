@@ -3,6 +3,8 @@ import { GoogleAuth } from 'google-auth-library';
 import { Config, GoogleSheetsConfig } from '../utils/config';
 import { normalizeCategory } from '../models/CategoryType';
 import { ListItem } from '../models/ListItem';
+import { LoggerManager } from '../utils/LoggerManager';
+import { ConsoleMigrationHelper } from '../utils/ConsoleMigrationHelper';
 
 export enum GoogleSheetsErrorType {
   CONFIG_MISSING = 'CONFIG_MISSING',
@@ -82,6 +84,7 @@ export class GoogleSheetsService {
   private config!: GoogleSheetsConfig;
   private readonly maxRetries = 3;
   private readonly retryDelay = 1000;
+  private readonly logger = LoggerManager.getLogger('GoogleSheetsService');
   
   // Atomic操作用のロックメカニズム
   private readonly operationLocks = new Map<string, Promise<void>>();
@@ -117,8 +120,10 @@ export class GoogleSheetsService {
       // プライベートキーの形式を正規化（PEMヘッダー/フッターを自動追加）
       const normalizedPrivateKey = this.normalizePrivateKey(this.config.privateKey);
       
-      console.log('Creating GoogleAuth with normalized private key');
-      console.log('Service account email:', this.config.serviceAccountEmail);
+      this.logger.info('Creating GoogleAuth with normalized private key', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'authenticate'));
+      this.logger.debug('Service account email confirmation', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'authenticate', { serviceAccountEmail: this.config.serviceAccountEmail }));
       
       this.auth = new GoogleAuth({
         credentials: {
@@ -129,9 +134,11 @@ export class GoogleSheetsService {
       });
 
       // 認証をテスト
-      console.log('Testing authentication...');
+      this.logger.info('Testing authentication', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'authenticate'));
       await this.auth.getClient();
-      console.log('Authentication test successful');
+      this.logger.info('Authentication test successful', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'authenticate'));
 
       this.sheets = google.sheets({ version: 'v4', auth: this.auth });
       return this.auth;
@@ -143,28 +150,33 @@ export class GoogleSheetsService {
       const errorDetails = err && typeof err === 'object' && 'details' in err ? (err as { details: unknown }).details : undefined;
       const errorType = err && typeof err === 'object' && 'constructor' in err ? (err as { constructor: { name: string } }).constructor.name : 'Unknown';
       
-      console.error('Google Sheets authentication error details:', {
-        hasServiceAccountEmail: !!this.config.serviceAccountEmail,
-        serviceAccountEmailLength: this.config.serviceAccountEmail?.length || 0,
-        serviceAccountEmail: this.config.serviceAccountEmail?.substring(0, 30) + '...',
-        hasPrivateKey: !!this.config.privateKey,
-        privateKeyLength: this.config.privateKey?.length || 0,
-        privateKeyStart: this.config.privateKey?.substring(0, 100) || 'null',
-        privateKeyEnd: this.config.privateKey?.substring(this.config.privateKey.length - 100) || 'null',
-        errorMessage,
-        errorCode,
-        errorStack,
-        errorDetails: errorDetails || 'No details',
-        errorType
-      });
+      this.logger.error('Google Sheets authentication error details', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'authenticate', {
+          hasServiceAccountEmail: !!this.config.serviceAccountEmail,
+          serviceAccountEmailLength: this.config.serviceAccountEmail?.length || 0,
+          serviceAccountEmail: this.config.serviceAccountEmail?.substring(0, 30) + '...',
+          hasPrivateKey: !!this.config.privateKey,
+          privateKeyLength: this.config.privateKey?.length || 0,
+          privateKeyStart: this.config.privateKey?.substring(0, 100) || 'null',
+          privateKeyEnd: this.config.privateKey?.substring(this.config.privateKey.length - 100) || 'null',
+          errorMessage,
+          errorCode,
+          errorStack,
+          errorDetails: errorDetails || 'No details',
+          errorType
+        }));
       
       // OpenSSLエラーの場合は特別な処理
       if (errorCode === 'ERR_OSSL_UNSUPPORTED' || errorMessage.includes('DECODER routines')) {
-        console.error('OpenSSL error detected. This usually means the private key format is incorrect.');
-        console.error('Common causes:');
-        console.error('1. Private key is not properly formatted (missing headers/footers)');
-        console.error('2. Line breaks are not properly encoded in environment variable');
-        console.error('3. Private key is corrupted or truncated');
+        this.logger.error('OpenSSL error detected', 
+          ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'authenticate', {
+            issue: 'Private key format is incorrect',
+            commonCauses: [
+              'Private key is not properly formatted (missing headers/footers)',
+              'Line breaks are not properly encoded in environment variable',
+              'Private key is corrupted or truncated'
+            ]
+          }));
         
         throw new GoogleSheetsError(
           GoogleSheetsErrorType.AUTHENTICATION_FAILED,
@@ -190,10 +202,11 @@ export class GoogleSheetsService {
       const response = await this.sheets.spreadsheets.get({
         spreadsheetId: this.config.spreadsheetId
       });
-      console.log('Spreadsheet access successful:', {
-        spreadsheetId: this.config.spreadsheetId,
-        title: response.data.properties?.title
-      });
+      this.logger.info('Spreadsheet access successful', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'verifySpreadsheetAccess', {
+          spreadsheetId: this.config.spreadsheetId,
+          title: response.data.properties?.title
+        }));
       return !!response.data;
     } catch (error) {
       const err = error as unknown;
@@ -203,14 +216,15 @@ export class GoogleSheetsService {
       const errorType = err && typeof err === 'object' && 'constructor' in err ? (err as { constructor: { name: string } }).constructor.name : 'Unknown';
       const errorStack = err && typeof err === 'object' && 'stack' in err ? (err as Error).stack : undefined;
       
-      console.error('Spreadsheet access failed:', {
-        spreadsheetId: this.config.spreadsheetId,
-        errorMessage,
-        errorCode: errorCode || 'unknown',
-        errorStatus: errorStatus || 'unknown',
-        errorType,
-        errorStack
-      });
+      this.logger.error('Spreadsheet access failed', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'verifySpreadsheetAccess', {
+          spreadsheetId: this.config.spreadsheetId,
+          errorMessage,
+          errorCode: errorCode || 'unknown',
+          errorStatus: errorStatus || 'unknown',
+          errorType,
+          errorStack
+        }));
       
       // 認証エラーの場合は再スロー
       if (errorCode === 'ERR_OSSL_UNSUPPORTED' || errorMessage.includes('DECODER routines')) {
@@ -255,11 +269,12 @@ export class GoogleSheetsService {
       await this.getAuthClient();
       const sheetName = this.getSheetNameForChannel(channelId);
       
-      console.log('Attempting to get sheet data:', {
-        channelId,
-        sheetName,
-        spreadsheetId: this.config.spreadsheetId
-      });
+      this.logger.debug('Attempting to get sheet data', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'getSheetData', {
+          channelId,
+          sheetName,
+          spreadsheetId: this.config.spreadsheetId
+        }));
 
       return this.getSheetDataByName(sheetName);
     });
@@ -275,24 +290,27 @@ export class GoogleSheetsService {
           range: `${sheetName}!A:Z`
         });
 
-        console.log('Sheet data retrieved successfully:', {
-          sheetName,
-          dataLength: response.data.values?.length || 0
-        });
+        this.logger.info('Sheet data retrieved successfully', 
+          ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'getSheetDataByName', {
+            sheetName,
+            dataLength: response.data.values?.length || 0
+          }));
 
         return response.data.values || [];
       } catch (error) {
         const gaxiosError = error as { code?: number; status?: number; message: string };
-        console.error('Failed to get sheet data:', {
-          sheetName,
-          errorMessage: gaxiosError.message,
-          errorCode: gaxiosError.code,
-          errorStatus: gaxiosError.status
-        });
+        this.logger.error('Failed to get sheet data', 
+          ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'getSheetDataByName', {
+            sheetName,
+            errorMessage: gaxiosError.message,
+            errorCode: gaxiosError.code,
+            errorStatus: gaxiosError.status
+          }));
 
         // シートが存在しない場合（400エラー + "Unable to parse range"）は空配列を返す
         if (gaxiosError.code === 400 && gaxiosError.message.includes('Unable to parse range')) {
-          console.log('Sheet does not exist, returning empty array:', { sheetName });
+          this.logger.info('Sheet does not exist, returning empty array', 
+            ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'getSheetDataByName', { sheetName }));
           return [];
         }
 
@@ -428,7 +446,11 @@ export class GoogleSheetsService {
       return await this.getSheetDataByName(sheetName);
     } catch (error) {
       // バックアップ作成に失敗した場合は空配列を返す
-      console.warn(`Failed to create backup for sheet ${sheetName}:`, (error as Error).message);
+      this.logger.warn('Failed to create backup for sheet', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'createDataBackup', {
+          sheetName,
+          errorMessage: (error as Error).message
+        }));
       return [];
     }
   }
@@ -439,7 +461,8 @@ export class GoogleSheetsService {
   private async rollbackData(sheetName: string, backupData: string[][]): Promise<boolean> {
     try {
       if (backupData.length === 0) {
-        console.warn(`No backup data available for rollback of sheet ${sheetName}`);
+        this.logger.warn('No backup data available for rollback', 
+          ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'rollbackData', { sheetName }));
         return false;
       }
 
@@ -461,7 +484,11 @@ export class GoogleSheetsService {
 
       return true;
     } catch (error) {
-      console.error(`Failed to rollback data for sheet ${sheetName}:`, (error as Error).message);
+      this.logger.error('Failed to rollback data for sheet', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'rollbackData', {
+          sheetName,
+          errorMessage: (error as Error).message
+        }));
       return false;
     }
   }
@@ -571,7 +598,10 @@ export class GoogleSheetsService {
               try {
                 await this.applyHeaderFormatting(sheetNameOrChannelId, data[0].length);
               } catch (formatError) {
-                console.warn(`Failed to apply header formatting: ${(formatError as Error).message}`);
+                this.logger.warn('Failed to apply header formatting', 
+                  ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'appendSheetDataWithDuplicateCheck', {
+                    errorMessage: (formatError as Error).message
+                  }));
                 // フォーマット失敗はデータ追加の成功に影響しないため、警告のみ
               }
             }
@@ -639,10 +669,14 @@ export class GoogleSheetsService {
           
           const rollbackSuccess = await this.rollbackData(sheetName, backupData);
           if (rollbackSuccess) {
-            console.log(`Successfully rolled back data for sheet ${sheetName}`);
+            this.logger.info('Successfully rolled back data for sheet', 
+              ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'appendSheetDataWithDuplicateCheck', { sheetName }));
           }
         } catch (rollbackError) {
-          console.error(`Failed to rollback data: ${(rollbackError as Error).message}`);
+          this.logger.error('Failed to rollback data', 
+            ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'appendSheetDataWithDuplicateCheck', {
+              errorMessage: (rollbackError as Error).message
+            }));
         }
       }
 
@@ -713,7 +747,10 @@ export class GoogleSheetsService {
         }
       });
     } catch (error) {
-      console.error('Failed to apply header formatting:', error);
+      this.logger.error('Failed to apply header formatting', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'applyHeaderFormatting', {
+          errorMessage: (error as Error).message
+        }));
       // フォーマット適用に失敗してもデータ追加は成功として扱う
     }
   }
@@ -939,16 +976,17 @@ export class GoogleSheetsService {
     }
 
     // デバッグ情報
-    console.log('normalizePrivateKey - input characteristics:', {
-      length: privateKey.length,
-      hasBeginHeader: privateKey.includes('-----BEGIN'),
-      hasEndFooter: privateKey.includes('-----END'),
-      firstChars: privateKey.substring(0, 100),
-      lastChars: privateKey.substring(privateKey.length - 100),
-      hasEscapedNewlines: privateKey.includes('\\n'),
-      hasActualNewlines: privateKey.includes('\n'),
-      hasLiteralNewlines: privateKey.includes('\n')
-    });
+    this.logger.debug('normalizePrivateKey - input characteristics', 
+      ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'normalizePrivateKey', {
+        length: privateKey.length,
+        hasBeginHeader: privateKey.includes('-----BEGIN'),
+        hasEndFooter: privateKey.includes('-----END'),
+        firstChars: privateKey.substring(0, 100),
+        lastChars: privateKey.substring(privateKey.length - 100),
+        hasEscapedNewlines: privateKey.includes('\\n'),
+        hasActualNewlines: privateKey.includes('\n'),
+        hasLiteralNewlines: privateKey.includes('\n')
+      }));
 
     // 複数の形式に対応した改行文字の正規化
     let normalizedKey = privateKey;
@@ -956,12 +994,14 @@ export class GoogleSheetsService {
     // リテラルの改行文字列 "\n" を実際の改行に変換
     if (normalizedKey.includes('\\n')) {
       normalizedKey = normalizedKey.replace(/\\n/g, '\n');
-      console.log('normalizePrivateKey - replaced escaped newlines');
+      this.logger.debug('normalizePrivateKey - replaced escaped newlines', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'normalizePrivateKey'));
     }
     
     // 既にPEMヘッダー/フッターがある場合
     if (normalizedKey.includes('-----BEGIN') && normalizedKey.includes('-----END')) {
-      console.log('normalizePrivateKey - already has PEM headers');
+      this.logger.debug('normalizePrivateKey - already has PEM headers', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'normalizePrivateKey'));
       return normalizedKey;
     }
 
@@ -973,7 +1013,8 @@ export class GoogleSheetsService {
     
     // Base64の改行を処理（64文字ごとに改行が必要）
     if (!cleanKey.includes('\n') && cleanKey.length > 64) {
-      console.log('normalizePrivateKey - adding line breaks to Base64 key');
+      this.logger.debug('normalizePrivateKey - adding line breaks to Base64 key', 
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'normalizePrivateKey'));
       const chunks = [];
       for (let i = 0; i < cleanKey.length; i += 64) {
         chunks.push(cleanKey.substring(i, i + 64));
@@ -986,10 +1027,11 @@ export class GoogleSheetsService {
       ? cleanKey // RSAキーの場合はすでにヘッダーがあるはず
       : `-----BEGIN PRIVATE KEY-----\n${cleanKey}\n-----END PRIVATE KEY-----`;
     
-    console.log('normalizePrivateKey - final key format:', {
-      hasHeaders: pemKey.includes('-----BEGIN'),
-      keyPreview: pemKey.substring(0, 100) + '...'
-    });
+    this.logger.debug('normalizePrivateKey - final key format', 
+      ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'normalizePrivateKey', {
+        hasHeaders: pemKey.includes('-----BEGIN'),
+        keyPreview: pemKey.substring(0, 100) + '...'
+      }));
     
     return pemKey;
   }

@@ -52,7 +52,7 @@ export class InitListCommand extends BaseCommand {
     this.ephemeral = true;
     this.channelSheetManager = channelSheetManager || new ChannelSheetManager();
     this.messageManager = messageManager || new MessageManager();
-    this.metadataManager = metadataManager || new MetadataManager();
+    this.metadataManager = metadataManager || MetadataManager.getInstance();
     this.googleSheetsService = googleSheetsService || GoogleSheetsService.getInstance();
     this.listInitializationService = listInitializationService || new ListInitializationService(
       this.googleSheetsService,

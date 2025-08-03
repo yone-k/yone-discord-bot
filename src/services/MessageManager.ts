@@ -68,7 +68,7 @@ export class MessageManager {
   private readonly lockTimeout = 30000; // 30秒のタイムアウト
 
   constructor() {
-    this.metadataManager = new MetadataManager();
+    this.metadataManager = MetadataManager.getInstance();
     this.buttonConfigManager = ButtonConfigManager.getInstance();
   }
 

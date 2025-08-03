@@ -56,76 +56,96 @@ export interface MetadataOperationResult {
 }
 
 export class MetadataManager {
+  private static instance: MetadataManager | undefined;
   private googleSheetsService: GoogleSheetsService;
   private readonly METADATA_SHEET_NAME = 'metadata';
   private readonly metadataHeaders = ['channel_id', 'message_id', 'list_title', 'last_sync_time', 'default_category', 'operation_log_thread_id'];
+  private isInitialized = false;
+  private initializationPromise: Promise<OperationResult> | null = null;
+  private cachedSheetData: string[][] | null = null;
+  private lastCacheTime: number = 0;
+  private readonly CACHE_DURATION = 5000; // 5秒間キャッシュを保持
 
-  constructor() {
+  private constructor() {
     this.googleSheetsService = GoogleSheetsService.getInstance();
   }
 
+  public static getInstance(): MetadataManager {
+    if (!MetadataManager.instance) {
+      MetadataManager.instance = new MetadataManager();
+    }
+    return MetadataManager.instance;
+  }
+
   /**
-   * metadataシートの存在確認
+   * キャッシュ機能付きでmetadataシートのデータを取得
    */
-  public async metadataSheetExists(): Promise<boolean> {
+  private async getCachedSheetData(forceRefresh = false): Promise<string[][]> {
+    const now = Date.now();
+    
+    // キャッシュが有効かつ強制更新でない場合はキャッシュを返す
+    if (!forceRefresh && this.cachedSheetData && (now - this.lastCacheTime) < this.CACHE_DURATION) {
+      return this.cachedSheetData;
+    }
+    
+    // APIからデータを取得してキャッシュを更新
     try {
-      await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
-      return true;
-    } catch {
-      return false;
+      this.cachedSheetData = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+      this.lastCacheTime = now;
+      return this.cachedSheetData;
+    } catch (error) {
+      // エラーの場合、キャッシュがあればそれを返す
+      if (this.cachedSheetData) {
+        return this.cachedSheetData;
+      }
+      throw error;
     }
   }
 
   /**
-   * metadataシートのヘッダー存在確認
+   * キャッシュを無効化
    */
-  public async metadataHeaderExists(): Promise<boolean> {
-    try {
-      const data = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
-      
-      if (data.length === 0) {
-        return false;
-      }
-      
-      const firstRow = data[0];
-      
-      // 最低限必要なヘッダー（最初の4列）が存在することを確認
-      const requiredHeaders = ['channel_id', 'message_id', 'list_title', 'last_sync_time'];
-      if (firstRow.length < requiredHeaders.length) {
-        return false;
-      }
-      
-      // 必須ヘッダーの一致確認
-      for (let i = 0; i < requiredHeaders.length; i++) {
-        if (firstRow[i] !== requiredHeaders[i]) {
-          return false;
-        }
-      }
-      
-      return true;
-    } catch {
-      return false;
-    }
+  private invalidateCache(): void {
+    this.cachedSheetData = null;
+    this.lastCacheTime = 0;
   }
 
   /**
-   * metadataシートのヘッダーが完全かチェック
+   * データからヘッダーの状態をチェック
    */
-  public async isMetadataHeaderComplete(): Promise<boolean> {
-    try {
-      const data = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
-      
-      if (data.length === 0) {
-        return false;
-      }
-      
-      const firstRow = data[0];
-      return firstRow.length === this.metadataHeaders.length &&
-             this.metadataHeaders.every((header, index) => firstRow[index] === header);
-    } catch {
-      return false;
+  private checkHeaderFromData(data: string[][]): { exists: boolean; isComplete: boolean } {
+    if (data.length === 0) {
+      return { exists: false, isComplete: false };
     }
+    
+    const firstRow = data[0];
+    
+    // 最低限必要なヘッダー（最初の4列）が存在することを確認
+    const requiredHeaders = ['channel_id', 'message_id', 'list_title', 'last_sync_time'];
+    if (firstRow.length < requiredHeaders.length) {
+      return { exists: false, isComplete: false };
+    }
+    
+    // 必須ヘッダーの一致確認
+    let hasRequiredHeaders = true;
+    for (let i = 0; i < requiredHeaders.length; i++) {
+      if (firstRow[i] !== requiredHeaders[i]) {
+        hasRequiredHeaders = false;
+        break;
+      }
+    }
+    
+    if (!hasRequiredHeaders) {
+      return { exists: false, isComplete: false };
+    }
+    
+    // 完全性チェック
+    const isComplete = firstRow.length === this.metadataHeaders.length &&
+                      this.metadataHeaders.every((header, index) => firstRow[index] === header);
+    
+    return { exists: true, isComplete };
   }
+
 
   /**
    * metadataシートを作成（ヘッダー行付き）
@@ -163,11 +183,33 @@ export class MetadataManager {
    * metadataシートを取得または作成
    */
   public async getOrCreateMetadataSheet(): Promise<OperationResult> {
+    // 既に初期化済みの場合は即座に成功を返す
+    if (this.isInitialized) {
+      return { success: true };
+    }
+
+    // 初期化中の場合は既存の初期化プロセスを待つ
+    if (this.initializationPromise) {
+      return await this.initializationPromise;
+    }
+
+    // 新規初期化プロセスを開始
+    this.initializationPromise = this.performInitialization();
+    return await this.initializationPromise;
+  }
+
+  /**
+   * 実際の初期化処理を実行（最適化版）
+   */
+  private async performInitialization(): Promise<OperationResult> {
     try {
-      // ステップ1: シートの存在確認、なければ作成
-      const sheetExists = await this.metadataSheetExists();
+      let sheetData: string[][];
       
-      if (!sheetExists) {
+      // ステップ1: シートの存在確認とデータ取得を同時実行
+      try {
+        sheetData = await this.getCachedSheetData(true); // 初期化時は強制更新
+      } catch (_error) {
+        // シートが存在しない場合は新規作成
         const createSheetResult = await this.googleSheetsService.createChannelSheet(this.METADATA_SHEET_NAME);
         if (!createSheetResult.success) {
           throw new MetadataManagerError(
@@ -175,12 +217,15 @@ export class MetadataManager {
             `Failed to create metadata sheet: ${createSheetResult.message}`
           );
         }
+        
+        // 作成後にキャッシュを更新
+        sheetData = await this.getCachedSheetData(true);
       }
 
-      // ステップ2: ヘッダーの存在確認
-      const headerExists = await this.metadataHeaderExists();
+      // ステップ2: 取得したデータを使ってヘッダーチェック
+      const hasValidHeader = this.checkHeaderFromData(sheetData);
       
-      if (!headerExists) {
+      if (!hasValidHeader.exists) {
         // ヘッダーが全く存在しない場合は新規作成
         const headerResult = await this.googleSheetsService.appendSheetData(
           this.METADATA_SHEET_NAME, 
@@ -194,24 +239,32 @@ export class MetadataManager {
             `Failed to create metadata headers: ${headerResult.message}`
           );
         }
-      } else {
-        // ステップ3: ヘッダーが存在する場合、完全性をチェック
-        const isComplete = await this.isMetadataHeaderComplete();
         
-        if (!isComplete) {
-          // ヘッダーが不完全な場合は更新
-          const updateResult = await this.updateMetadataHeaders();
-          if (!updateResult.success) {
-            throw new MetadataManagerError(
-              MetadataManagerErrorType.OPERATION_FAILED,
-              `Failed to update metadata headers: ${updateResult.message}`
-            );
-          }
+        // ヘッダー追加後にキャッシュを無効化
+        this.invalidateCache();
+      } else if (!hasValidHeader.isComplete) {
+        // ヘッダーが不完全な場合は更新
+        const updateResult = await this.updateMetadataHeaders();
+        if (!updateResult.success) {
+          throw new MetadataManagerError(
+            MetadataManagerErrorType.OPERATION_FAILED,
+            `Failed to update metadata headers: ${updateResult.message}`
+          );
         }
+        
+        // ヘッダー更新後にキャッシュを無効化
+        this.invalidateCache();
       }
 
+      // 初期化完了をマーク
+      this.isInitialized = true;
+      this.initializationPromise = null;
+      
       return { success: true };
     } catch (error) {
+      // 初期化失敗時はプロミスをクリア
+      this.initializationPromise = null;
+      
       if (error instanceof MetadataManagerError) {
         throw error;
       }
@@ -236,8 +289,8 @@ export class MetadataManager {
         };
       }
 
-      // metadataシートからデータを取得
-      const data = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+      // metadataシートからデータを取得（キャッシュを使用）
+      const data = await this.getCachedSheetData();
       
       // ヘッダー行をスキップして検索
       for (let i = 1; i < data.length; i++) {
@@ -296,8 +349,8 @@ export class MetadataManager {
         };
       }
 
-      // 既存データの検索と更新
-      const data = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+      // 既存データの検索と更新（キャッシュを使用）
+      const data = await this.getCachedSheetData();
       
       // 更新対象行を検索
       let targetRowIndex = -1;
@@ -339,6 +392,9 @@ export class MetadataManager {
           message: updateResult.message
         };
       }
+
+      // 更新成功後にキャッシュを無効化
+      this.invalidateCache();
 
       return {
         success: true,
@@ -404,6 +460,9 @@ export class MetadataManager {
         };
       }
 
+      // 作成成功後にキャッシュを無効化
+      this.invalidateCache();
+
       return {
         success: true,
         metadata: newMetadata
@@ -430,8 +489,8 @@ export class MetadataManager {
       // 同期時間を更新
       const updatedMetadata = updateSyncTime(metadata);
 
-      // metadataシートから直接データを取得（getChannelMetadataを使わない）
-      const data = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+      // metadataシートから直接データを取得（キャッシュを使用、getChannelMetadataを使わない）
+      const data = await this.getCachedSheetData();
       
       // 更新対象行を検索
       let targetRowIndex = -1;
@@ -474,6 +533,9 @@ export class MetadataManager {
         };
       }
 
+      // 更新成功後にキャッシュを無効化
+      this.invalidateCache();
+
       return {
         success: true,
         metadata: updatedMetadata
@@ -486,19 +548,6 @@ export class MetadataManager {
     }
   }
 
-  /**
-   * metadataシートをクリア（ヘッダー行は残す）
-   */
-  private async clearMetadataSheet(): Promise<void> {
-    // Google Sheets APIの制限により、シートを削除して再作成
-    // 実際の実装では、より効率的な方法が必要な場合があります
-    const data = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
-    if (data.length <= 1) {
-      return; // ヘッダー行のみまたは空の場合はクリア不要
-    }
-    
-    // この実装は簡素化されています。実際にはGoogle Sheets APIのclear機能を使用することが推奨されます。
-  }
 
 
   /**
@@ -506,16 +555,22 @@ export class MetadataManager {
    */
   private async updateMetadataHeaders(): Promise<OperationResult> {
     try {
-      // 現在のシートデータを取得
-      const currentData = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+      // 現在のシートデータを取得（キャッシュを使用）
+      const currentData = await this.getCachedSheetData();
       
       if (currentData.length === 0) {
         // データが空の場合は新規作成
-        return await this.googleSheetsService.appendSheetData(
+        const result = await this.googleSheetsService.appendSheetData(
           this.METADATA_SHEET_NAME,
           [this.metadataHeaders],
           true
         );
+        
+        if (result.success) {
+          this.invalidateCache();
+        }
+        
+        return result;
       }
       
       // 既存のヘッダー行を更新
@@ -524,6 +579,10 @@ export class MetadataManager {
         [this.metadataHeaders],
         'A1:F1'
       );
+      
+      if (updateResult.success) {
+        this.invalidateCache();
+      }
       
       return updateResult;
     } catch (error) {

@@ -43,13 +43,25 @@ vi.mock('../../src/services/MessageManager', () => ({
 }));
 
 vi.mock('../../src/services/MetadataManager', () => ({
-  MetadataManager: vi.fn().mockImplementation(() => ({
-    getChannelMetadata: vi.fn().mockResolvedValue({ 
-      success: false,
-      metadata: null 
-    }),
-    createChannelMetadata: vi.fn().mockResolvedValue({ success: true }),
-    updateChannelMetadata: vi.fn().mockResolvedValue({ success: true })
+  MetadataManager: {
+    getInstance: vi.fn().mockReturnValue({
+      getChannelMetadata: vi.fn().mockResolvedValue({ 
+        success: false,
+        metadata: null 
+      }),
+      createChannelMetadata: vi.fn().mockResolvedValue({ success: true }),
+      updateChannelMetadata: vi.fn().mockResolvedValue({ success: true })
+    })
+  }
+}));
+
+vi.mock('../../src/services/ListInitializationService', () => ({
+  ListInitializationService: vi.fn().mockImplementation(() => ({
+    initializeList: vi.fn().mockResolvedValue({
+      success: true,
+      message: 'リストを同期しました',
+      itemCount: 0
+    })
   }))
 }));
 

@@ -35,7 +35,7 @@ export class InitListButtonHandler extends BaseButtonHandler {
       const googleSheetsService = GoogleSheetsService.getInstance();
       const messageManager = new MessageManager();
       const channelSheetManager = new ChannelSheetManager();
-      const defaultMetadataManager = metadataManager || new MetadataManager();
+      const defaultMetadataManager = metadataManager || MetadataManager.getInstance();
       
       this.listInitializationService = new ListInitializationService(
         googleSheetsService,

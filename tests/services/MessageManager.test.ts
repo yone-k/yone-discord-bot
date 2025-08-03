@@ -29,11 +29,13 @@ const mockMessage = {
 
 // モックのモジュール
 vi.mock('../../src/services/MetadataManager', () => ({
-  MetadataManager: vi.fn().mockImplementation(() => ({
-    getChannelMetadata: vi.fn().mockResolvedValue({ success: false }),
-    createChannelMetadata: vi.fn().mockResolvedValue({ success: true }),
-    updateChannelMetadata: vi.fn().mockResolvedValue({ success: true })
-  }))
+  MetadataManager: {
+    getInstance: vi.fn().mockReturnValue({
+      getChannelMetadata: vi.fn().mockResolvedValue({ success: false }),
+      createChannelMetadata: vi.fn().mockResolvedValue({ success: true }),
+      updateChannelMetadata: vi.fn().mockResolvedValue({ success: true })
+    })
+  }
 }));
 
 vi.mock('../../src/services/ButtonConfigManager', () => ({

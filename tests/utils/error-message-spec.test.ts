@@ -42,27 +42,6 @@ describe('Error Message Specification Compliance Tests', () => {
         expect(error.type).toBe(CommandErrorType.EXECUTION_FAILED);
       });
 
-      test('CONFIG_MISSING エラーメッセージが技術仕様準拠', () => {
-        const error = new CommandError(
-          CommandErrorType.CONFIG_MISSING,
-          'test-command',
-          'Config missing'
-        );
-
-        expect(error.userMessage).toBe('必要な設定が見つかりません。環境変数を確認してください。');
-        expect(error.type).toBe(CommandErrorType.CONFIG_MISSING);
-      });
-
-      test('RATE_LIMITED エラーメッセージが技術仕様準拠', () => {
-        const error = new CommandError(
-          CommandErrorType.RATE_LIMITED,
-          'test-command',
-          'Rate limited'
-        );
-
-        expect(error.userMessage).toBe('レート制限により、しばらく時間を置いてから再試行してください。');
-        expect(error.type).toBe(CommandErrorType.RATE_LIMITED);
-      });
 
       test('SERVICE_UNAVAILABLE エラーメッセージが技術仕様準拠', () => {
         const error = new CommandError(
@@ -107,25 +86,6 @@ describe('Error Message Specification Compliance Tests', () => {
         expect(error.type).toBe(GoogleSheetsErrorType.SPREADSHEET_NOT_FOUND);
       });
 
-      test('PERMISSION_DENIED エラーメッセージが技術仕様準拠', () => {
-        const error = new GoogleSheetsError(
-          GoogleSheetsErrorType.PERMISSION_DENIED,
-          'Permission denied'
-        );
-
-        expect(error.userMessage).toBe('スプレッドシートへのアクセス権限がありません。');
-        expect(error.type).toBe(GoogleSheetsErrorType.PERMISSION_DENIED);
-      });
-
-      test('RATE_LIMITED エラーメッセージが技術仕様準拠', () => {
-        const error = new GoogleSheetsError(
-          GoogleSheetsErrorType.RATE_LIMITED,
-          'Rate limited'
-        );
-
-        expect(error.userMessage).toBe('APIリクエストの制限に達しました。しばらく時間を置いてから再試行してください。');
-        expect(error.type).toBe(GoogleSheetsErrorType.RATE_LIMITED);
-      });
 
       test('DATA_VALIDATION_ERROR エラーメッセージが技術仕様準拠', () => {
         const error = new GoogleSheetsError(
@@ -251,33 +211,5 @@ describe('Error Message Specification Compliance Tests', () => {
       expect(message.length).toBeLessThan(50);
     });
 
-    test('設定エラーメッセージが解決方法を示唆', () => {
-      const configError = new CommandError(
-        CommandErrorType.CONFIG_MISSING,
-        'init-list',
-        'Config missing'
-      );
-
-      const message = configError.userMessage;
-      
-      // 設定と環境変数に関する説明が含まれている
-      expect(message).toContain('設定');
-      expect(message).toContain('環境変数');
-      expect(message).toContain('確認');
-    });
-
-    test('一時的エラーメッセージが再試行を促す', () => {
-      const rateLimitError = new CommandError(
-        CommandErrorType.RATE_LIMITED,
-        'init-list',
-        'Rate limited'
-      );
-
-      const message = rateLimitError.userMessage;
-      
-      // 再試行に関する指示が含まれている
-      expect(message).toContain('しばらく時間');
-      expect(message).toContain('再試行');
-    });
   });
 });

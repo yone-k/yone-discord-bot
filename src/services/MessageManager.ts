@@ -6,13 +6,12 @@ import { DEFAULT_CATEGORY } from '../models/CategoryType';
 import { LoggerManager } from '../utils/LoggerManager';
 
 export enum MessageManagerErrorType {
-  CHANNEL_NOT_FOUND = 'CHANNEL_NOT_FOUND',
-  MESSAGE_NOT_FOUND = 'MESSAGE_NOT_FOUND',
-  UPDATE_FAILED = 'UPDATE_FAILED',
-  CREATE_FAILED = 'CREATE_FAILED',
-  INVALID_CHANNEL_TYPE = 'INVALID_CHANNEL_TYPE',
-  METADATA_ERROR = 'METADATA_ERROR',
-  PERMISSION_DENIED = 'PERMISSION_DENIED'
+  CHANNEL_NOT_FOUND = 'CHANNEL_NOT_FOUND', // チャンネル未発見エラー
+  MESSAGE_NOT_FOUND = 'MESSAGE_NOT_FOUND', // メッセージ未発見エラー
+  UPDATE_FAILED = 'UPDATE_FAILED', // メッセージ更新失敗
+  CREATE_FAILED = 'CREATE_FAILED', // メッセージ作成失敗
+  INVALID_CHANNEL_TYPE = 'INVALID_CHANNEL_TYPE', // 非テキストチャンネルエラー
+  METADATA_ERROR = 'METADATA_ERROR' // メタデータ操作エラー
 }
 
 export class MessageManagerError extends Error {
@@ -47,8 +46,6 @@ export class MessageManagerError extends Error {
       return 'テキストチャンネルではありません。';
     case MessageManagerErrorType.METADATA_ERROR:
       return 'メタデータの操作に失敗しました。';
-    case MessageManagerErrorType.PERMISSION_DENIED:
-      return 'メッセージ操作の権限がありません。';
     default:
       return '予期しないエラーが発生しました。';
     }

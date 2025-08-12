@@ -1,12 +1,10 @@
 export enum CommandErrorType {
-  NOT_FOUND = 'NOT_FOUND',
-  EXECUTION_FAILED = 'EXECUTION_FAILED',
-  PERMISSION_DENIED = 'PERMISSION_DENIED',
-  INVALID_PARAMETERS = 'INVALID_PARAMETERS',
-  TIMEOUT = 'TIMEOUT',
-  RATE_LIMITED = 'RATE_LIMITED',
-  CONFIG_MISSING = 'CONFIG_MISSING',
-  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE'
+  NOT_FOUND = 'NOT_FOUND', // コマンドが存在しない場合
+  EXECUTION_FAILED = 'EXECUTION_FAILED', // コマンド実行中の一般的なエラー
+  PERMISSION_DENIED = 'PERMISSION_DENIED', // Discord権限エラー
+  INVALID_PARAMETERS = 'INVALID_PARAMETERS', // コマンド引数の形式エラー
+  TIMEOUT = 'TIMEOUT', // コマンド実行タイムアウト
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE' // 外部サービス利用不可
 }
 
 export class CommandError extends Error {
@@ -42,10 +40,6 @@ export class CommandError extends Error {
       return 'コマンドのパラメータが正しくありません。';
     case CommandErrorType.TIMEOUT:
       return 'コマンドの実行がタイムアウトしました。';
-    case CommandErrorType.RATE_LIMITED:
-      return 'レート制限により、しばらく時間を置いてから再試行してください。';
-    case CommandErrorType.CONFIG_MISSING:
-      return '必要な設定が見つかりません。環境変数を確認してください。';
     case CommandErrorType.SERVICE_UNAVAILABLE:
       return 'サービスが利用できません。しばらく時間を置いてから再試行してください。';
     default:

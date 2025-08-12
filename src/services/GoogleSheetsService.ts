@@ -7,14 +7,12 @@ import { LoggerManager } from '../utils/LoggerManager';
 import { ConsoleMigrationHelper } from '../utils/ConsoleMigrationHelper';
 
 export enum GoogleSheetsErrorType {
-  CONFIG_MISSING = 'CONFIG_MISSING',
-  AUTHENTICATION_FAILED = 'AUTHENTICATION_FAILED',
-  SPREADSHEET_NOT_FOUND = 'SPREADSHEET_NOT_FOUND',
-  PERMISSION_DENIED = 'PERMISSION_DENIED',
-  RATE_LIMITED = 'RATE_LIMITED',
-  SHEET_NOT_FOUND = 'SHEET_NOT_FOUND',
-  DATA_VALIDATION_ERROR = 'DATA_VALIDATION_ERROR',
-  API_ERROR = 'API_ERROR'
+  CONFIG_MISSING = 'CONFIG_MISSING', // Google Sheets設定不足エラー
+  AUTHENTICATION_FAILED = 'AUTHENTICATION_FAILED', // Google認証失敗
+  SPREADSHEET_NOT_FOUND = 'SPREADSHEET_NOT_FOUND', // スプレッドシート未発見
+  SHEET_NOT_FOUND = 'SHEET_NOT_FOUND', // 指定シート未発見
+  DATA_VALIDATION_ERROR = 'DATA_VALIDATION_ERROR', // データ形式エラー
+  API_ERROR = 'API_ERROR' // Google Sheets API一般エラー
 }
 
 export class GoogleSheetsError extends Error {
@@ -43,10 +41,6 @@ export class GoogleSheetsError extends Error {
       return 'Google Sheetsの認証に失敗しました。';
     case GoogleSheetsErrorType.SPREADSHEET_NOT_FOUND:
       return 'スプレッドシートが見つかりません。';
-    case GoogleSheetsErrorType.PERMISSION_DENIED:
-      return 'スプレッドシートへのアクセス権限がありません。';
-    case GoogleSheetsErrorType.RATE_LIMITED:
-      return 'APIリクエストの制限に達しました。しばらく時間を置いてから再試行してください。';
     case GoogleSheetsErrorType.SHEET_NOT_FOUND:
       return '指定されたシートが見つかりません。';
     case GoogleSheetsErrorType.DATA_VALIDATION_ERROR:

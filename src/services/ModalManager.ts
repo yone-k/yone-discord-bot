@@ -31,8 +31,13 @@ export class ModalManager {
 
   public async handleModalSubmit(interaction: ModalSubmitInteraction): Promise<void> {
     const customId = interaction.customId;
-    const handler = this.handlers.get(customId);
-    
+    let handler = this.handlers.get(customId);
+
+    if (!handler) {
+      const context: ModalHandlerContext = { interaction };
+      handler = Array.from(this.handlers.values()).find(candidate => candidate.shouldHandle(context));
+    }
+
     if (!handler) {
       this.logger.debug('No handler found for modal customId', {
         customId,

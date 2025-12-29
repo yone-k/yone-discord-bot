@@ -173,6 +173,14 @@ describe('GoogleSheetsService', () => {
       expect(result.sheetId).toBeDefined();
     });
 
+    it('任意名のシートを作成できる', async () => {
+      const service = GoogleSheetsService.getInstance();
+      const sheetName = 'remind_list_123456789';
+      const result = await service.createSheetByName(sheetName);
+      expect(result.success).toBe(true);
+      expect(result.sheetId).toBeDefined();
+    });
+
     it('シートのデータを取得できる', async () => {
       const service = GoogleSheetsService.getInstance();
       const channelId = '123456789';

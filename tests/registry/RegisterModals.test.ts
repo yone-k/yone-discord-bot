@@ -106,12 +106,36 @@ describe('RegisterModals', () => {
       expect(confirmationHandler?.constructor.name).toBe('ConfirmationModalHandler');
     });
 
+    it('RemindTaskUpdateModalHandlerが正しく登録される', () => {
+      registerAllModals(modalManager, logger);
+      const registeredHandlers = modalManager.getRegisteredHandlers();
+      const handler = registeredHandlers.find(h => h.getCustomId() === 'remind-task-update-modal');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('RemindTaskUpdateModalHandler');
+    });
+
+    it('RemindTaskCompleteModalHandlerが正しく登録される', () => {
+      registerAllModals(modalManager, logger);
+      const registeredHandlers = modalManager.getRegisteredHandlers();
+      const handler = registeredHandlers.find(h => h.getCustomId() === 'remind-task-complete-modal');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('RemindTaskCompleteModalHandler');
+    });
+
+    it('RemindTaskDeleteModalHandlerが正しく登録される', () => {
+      registerAllModals(modalManager, logger);
+      const registeredHandlers = modalManager.getRegisteredHandlers();
+      const handler = registeredHandlers.find(h => h.getCustomId() === 'remind-task-delete-modal');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('RemindTaskDeleteModalHandler');
+    });
+
     it('登録されるハンドラー数が期待する値と一致する', () => {
       registerAllModals(modalManager, logger);
       
       const registeredHandlers = modalManager.getRegisteredHandlers();
-      // 現在のモーダルハンドラー数: EditListModalHandler, AddListModalHandler, ConfirmationModalHandler
-      expect(registeredHandlers).toHaveLength(3);
+      // 現在のモーダルハンドラー数: EditListModalHandler, AddListModalHandler, ConfirmationModalHandler, RemindTaskUpdateModalHandler, RemindTaskCompleteModalHandler, RemindTaskDeleteModalHandler
+      expect(registeredHandlers).toHaveLength(6);
     });
   });
 });

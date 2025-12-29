@@ -258,6 +258,30 @@ export class GoogleSheetsService {
     }
   }
 
+  public async createSheetByName(sheetName: string): Promise<OperationResult> {
+    try {
+      await this.getAuthClient();
+
+      const response = await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: this.config.spreadsheetId,
+        requestBody: {
+          requests: [{
+            addSheet: {
+              properties: {
+                title: sheetName
+              }
+            }
+          }]
+        }
+      });
+
+      const sheetId = response.data.replies[0].addSheet.properties.sheetId;
+      return { success: true, sheetId };
+    } catch (error) {
+      return { success: false, message: (error as Error).message };
+    }
+  }
+
   public async getSheetData(channelId: string): Promise<string[][]> {
     return this.executeWithRetry(async () => {
       await this.getAuthClient();
@@ -320,7 +344,7 @@ export class GoogleSheetsService {
       // channelIDらしき場合はgetSheetNameForChannelを呼ぶ
       const sheetName = sheetNameOrChannelId.includes('!') 
         ? sheetNameOrChannelId.split('!')[0]
-        : (sheetNameOrChannelId === 'metadata' || sheetNameOrChannelId.startsWith('list_'))
+        : this.isKnownSheetName(sheetNameOrChannelId)
           ? sheetNameOrChannelId
           : this.getSheetNameForChannel(sheetNameOrChannelId);
       
@@ -356,7 +380,7 @@ export class GoogleSheetsService {
       await this.getAuthClient();
       const sheetName = sheetNameOrChannelId.includes('!') 
         ? sheetNameOrChannelId.split('!')[0]
-        : (sheetNameOrChannelId === 'metadata' || sheetNameOrChannelId.startsWith('list_'))
+        : this.isKnownSheetName(sheetNameOrChannelId)
           ? sheetNameOrChannelId
           : this.getSheetNameForChannel(sheetNameOrChannelId);
       
@@ -561,7 +585,7 @@ export class GoogleSheetsService {
       await this.getAuthClient();
       const sheetName = sheetNameOrChannelId.includes('!') 
         ? sheetNameOrChannelId.split('!')[0]
-        : (sheetNameOrChannelId === 'metadata' || sheetNameOrChannelId.startsWith('list_'))
+        : this.isKnownSheetName(sheetNameOrChannelId)
           ? sheetNameOrChannelId
           : this.getSheetNameForChannel(sheetNameOrChannelId);
 
@@ -657,7 +681,7 @@ export class GoogleSheetsService {
         try {
           const sheetName = sheetNameOrChannelId.includes('!') 
             ? sheetNameOrChannelId.split('!')[0]
-            : (sheetNameOrChannelId === 'metadata' || sheetNameOrChannelId.startsWith('list_'))
+            : this.isKnownSheetName(sheetNameOrChannelId)
               ? sheetNameOrChannelId
               : this.getSheetNameForChannel(sheetNameOrChannelId);
           
@@ -696,7 +720,7 @@ export class GoogleSheetsService {
       // channelIDらしき場合はgetSheetNameForChannelを呼ぶ
       const sheetName = sheetNameOrChannelId.includes('!') 
         ? sheetNameOrChannelId.split('!')[0]
-        : (sheetNameOrChannelId === 'metadata' || sheetNameOrChannelId.startsWith('list_'))
+        : this.isKnownSheetName(sheetNameOrChannelId)
           ? sheetNameOrChannelId
           : this.getSheetNameForChannel(sheetNameOrChannelId);
       
@@ -922,6 +946,15 @@ export class GoogleSheetsService {
 
   private isDateLike(str: string): boolean {
     return /^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(str);
+  }
+
+  private isKnownSheetName(sheetName: string): boolean {
+    return (
+      sheetName === 'metadata'
+      || sheetName === 'remind_metadata'
+      || sheetName.startsWith('list_')
+      || sheetName.startsWith('remind_list_')
+    );
   }
 
   private async executeWithRetry<T>(operation: () => Promise<T>): Promise<T> {

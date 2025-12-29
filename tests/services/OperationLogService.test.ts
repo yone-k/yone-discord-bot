@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { OperationLogService } from '../../src/services/OperationLogService';
 import { Logger } from '../../src/utils/logger';
-import { MetadataManager } from '../../src/services/MetadataManager';
+import { MetadataProvider } from '../../src/services/MetadataProvider';
 import { OperationInfo, OperationResult, OperationDetails } from '../../src/models/types/OperationLog';
 import { ChannelType, Client } from 'discord.js';
 
@@ -35,10 +35,10 @@ const mockLogger = {
 };
 
 // MetadataManagerのモック
-const mockMetadataManager = {
+const mockMetadataManager: MetadataProvider = {
   getChannelMetadata: vi.fn(),
   updateChannelMetadata: vi.fn()
-};
+} as any;
 
 describe('OperationLogService', () => {
   let operationLogService: OperationLogService;
@@ -72,7 +72,7 @@ describe('OperationLogService', () => {
 
     operationLogService = new OperationLogService(
       mockLogger as unknown as Logger,
-      mockMetadataManager as unknown as MetadataManager
+      mockMetadataManager
     );
   });
 

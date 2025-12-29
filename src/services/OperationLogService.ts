@@ -1,5 +1,5 @@
 import { Logger } from '../utils/logger';
-import { MetadataManager } from './MetadataManager';
+import { MetadataProvider } from './MetadataProvider';
 import { OperationInfo, OperationResult, OperationDetails } from '../models/types/OperationLog';
 import { Client, ChannelType, TextChannel, ThreadChannel } from 'discord.js';
 
@@ -9,9 +9,9 @@ import { Client, ChannelType, TextChannel, ThreadChannel } from 'discord.js';
  */
 export class OperationLogService {
   private logger: Logger;
-  private metadataManager: MetadataManager;
+  private metadataManager: MetadataProvider;
 
-  constructor(logger: Logger, metadataManager: MetadataManager) {
+  constructor(logger: Logger, metadataManager: MetadataProvider) {
     this.logger = logger;
     this.metadataManager = metadataManager;
   }

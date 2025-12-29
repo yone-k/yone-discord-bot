@@ -3,6 +3,8 @@ import { PingCommand } from '../commands/PingCommand';
 import { InitListCommand } from '../commands/InitListCommand';
 import { DeleteAllMessageCommand } from '../commands/DeleteAllMessageCommand';
 import { AddListCommand } from '../commands/AddListCommand';
+import { InitRemindListCommand } from '../commands/InitRemindListCommand';
+import { AddRemindListCommand } from '../commands/AddRemindListCommand';
 import { Logger } from '../utils/logger';
 
 export function registerAllCommands(commandManager: CommandManager, logger: Logger): void {
@@ -21,6 +23,12 @@ export function registerAllCommands(commandManager: CommandManager, logger: Logg
   // AddListCommandを明示的に登録
   const addListCommand = new AddListCommand(logger);
   commandManager.register(addListCommand);
+
+  const initRemindListCommand = new InitRemindListCommand(logger);
+  commandManager.register(initRemindListCommand);
+
+  const addRemindListCommand = new AddRemindListCommand(logger);
+  commandManager.register(addRemindListCommand);
   
   logger.info('All commands registered successfully');
 }

@@ -64,6 +64,38 @@ jobs:
         docker push $ARTIFACT_REGISTRY_REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:$IMAGE_TAG
         docker push $ARTIFACT_REGISTRY_REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REGISTRY_REPO/$IMAGE_NAME:latest
 
+    - name: Cleanup old images (keep latest only)
+      run: |-
+        AR_HOST="$ARTIFACT_REGISTRY_REGION-docker.pkg.dev"
+        IMAGE_PATH="$AR_HOST/$PROJECT_ID/$ARTIFACT_REGISTRY_REPO/$IMAGE_NAME"
+        echo "Listing digests for $IMAGE_PATH"
+        DIGESTS=$(gcloud artifacts docker images list "$IMAGE_PATH" \
+          --include-tags \
+          --sort-by=~createTime \
+          --format="value(digest)")
+
+        KEEP_DIGEST=$(echo "$DIGESTS" | head -n 1)
+        DELETE_DIGESTS=$(echo "$DIGESTS" | tail -n +2)
+
+        if [ -z "$KEEP_DIGEST" ]; then
+          echo "No images found to cleanup."
+          exit 0
+        fi
+
+        if [ -z "$DELETE_DIGESTS" ]; then
+          echo "Only one image digest exists. Nothing to delete."
+          exit 0
+        fi
+
+        echo "Keeping digest: $KEEP_DIGEST"
+        echo "Deleting old digests..."
+        echo "$DELETE_DIGESTS" | while read -r DIGEST; do
+          if [ -n "$DIGEST" ]; then
+            echo "Deleting $IMAGE_PATH@$DIGEST"
+            gcloud artifacts docker images delete "$IMAGE_PATH@$DIGEST" --quiet --delete-tags
+          fi
+        done
+
     - name: Deploy to GCE
       run: |-
         # Debug: Check if required secrets are set

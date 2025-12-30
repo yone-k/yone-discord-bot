@@ -1,4 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, ComponentType, MessageFlags, TextChannel } from 'discord.js';
+import type { Message } from 'discord.js';
 import type {
   APIActionRowComponent,
   APIComponentInContainer,
@@ -85,7 +86,8 @@ export class RemindMessageManager {
         }
         if (parentMessageId) {
           try {
-            await textChannel.messages.fetch(parentMessageId);
+            const parentMessage = await textChannel.messages.fetch(parentMessageId);
+            await this.ensureNoticeMessageState(parentMessage);
             return { success: true, threadId: existingThread.id, parentMessageId };
           } catch {
             // fall through to recreate thread
@@ -96,9 +98,7 @@ export class RemindMessageManager {
       }
     }
 
-    const parentMessage = await textChannel.send({
-      content: 'リマインド通知'
-    });
+    const parentMessage = await textChannel.send(this.buildNoticeMessagePayload());
 
     try {
       await parentMessage.pin();
@@ -194,6 +194,48 @@ export class RemindMessageManager {
 
     return new ActionRowBuilder<ButtonBuilder>()
       .addComponents(detailButton, updateButton, completeButton, deleteButton);
+  }
+
+  private buildNoticeActionRow(): ActionRowBuilder<ButtonBuilder> {
+    const addButton = new ButtonBuilder()
+      .setCustomId('remind-task-add')
+      .setLabel('追加')
+      .setStyle(ButtonStyle.Primary);
+
+    return new ActionRowBuilder<ButtonBuilder>().addComponents(addButton);
+  }
+
+  private buildNoticeMessagePayload(): { content: string; components: ActionRowBuilder<ButtonBuilder>[] } {
+    return {
+      content: 'リマインド通知',
+      components: [this.buildNoticeActionRow()]
+    };
+  }
+
+  private async ensureNoticeMessageState(parentMessage: Message): Promise<void> {
+    const components = Array.isArray(parentMessage.components) ? parentMessage.components : [];
+    const hasAddButton = components.some((row) => {
+      const rowComponents = (row as { components?: unknown[] }).components;
+      if (!Array.isArray(rowComponents)) {
+        return false;
+      }
+      return rowComponents.some((component) => {
+        if (component && typeof component === 'object' && 'customId' in component) {
+          return (component as { customId?: string }).customId === 'remind-task-add';
+        }
+        return false;
+      });
+    });
+    const contentMatches = parentMessage.content === 'リマインド通知';
+    if (hasAddButton && contentMatches) {
+      return;
+    }
+
+    if (typeof parentMessage.edit !== 'function') {
+      return;
+    }
+
+    await parentMessage.edit(this.buildNoticeMessagePayload());
   }
 
   private buildMessageComponents(task: RemindTask, now: Date): APIMessageTopLevelComponent[] {

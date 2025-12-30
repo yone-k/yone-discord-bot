@@ -1,7 +1,7 @@
 const MAX_REMIND_BEFORE_MINUTES = 10080;
 const MINUTES_PER_DAY = 24 * 60;
 
-const INVALID_FORMAT_MESSAGE = '事前通知はD:H:IまたはH:I形式で指定してください';
+const INVALID_FORMAT_MESSAGE = '事前通知は日:時:分または時:分形式で指定してください';
 const OUT_OF_RANGE_MESSAGE = '事前通知は0日00時間00分〜7日00時間00分の範囲で指定してください';
 
 export function parseRemindBeforeInput(input: string): number {

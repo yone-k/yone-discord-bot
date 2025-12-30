@@ -14,7 +14,7 @@ describe('RemindDuration', () => {
     expect(formatRemindBeforeInput(90)).toBe('01:30');
   });
 
-  it('formats input as D:H:I when over a day', () => {
+  it('formats input as 日:時:分 when over a day', () => {
     expect(formatRemindBeforeInput(1500)).toBe('1:01:00');
   });
 
@@ -22,7 +22,7 @@ describe('RemindDuration', () => {
     expect(parseRemindBeforeInput('2:30')).toBe(150);
   });
 
-  it('parses D:H:I format', () => {
+  it('parses 日:時:分 format', () => {
     expect(parseRemindBeforeInput('1:02:03')).toBe(1563);
   });
 
@@ -36,11 +36,11 @@ describe('RemindDuration', () => {
   });
 
   it('rejects invalid format', () => {
-    expect(() => parseRemindBeforeInput('1')).toThrow('事前通知はD:H:IまたはH:I形式で指定してください');
+    expect(() => parseRemindBeforeInput('1')).toThrow('事前通知は日:時:分または時:分形式で指定してください');
   });
 
   it('rejects minutes overflow', () => {
-    expect(() => parseRemindBeforeInput('1:60')).toThrow('事前通知はD:H:IまたはH:I形式で指定してください');
+    expect(() => parseRemindBeforeInput('1:60')).toThrow('事前通知は日:時:分または時:分形式で指定してください');
   });
 
   it('rejects out of range', () => {

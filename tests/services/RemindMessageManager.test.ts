@@ -239,4 +239,75 @@ describe('RemindMessageManager', () => {
     });
     expect(mockThread.send).toHaveBeenCalledWith('@everyone ❗ 期限超過: 掃除');
   });
+
+  it('creates reminder thread parent message with add button', async () => {
+    const manager = new RemindMessageManager();
+    const mockThread = {
+      id: 'thread-1',
+      archived: false,
+      isThread: (): boolean => true
+    };
+    const mockParentMessage = {
+      id: 'msg-1',
+      pin: vi.fn().mockResolvedValue(undefined),
+      startThread: vi.fn().mockResolvedValue(mockThread)
+    };
+    const mockChannel = {
+      isTextBased: (): boolean => true,
+      send: vi.fn().mockResolvedValue(mockParentMessage)
+    };
+    const mockClient = {
+      channels: {
+        fetch: vi.fn().mockResolvedValue(mockChannel)
+      }
+    };
+
+    const result = await manager.ensureReminderThread('channel-1', mockClient as any);
+
+    expect(result.success).toBe(true);
+    const payload = mockChannel.send.mock.calls[0][0];
+    const actionRow = payload.components?.[0];
+    const button = actionRow?.components?.[0];
+    expect(button?.data?.custom_id).toBe('remind-task-add');
+  });
+
+  it('updates parent message to add button when missing', async () => {
+    const manager = new RemindMessageManager();
+    const mockThread = {
+      id: 'thread-1',
+      archived: false,
+      isThread: (): boolean => true
+    };
+    const mockParentMessage = {
+      id: 'msg-1',
+      content: '旧メッセージ',
+      components: [],
+      edit: vi.fn().mockResolvedValue(undefined)
+    };
+    const mockChannel = {
+      isTextBased: (): boolean => true,
+      messages: {
+        fetch: vi.fn().mockResolvedValue(mockParentMessage)
+      }
+    };
+    const mockFetch = vi.fn(async (id: string) => {
+      if (id === 'channel-1') {
+        return mockChannel;
+      }
+      if (id === 'thread-1') {
+        return mockThread;
+      }
+      return null;
+    });
+    const mockClient = {
+      channels: {
+        fetch: mockFetch
+      }
+    };
+
+    const result = await manager.ensureReminderThread('channel-1', mockClient as any, 'thread-1', 'msg-1');
+
+    expect(result.success).toBe(true);
+    expect(mockParentMessage.edit).toHaveBeenCalled();
+  });
 });

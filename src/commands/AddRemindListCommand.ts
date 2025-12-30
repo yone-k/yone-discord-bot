@@ -29,7 +29,7 @@ export class AddRemindListCommand extends BaseCommand {
       )
       .addStringOption(option =>
         option.setName('time-of-day')
-          .setDescription('期限時刻（H:m/HH:mm、未指定は00:00）')
+          .setDescription('期限時刻（時:分、未指定は00:00）')
           .setRequired(false)
       )
       .addStringOption(option =>
@@ -39,7 +39,7 @@ export class AddRemindListCommand extends BaseCommand {
       )
       .addStringOption(option =>
         option.setName('remind-before')
-          .setDescription('事前通知（D:H:I もしくは H:I）')
+          .setDescription('事前通知（日:時:分 もしくは 時:分）')
           .setRequired(false)
       ) as SlashCommandBuilder;
   }

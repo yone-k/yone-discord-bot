@@ -233,7 +233,7 @@ describe('EditListModalHandler', () => {
 
       // ListFormatterをモックして、渡されたitemsを検証
       const ListFormatterModule = await import('../../src/ui/ListFormatter');
-      const formatDataListSpy = vi.spyOn(ListFormatterModule.ListFormatter, 'formatDataList');
+      const formatDataListSpy = vi.spyOn(ListFormatterModule.ListFormatter, 'formatDataListContent');
 
       await handler['executeAction'](context);
 

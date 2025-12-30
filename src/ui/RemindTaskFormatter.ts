@@ -7,16 +7,16 @@ export class RemindTaskFormatter {
   private static readonly EMBED_COLOR = 0xFFA726;
 
   public static formatTaskEmbed(task: RemindTask, now: Date = new Date()): EmbedBuilder {
-    const status = this.buildStatus(task, now);
+    const progressBar = this.buildProgressBar(task, now);
     const nextDueText = this.formatTokyoDateTime(task.nextDueAt);
+    const remainingDays = this.calculateRemainingDays(task, now);
 
-    const description = [
-      status,
-      `次回期限: ${nextDueText}`,
-      `周期: ${task.intervalDays}日`,
-      `時刻: ${task.timeOfDay}`,
-      `事前通知: ${formatRemindBeforeDisplay(task.remindBeforeMinutes)}`
+    const details = [
+      `*期限: ${nextDueText}*`,
+      remainingDays !== null ? `*残り: ${remainingDays}日*` : null
     ].filter(Boolean).join('\n');
+
+    const description = [progressBar, details].filter(Boolean).join('\n');
 
     return new EmbedBuilder()
       .setTitle(task.title)
@@ -46,5 +46,38 @@ export class RemindTaskFormatter {
     const hours = String(tokyoDate.getUTCHours()).padStart(2, '0');
     const minutes = String(tokyoDate.getUTCMinutes()).padStart(2, '0');
     return `${year}/${month}/${day} ${hours}:${minutes}`;
+  }
+
+  public static formatDetailText(task: RemindTask, now: Date = new Date()): string {
+    const status = this.buildStatus(task, now);
+    const nextDueText = this.formatTokyoDateTime(task.nextDueAt);
+
+    return [
+      status,
+      `次回期限: ${nextDueText}`,
+      `周期: ${task.intervalDays}日`,
+      `時刻: ${task.timeOfDay}`,
+      `事前通知: ${formatRemindBeforeDisplay(task.remindBeforeMinutes)}`
+    ].filter(Boolean).join('\n');
+  }
+
+  private static buildProgressBar(task: RemindTask, now: Date): string {
+    const barLength = 20;
+    const intervalStart = task.lastDoneAt ?? task.startAt;
+    const total = task.nextDueAt.getTime() - intervalStart.getTime();
+    const elapsed = now.getTime() - intervalStart.getTime();
+    const ratio = total <= 0 ? 1 : Math.min(1, Math.max(0, elapsed / total));
+    const filled = Math.round(ratio * barLength);
+    const empty = barLength - filled;
+    return `[${'='.repeat(filled)}${'-'.repeat(empty)}]`;
+  }
+
+  private static calculateRemainingDays(task: RemindTask, now: Date): number | null {
+    const remainingMillis = task.nextDueAt.getTime() - now.getTime();
+    const remainingDays = Math.ceil(remainingMillis / (24 * 60 * 60 * 1000));
+    if (remainingDays < 0 || remainingDays >= 30) {
+      return null;
+    }
+    return remainingDays;
   }
 }

@@ -5,6 +5,7 @@ import { AddListButtonHandler } from '../buttons/AddListButtonHandler';
 import { RemindTaskUpdateButtonHandler } from '../buttons/RemindTaskUpdateButtonHandler';
 import { RemindTaskCompleteButtonHandler } from '../buttons/RemindTaskCompleteButtonHandler';
 import { RemindTaskDeleteButtonHandler } from '../buttons/RemindTaskDeleteButtonHandler';
+import { RemindTaskDetailButtonHandler } from '../buttons/RemindTaskDetailButtonHandler';
 import { Logger } from '../utils/logger';
 import { OperationLogService } from '../services/OperationLogService';
 import { MetadataManager } from '../services/MetadataManager';
@@ -40,6 +41,9 @@ export function registerAllButtons(
 
   const remindDeleteButtonHandler = new RemindTaskDeleteButtonHandler(logger, remindOperationLogService, remindMetadataManager);
   buttonManager.registerHandler(remindDeleteButtonHandler);
+
+  const remindDetailButtonHandler = new RemindTaskDetailButtonHandler(logger, remindOperationLogService, remindMetadataManager);
+  buttonManager.registerHandler(remindDetailButtonHandler);
   
   logger.info('All button handlers registered successfully');
 }

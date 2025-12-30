@@ -5,6 +5,7 @@ import { ConfirmationModalHandler, ConfirmationCallback } from '../modals/Confir
 import { RemindTaskUpdateModalHandler } from '../modals/RemindTaskUpdateModalHandler';
 import { RemindTaskCompleteModalHandler } from '../modals/RemindTaskCompleteModalHandler';
 import { RemindTaskDeleteModalHandler } from '../modals/RemindTaskDeleteModalHandler';
+import { RemindTaskDetailModalHandler } from '../modals/RemindTaskDetailModalHandler';
 import { DeleteAllMessageLogic } from '../services/DeleteAllMessageLogic';
 import { Logger } from '../utils/logger';
 import { TextChannel } from 'discord.js';
@@ -71,6 +72,9 @@ export function registerAllModals(modalManager: ModalManager, logger: Logger): v
 
   const remindDeleteModalHandler = new RemindTaskDeleteModalHandler(logger, remindOperationLogService, remindMetadataManager);
   modalManager.registerHandler(remindDeleteModalHandler);
+
+  const remindDetailModalHandler = new RemindTaskDetailModalHandler(logger, remindOperationLogService, remindMetadataManager);
+  modalManager.registerHandler(remindDetailModalHandler);
   
   logger.info('All modal handlers registered successfully');
 }

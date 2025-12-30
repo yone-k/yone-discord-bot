@@ -121,12 +121,20 @@ describe('RegisterButtons', () => {
       expect(handler?.constructor.name).toBe('RemindTaskDeleteButtonHandler');
     });
 
+    it('RemindTaskDetailButtonHandlerが正しく登録される', () => {
+      registerAllButtons(buttonManager, logger);
+
+      const handler = buttonManager.getHandlerByCustomId('remind-task-detail');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('RemindTaskDetailButtonHandler');
+    });
+
     it('登録されるハンドラー数が期待する値と一致する', () => {
       registerAllButtons(buttonManager, logger);
       
       const registeredHandlers = buttonManager.getRegisteredHandlers();
-      // 現在のボタンハンドラー数: InitListButtonHandler, EditListButtonHandler, AddListButtonHandler, RemindTaskUpdateButtonHandler, RemindTaskCompleteButtonHandler, RemindTaskDeleteButtonHandler
-      expect(registeredHandlers).toHaveLength(6);
+      // 現在のボタンハンドラー数: InitListButtonHandler, EditListButtonHandler, AddListButtonHandler, RemindTaskUpdateButtonHandler, RemindTaskCompleteButtonHandler, RemindTaskDeleteButtonHandler, RemindTaskDetailButtonHandler
+      expect(registeredHandlers).toHaveLength(7);
     });
   });
 });

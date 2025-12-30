@@ -97,6 +97,11 @@ export class RemindMessageManager {
   }
 
   private buildActionRow(): ActionRowBuilder<ButtonBuilder> {
+    const detailButton = new ButtonBuilder()
+      .setCustomId('remind-task-detail')
+      .setLabel('詳細')
+      .setStyle(ButtonStyle.Secondary);
+
     const updateButton = new ButtonBuilder()
       .setCustomId('remind-task-update')
       .setLabel('更新')
@@ -113,6 +118,6 @@ export class RemindMessageManager {
       .setStyle(ButtonStyle.Danger);
 
     return new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(updateButton, completeButton, deleteButton);
+      .addComponents(detailButton, updateButton, completeButton, deleteButton);
   }
 }

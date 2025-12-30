@@ -7,7 +7,7 @@ import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
 import { parseRemindBeforeInput } from '../utils/RemindDuration';
-import { calculateNextDueAt, calculateStartAt } from '../utils/RemindSchedule';
+import { calculateNextDueAt, calculateStartAt, normalizeTimeOfDay } from '../utils/RemindSchedule';
 
 export class RemindTaskUpdateModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
@@ -57,7 +57,7 @@ export class RemindTaskUpdateModalHandler extends BaseModalHandler {
     const title = context.interaction.fields.getTextInputValue('title').trim();
     const description = context.interaction.fields.getTextInputValue('description').trim();
     const intervalDays = Number(context.interaction.fields.getTextInputValue('interval-days'));
-    const timeOfDay = context.interaction.fields.getTextInputValue('time-of-day').trim();
+    const timeOfDayInput = context.interaction.fields.getTextInputValue('time-of-day').trim();
     const remindBeforeText = context.interaction.fields.getTextInputValue('remind-before').trim();
     let remindBeforeMinutes = task.remindBeforeMinutes;
     if (remindBeforeText !== '') {
@@ -70,6 +70,13 @@ export class RemindTaskUpdateModalHandler extends BaseModalHandler {
 
     if (!Number.isFinite(intervalDays) || intervalDays < 1) {
       return { success: false, message: '周期は1以上を指定してください' };
+    }
+
+    let timeOfDay: string;
+    try {
+      timeOfDay = normalizeTimeOfDay(timeOfDayInput);
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : '時刻の形式が無効です' };
     }
 
     const now = new Date();

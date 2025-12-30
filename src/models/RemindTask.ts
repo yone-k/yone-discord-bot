@@ -70,7 +70,7 @@ export function validateRemindTask(task: RemindTask): void {
     throw new Error('interval_daysは1以上である必要があります');
   }
 
-  if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(task.timeOfDay)) {
+  if (!/^([0-9]|1\d|2[0-3]):([0-9]|[0-5]\d)$/.test(task.timeOfDay)) {
     throw new Error('time_of_dayの形式が無効です');
   }
 

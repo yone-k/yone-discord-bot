@@ -74,7 +74,7 @@ export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
 
     const timeInput = new TextInputBuilder()
       .setCustomId('time-of-day')
-      .setLabel('期限時刻（HH:mm）')
+      .setLabel('期限時刻（H:mm/HH:mm）')
       .setStyle(TextInputStyle.Short)
       .setValue(task.timeOfDay)
       .setRequired(true)

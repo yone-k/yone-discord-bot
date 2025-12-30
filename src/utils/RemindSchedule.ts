@@ -44,16 +44,25 @@ export function calculateNextDueAt(input: NextDueAtInput, now: Date): Date {
   return nextDueAt;
 }
 
-function parseTimeOfDay(timeOfDay: string): { hours: number; minutes: number } {
-  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(timeOfDay);
+export function normalizeTimeOfDay(timeOfDay: string): string {
+  const match = /^(\d{1,2}):(\d{1,2})$/.exec(timeOfDay);
   if (!match) {
     throw new Error(`Invalid timeOfDay: ${timeOfDay}`);
   }
 
-  return {
-    hours: Number(match[1]),
-    minutes: Number(match[2])
-  };
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    throw new Error(`Invalid timeOfDay: ${timeOfDay}`);
+  }
+
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function parseTimeOfDay(timeOfDay: string): { hours: number; minutes: number } {
+  const normalized = normalizeTimeOfDay(timeOfDay);
+  const [hours, minutes] = normalized.split(':').map((value) => Number(value));
+  return { hours, minutes };
 }
 
 function getTokyoDateParts(date: Date): { year: number; month: number; day: number } {

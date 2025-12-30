@@ -51,4 +51,31 @@ describe('RemindTaskService', () => {
     expect(mockMessageManager.createTaskMessage).toHaveBeenCalled();
     expect(mockRepository.updateTask).toHaveBeenCalled();
   });
+
+  it('defaults timeOfDay to 00:00 when omitted', async () => {
+    const service = new RemindTaskService(
+      mockSheetManager,
+      mockRepository,
+      mockMetadataManager,
+      mockMessageManager,
+      () => 'task-1'
+    );
+
+    await service.addTask(
+      'channel-1',
+      {
+        title: '掃除',
+        intervalDays: 7,
+        remindBeforeMinutes: 1440
+      },
+      {} as any,
+      new Date('2025-12-29T09:00:00+09:00'),
+      'リマインドリスト'
+    );
+
+    expect(mockRepository.appendTask).toHaveBeenCalledWith(
+      'channel-1',
+      expect.objectContaining({ timeOfDay: '00:00' })
+    );
+  });
 });

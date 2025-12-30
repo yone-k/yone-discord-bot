@@ -1,7 +1,7 @@
 import { Client } from 'discord.js';
 import { createRemindTask, RemindTask } from '../models/RemindTask';
 import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
-import { calculateNextDueAt, calculateStartAt } from '../utils/RemindSchedule';
+import { calculateNextDueAt, calculateStartAt, normalizeTimeOfDay } from '../utils/RemindSchedule';
 import { RemindSheetManager } from './RemindSheetManager';
 import { RemindTaskRepository } from './RemindTaskRepository';
 import { RemindMetadataManager } from './RemindMetadataManager';
@@ -11,7 +11,7 @@ export interface RemindTaskInputData {
   title: string;
   description?: string;
   intervalDays: number;
-  timeOfDay: string;
+  timeOfDay?: string;
   remindBeforeMinutes?: number;
 }
 
@@ -41,11 +41,12 @@ export class RemindTaskService {
     await this.sheetManager.getOrCreateChannelSheet(channelId);
 
     const createdAt = now;
-    const startAt = calculateStartAt(createdAt, input.timeOfDay);
+    const normalizedTimeOfDay = normalizeTimeOfDay(input.timeOfDay ?? '00:00');
+    const startAt = calculateStartAt(createdAt, normalizedTimeOfDay);
     const nextDueAt = calculateNextDueAt(
       {
         intervalDays: input.intervalDays,
-        timeOfDay: input.timeOfDay,
+        timeOfDay: normalizedTimeOfDay,
         startAt
       },
       now
@@ -56,7 +57,7 @@ export class RemindTaskService {
       title: input.title,
       description: input.description,
       intervalDays: input.intervalDays,
-      timeOfDay: input.timeOfDay,
+      timeOfDay: normalizedTimeOfDay,
       remindBeforeMinutes: input.remindBeforeMinutes ?? 1440,
       startAt,
       nextDueAt,

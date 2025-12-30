@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateStartAt, calculateNextDueAt } from '../../src/utils/RemindSchedule';
+import { calculateStartAt, calculateNextDueAt, normalizeTimeOfDay } from '../../src/utils/RemindSchedule';
 
 describe('RemindSchedule', () => {
   it('calculates startAt using Tokyo date with timeOfDay', () => {
@@ -41,5 +41,10 @@ describe('RemindSchedule', () => {
     );
 
     expect(nextDueAt.toISOString()).toBe('2025-12-31T23:30:00.000Z');
+  });
+
+  it('normalizes timeOfDay with single digit hour/minute', () => {
+    expect(normalizeTimeOfDay('0:0')).toBe('00:00');
+    expect(normalizeTimeOfDay('9:5')).toBe('09:05');
   });
 });

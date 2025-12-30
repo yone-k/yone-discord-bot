@@ -29,8 +29,8 @@ export class AddRemindListCommand extends BaseCommand {
       )
       .addStringOption(option =>
         option.setName('time-of-day')
-          .setDescription('期限時刻（HH:mm）')
-          .setRequired(true)
+          .setDescription('期限時刻（H:m/HH:mm、未指定は00:00）')
+          .setRequired(false)
       )
       .addStringOption(option =>
         option.setName('description')
@@ -77,7 +77,7 @@ export class AddRemindListCommand extends BaseCommand {
     const title = context.interaction.options.getString('title', true);
     const description = context.interaction.options.getString('description') || undefined;
     const intervalDays = context.interaction.options.getInteger('interval-days', true);
-    const timeOfDay = context.interaction.options.getString('time-of-day', true);
+    const timeOfDay = context.interaction.options.getString('time-of-day') || undefined;
     const remindBeforeText = context.interaction.options.getString('remind-before') ?? undefined;
     let remindBeforeMinutes: number | undefined;
     if (remindBeforeText !== undefined) {

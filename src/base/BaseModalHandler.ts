@@ -13,6 +13,7 @@ export abstract class BaseModalHandler {
   protected readonly logger: Logger;
   protected ephemeral: boolean = true;
   protected deleteOnSuccess: boolean = false;
+  protected deleteOnFailure: boolean = false;
   protected silentOnSuccess: boolean = false;
   protected operationLogService?: OperationLogService;
   protected metadataManager?: MetadataProvider;
@@ -43,8 +44,10 @@ export abstract class BaseModalHandler {
       // 操作ログの記録を試行
       await this.tryLogOperation(context, result);
 
-      // 成功時にメッセージを削除
-      if (this.deleteOnSuccess && result.success) {
+      const shouldDelete = (this.deleteOnSuccess && result.success) || (this.deleteOnFailure && !result.success);
+
+      // 成功時/失敗時にメッセージを削除
+      if (shouldDelete) {
         try {
           if (this.silentOnSuccess) {
             await context.interaction.deleteReply();

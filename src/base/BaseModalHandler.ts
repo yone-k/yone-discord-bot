@@ -13,6 +13,7 @@ export abstract class BaseModalHandler {
   protected readonly logger: Logger;
   protected ephemeral: boolean = true;
   protected deleteOnSuccess: boolean = false;
+  protected silentOnSuccess: boolean = false;
   protected operationLogService?: OperationLogService;
   protected metadataManager?: MetadataProvider;
 
@@ -45,15 +46,19 @@ export abstract class BaseModalHandler {
       // 成功時にメッセージを削除
       if (this.deleteOnSuccess) {
         try {
-          await context.interaction.editReply({ content: '処理が完了しました。' });
-          try {
-            const reply = await context.interaction.fetchReply();
-            await reply.delete();
-          } catch (delayedDeleteError) {
-            this.logger.warn('Failed to delete success message', {
-              error: delayedDeleteError instanceof Error ? delayedDeleteError.message : 'Unknown error',
-              customId: this.customId
-            });
+          if (this.silentOnSuccess) {
+            await context.interaction.deleteReply();
+          } else {
+            await context.interaction.editReply({ content: '処理が完了しました。' });
+            try {
+              const reply = await context.interaction.fetchReply();
+              await reply.delete();
+            } catch (delayedDeleteError) {
+              this.logger.warn('Failed to delete success message', {
+                error: delayedDeleteError instanceof Error ? delayedDeleteError.message : 'Unknown error',
+                customId: this.customId
+              });
+            }
           }
         } catch (deleteError) {
           this.logger.warn('Failed to delete success message', {

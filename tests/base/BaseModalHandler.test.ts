@@ -5,10 +5,11 @@ import { BaseModalHandler, ModalHandlerContext } from '../../src/base/BaseModalH
 import { OperationResult, OperationInfo } from '../../src/models/types/OperationLog';
 
 class TestModalHandler extends BaseModalHandler {
-  constructor(logger: Logger, ephemeral = true, deleteOnSuccess = false) {
+  constructor(logger: Logger, ephemeral = true, deleteOnSuccess = false, silentOnSuccess = false) {
     super('test-modal', logger);
     this.ephemeral = ephemeral;
     this.deleteOnSuccess = deleteOnSuccess;
+    this.silentOnSuccess = silentOnSuccess;
   }
 
   protected async executeAction(_context: ModalHandlerContext): Promise<OperationResult> {
@@ -55,7 +56,8 @@ describe('BaseModalHandler', () => {
       reply: vi.fn(),
       editReply: vi.fn(),
       followUp: vi.fn(),
-      deferReply: vi.fn()
+      deferReply: vi.fn(),
+      deleteReply: vi.fn()
     } as any;
 
     context = {
@@ -183,6 +185,19 @@ describe('BaseModalHandler', () => {
 
       expect(mockInteraction.editReply).toHaveBeenCalledWith({ content: '✅ テストが完了しました' });
       expect(mockInteraction.fetchReply).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('silentOnSuccess option', () => {
+    it('should delete reply without sending content when silentOnSuccess is true', async () => {
+      const handler = new TestModalHandler(logger, true, true, true);
+      const mockResult: OperationResult = { success: true, message: 'テスト処理が完了しました' };
+      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(mockResult);
+
+      await handler.handle(context);
+
+      expect(mockInteraction.deleteReply).toHaveBeenCalled();
+      expect(mockInteraction.editReply).not.toHaveBeenCalled();
     });
   });
 });

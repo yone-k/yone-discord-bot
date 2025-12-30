@@ -42,7 +42,9 @@ describe('AddRemindListCommand', () => {
             return null;
           })
         },
-        reply: vi.fn()
+        reply: vi.fn(),
+        deferReply: vi.fn(),
+        deleteReply: vi.fn()
       } as any
     };
   });
@@ -51,8 +53,8 @@ describe('AddRemindListCommand', () => {
     await command.execute(mockContext);
 
     expect(mockService.addTask).toHaveBeenCalled();
-    expect(mockContext.interaction?.reply).toHaveBeenCalledWith(
-      expect.objectContaining({ content: '✅ リマインドタスクを登録しました。' })
-    );
+    expect(mockContext.interaction?.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+    expect(mockContext.interaction?.deleteReply).toHaveBeenCalled();
+    expect(mockContext.interaction?.reply).not.toHaveBeenCalled();
   });
 });

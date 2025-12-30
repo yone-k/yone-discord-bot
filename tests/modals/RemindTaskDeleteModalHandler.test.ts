@@ -41,7 +41,8 @@ describe('RemindTaskDeleteModalHandler', () => {
       client: {} as any,
       fields: { getTextInputValue: vi.fn().mockReturnValue('削除') },
       deferReply: vi.fn(),
-      editReply: vi.fn()
+      editReply: vi.fn(),
+      deleteReply: vi.fn()
     };
 
     await handler.handle({ interaction } as any);

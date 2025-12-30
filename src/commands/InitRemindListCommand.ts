@@ -62,6 +62,6 @@ export class InitRemindListCommand extends BaseCommand {
       );
     }
 
-    await context.interaction.editReply('✅ リマインドリストを同期しました。');
+    await context.interaction.deleteReply();
   }
 }

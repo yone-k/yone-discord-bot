@@ -50,7 +50,8 @@ describe('RemindTaskUpdateModalHandler', () => {
         })
       },
       deferReply: vi.fn(),
-      editReply: vi.fn()
+      editReply: vi.fn(),
+      deleteReply: vi.fn()
     };
 
     await handler.handle({ interaction } as any);

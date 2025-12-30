@@ -18,6 +18,8 @@ export class RemindTaskDeleteModalHandler extends BaseModalHandler {
     messageManager?: RemindMessageManager
   ) {
     super('remind-task-delete-modal', logger, operationLogService, metadataManager);
+    this.deleteOnSuccess = true;
+    this.silentOnSuccess = true;
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
   }

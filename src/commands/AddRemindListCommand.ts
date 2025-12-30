@@ -73,6 +73,8 @@ export class AddRemindListCommand extends BaseCommand {
       );
     }
 
+    await context.interaction.deferReply({ ephemeral: true });
+
     const title = context.interaction.options.getString('title', true);
     const description = context.interaction.options.getString('description') || undefined;
     const intervalDays = context.interaction.options.getInteger('interval-days', true);
@@ -100,9 +102,6 @@ export class AddRemindListCommand extends BaseCommand {
       );
     }
 
-    await context.interaction.reply({
-      content: '✅ リマインドタスクを登録しました。',
-      ephemeral: true
-    });
+    await context.interaction.deleteReply();
   }
 }

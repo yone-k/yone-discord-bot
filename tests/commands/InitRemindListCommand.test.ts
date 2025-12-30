@@ -30,7 +30,8 @@ describe('InitRemindListCommand', () => {
         client: {} as any,
         channel: { name: 'general' },
         deferReply: vi.fn(),
-        editReply: vi.fn()
+        editReply: vi.fn(),
+        deleteReply: vi.fn()
       } as any
     };
 
@@ -38,6 +39,7 @@ describe('InitRemindListCommand', () => {
 
     expect(mockService.initialize).toHaveBeenCalledWith('channel-1', context.interaction?.client, 'generalリマインド');
     expect(context.interaction?.deferReply).toHaveBeenCalledWith({ ephemeral: true });
-    expect(context.interaction?.editReply).toHaveBeenCalledWith('✅ リマインドリストを同期しました。');
+    expect(context.interaction?.deleteReply).toHaveBeenCalled();
+    expect(context.interaction?.editReply).not.toHaveBeenCalled();
   });
 });

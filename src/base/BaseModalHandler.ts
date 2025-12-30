@@ -44,7 +44,7 @@ export abstract class BaseModalHandler {
       await this.tryLogOperation(context, result);
 
       // 成功時にメッセージを削除
-      if (this.deleteOnSuccess) {
+      if (this.deleteOnSuccess && result.success) {
         try {
           if (this.silentOnSuccess) {
             await context.interaction.deleteReply();

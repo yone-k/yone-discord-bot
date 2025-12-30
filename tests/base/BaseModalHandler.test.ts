@@ -186,6 +186,18 @@ describe('BaseModalHandler', () => {
       expect(mockInteraction.editReply).toHaveBeenCalledWith({ content: '✅ テストが完了しました' });
       expect(mockInteraction.fetchReply).not.toHaveBeenCalled();
     });
+
+    it('should not delete message when action failed even if deleteOnSuccess is true', async () => {
+      const handler = new TestModalHandler(logger, true, true);
+      const mockResult: OperationResult = { success: false, message: 'エラーが発生しました' };
+      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(mockResult);
+
+      await handler.handle(context);
+
+      expect(mockInteraction.editReply).toHaveBeenCalledWith({ content: 'エラーが発生しました' });
+      expect(mockInteraction.deleteReply).not.toHaveBeenCalled();
+      expect(mockInteraction.fetchReply).not.toHaveBeenCalled();
+    });
   });
 
   describe('silentOnSuccess option', () => {

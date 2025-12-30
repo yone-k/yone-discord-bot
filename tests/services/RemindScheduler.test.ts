@@ -42,7 +42,7 @@ describe('RemindScheduler', () => {
     expect(mockMessageManager.sendReminderToThread).toHaveBeenCalledWith(
       'channel-1',
       'msg-1',
-      '@everyone ⌛ リマインド: 掃除',
+      '@everyone 掃除の期限まであと1時間になりました。',
       mockClient
     );
     expect(mockRepository.updateTask).toHaveBeenCalled();

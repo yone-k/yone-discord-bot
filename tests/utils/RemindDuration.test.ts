@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatRemindBeforeDisplay, formatRemindBeforeInput, parseRemindBeforeInput } from '../../src/utils/RemindDuration';
+import { formatRemindBeforeDisplay, formatRemindBeforeInput, formatRemainingDuration, parseRemindBeforeInput } from '../../src/utils/RemindDuration';
 
 describe('RemindDuration', () => {
   it('formats display as DD日HH時間MM分前', () => {
@@ -24,6 +24,15 @@ describe('RemindDuration', () => {
 
   it('parses D:H:I format', () => {
     expect(parseRemindBeforeInput('1:02:03')).toBe(1563);
+  });
+
+  it('formats remaining duration with omitted zero parts', () => {
+    expect(formatRemainingDuration(30)).toBe('30分');
+    expect(formatRemainingDuration(60)).toBe('1時間');
+    expect(formatRemainingDuration(90)).toBe('1時間30分');
+    expect(formatRemainingDuration(1440)).toBe('1日');
+    expect(formatRemainingDuration(1500)).toBe('1日1時間');
+    expect(formatRemainingDuration(1501)).toBe('1日1時間1分');
   });
 
   it('rejects invalid format', () => {

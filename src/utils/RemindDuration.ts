@@ -64,6 +64,23 @@ export function formatRemindBeforeInput(totalMinutes: number): string {
   return `${pad2(hours)}:${pad2(minutes)}`;
 }
 
+export function formatRemainingDuration(totalMinutes: number): string {
+  const { days, hours, minutes } = splitMinutes(totalMinutes);
+  const parts: string[] = [];
+
+  if (days > 0) {
+    parts.push(`${days}日`);
+  }
+  if (hours > 0) {
+    parts.push(`${hours}時間`);
+  }
+  if (minutes > 0 || parts.length === 0) {
+    parts.push(`${minutes}分`);
+  }
+
+  return parts.join('');
+}
+
 function splitMinutes(totalMinutes: number): { days: number; hours: number; minutes: number } {
   const safeMinutes = Math.max(0, totalMinutes);
   const days = Math.floor(safeMinutes / MINUTES_PER_DAY);

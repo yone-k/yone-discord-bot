@@ -1,6 +1,7 @@
 import { Client } from 'discord.js';
 import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
 import { shouldSendOverdue, shouldSendPreReminder } from '../utils/RemindNotification';
+import { formatRemainingDuration } from '../utils/RemindDuration';
 import { RemindMetadataManager } from './RemindMetadataManager';
 import { RemindMessageManager } from './RemindMessageManager';
 import { RemindTaskRepository } from './RemindTaskRepository';
@@ -49,10 +50,12 @@ export class RemindScheduler {
           continue;
         }
 
+        const remainingText = formatRemainingDuration(task.remindBeforeMinutes);
+
         await this.messageManager.sendReminderToThread(
           channelId,
           task.messageId,
-          `@everyone ⌛ リマインド: ${task.title}`,
+          `@everyone ${task.title}の期限まであと${remainingText}になりました。`,
           client
         );
         const updatedTask = {
@@ -76,7 +79,7 @@ export class RemindScheduler {
         await this.messageManager.sendReminderToThread(
           channelId,
           task.messageId,
-          `@everyone ❗ 期限超過: ${task.title}`,
+          `@everyone ${task.title}の期限が切れています。`,
           client
         );
         const updatedTask = {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MessageManager } from '../../src/services/MessageManager';
-import { EmbedBuilder, ChannelType } from 'discord.js';
+import { EmbedBuilder, ChannelType, ComponentType, MessageFlags } from 'discord.js';
 
 // Discord.jsのモック
 const mockClient = {
@@ -364,6 +364,32 @@ describe('MessageManager', () => {
           operationLogThreadId: expect.anything()
         })
       );
+    });
+  });
+
+  describe('createOrUpdateMessageWithMetadataV2', () => {
+    it('V2メッセージを作成してピン留めする', async () => {
+      const components = [{
+        type: ComponentType.Container,
+        components: [{
+          type: ComponentType.TextDisplay,
+          content: 'テスト'
+        }]
+      }];
+
+      const result = await messageManager.createOrUpdateMessageWithMetadataV2(
+        'test-channel-123',
+        components,
+        'テストリスト',
+        mockClient as any
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockChannel.send).toHaveBeenCalledWith(expect.objectContaining({
+        flags: MessageFlags.IsComponentsV2,
+        components
+      }));
+      expect(mockMessage.pin).toHaveBeenCalled();
     });
   });
 

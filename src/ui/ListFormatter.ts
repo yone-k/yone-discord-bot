@@ -1,4 +1,5 @@
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, ComponentType } from 'discord.js';
+import type { APIComponentInContainer, APIMessageTopLevelComponent, APITextDisplayComponent } from 'discord.js';
 import { ListItem } from '../models/ListItem';
 import { CategoryType, getCategoryEmoji, DEFAULT_CATEGORY } from '../models/CategoryType';
 import { TemplateManager } from '../services/TemplateManager';
@@ -16,6 +17,27 @@ export class ListFormatter {
    * 空リスト用のEmbedを生成
    */
   public static async formatEmptyList(title: string, channelId: string, categories?: CategoryType[], defaultCategory?: CategoryType): Promise<EmbedBuilder> {
+    const renderedContent = await this.formatEmptyListContent(title, channelId, categories, defaultCategory);
+    return this.buildEmbedFromTemplate(renderedContent);
+  }
+
+  /**
+   * データありリスト用のEmbedを生成
+   */
+  public static async formatDataList(title: string, items: ListItem[], channelId: string, defaultCategory?: CategoryType): Promise<EmbedBuilder> {
+    const renderedContent = await this.formatDataListContent(title, items, channelId, defaultCategory);
+    return this.buildEmbedFromTemplate(renderedContent);
+  }
+
+  /**
+   * 空リスト用のテンプレート文字列を生成
+   */
+  public static async formatEmptyListContent(
+    title: string,
+    channelId: string,
+    categories?: CategoryType[],
+    defaultCategory?: CategoryType
+  ): Promise<string> {
     // 優先順位: defaultCategory > categories > DEFAULT_CATEGORY
     let displayCategories: CategoryType[];
     if (defaultCategory) {
@@ -40,18 +62,42 @@ export class ListFormatter {
       last_update: '未更新',
       spreadsheet_url: await this.getSpreadsheetUrl(channelId)
     };
-    const renderedContent = this.templateManager.renderTemplate(template, variables);
-    return this.buildEmbedFromTemplate(renderedContent);
+    return this.templateManager.renderTemplate(template, variables);
   }
 
   /**
-   * データありリスト用のEmbedを生成
+   * データありリスト用のテンプレート文字列を生成
    */
-  public static async formatDataList(title: string, items: ListItem[], channelId: string, defaultCategory?: CategoryType): Promise<EmbedBuilder> {
+  public static async formatDataListContent(
+    title: string,
+    items: ListItem[],
+    channelId: string,
+    defaultCategory?: CategoryType
+  ): Promise<string> {
     const template = await this.templateManager.loadTemplate('list');
     const variables = await this.buildTemplateVariables(title, items, channelId, defaultCategory);
-    const renderedContent = this.templateManager.renderTemplate(template, variables);
-    return this.buildEmbedFromTemplate(renderedContent);
+    return this.templateManager.renderTemplate(template, variables);
+  }
+
+  /**
+   * コンポーネントV2用のリスト表示コンポーネントを生成
+   */
+  public static buildListComponents(content: string): APIMessageTopLevelComponent[] {
+    const containerComponents: APIComponentInContainer[] = [
+      this.buildTextDisplay(content)
+    ];
+
+    return [{
+      type: ComponentType.Container,
+      components: containerComponents
+    }];
+  }
+
+  private static buildTextDisplay(content: string): APITextDisplayComponent {
+    return {
+      type: ComponentType.TextDisplay,
+      content
+    };
   }
 
   /**

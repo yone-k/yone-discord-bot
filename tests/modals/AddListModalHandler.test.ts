@@ -32,7 +32,7 @@ describe('AddListModalHandler', () => {
     } as any;
 
     mockMessageManager = {
-      createOrUpdateMessageWithMetadata: vi.fn()
+      createOrUpdateMessageWithMetadataV2: vi.fn()
     } as any;
 
     mockMetadataManager = {
@@ -85,7 +85,7 @@ describe('AddListModalHandler', () => {
       ];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({ success: true });
 
       const result = await handler['executeAction'](context);
 
@@ -129,7 +129,7 @@ describe('AddListModalHandler', () => {
       const existingData = [['name', 'category', 'until']];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({ success: true });
 
       const result = await handler['executeAction'](context);
 
@@ -159,7 +159,7 @@ describe('AddListModalHandler', () => {
       const existingData: string[][] = [];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({ success: true });
 
       const result = await handler['executeAction'](context);
 
@@ -215,7 +215,7 @@ describe('AddListModalHandler', () => {
       ];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({ success: true });
 
       const result = await handler['executeAction'](context);
 
@@ -272,7 +272,7 @@ describe('AddListModalHandler', () => {
       const existingData = [['name', 'category', 'until']];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({ success: true });
 
       const result = await handler['executeAction'](context);
 
@@ -331,7 +331,7 @@ describe('AddListModalHandler', () => {
       ];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({ success: true });
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({ success: true });
 
       const result = await handler['executeAction'](context);
 

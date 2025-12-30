@@ -49,7 +49,7 @@ describe('InitListCommand', () => {
         messageId: 'test-message-id',
         updated: false
       }),
-      createOrUpdateMessageWithMetadata: vi.fn().mockResolvedValue({
+      createOrUpdateMessageWithMetadataV2: vi.fn().mockResolvedValue({
         success: true,
         messageId: 'test-message-id',
         updated: false
@@ -321,7 +321,7 @@ describe('InitListCommand', () => {
         existed: false,
         created: true
       });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
         success: true,
         messageId: 'test-message-id',
         message: { id: 'test-message-id' }
@@ -356,7 +356,7 @@ describe('InitListCommand', () => {
         existed: false,
         created: true
       });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
         success: true,
         messageId: 'test-message-id',
         message: { id: 'test-message-id' }
@@ -397,9 +397,9 @@ describe('InitListCommand', () => {
       
       // ListFormatterをモックして、渡されたitemsを検証
       const ListFormatterModule = await import('../../src/ui/ListFormatter');
-      const formatDataListSpy = vi.spyOn(ListFormatterModule.ListFormatter, 'formatDataList');
+      const formatDataListSpy = vi.spyOn(ListFormatterModule.ListFormatter, 'formatDataListContent');
       
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
         success: true,
         messageId: 'test-message-id',
         message: { id: 'test-message-id' }
@@ -407,7 +407,7 @@ describe('InitListCommand', () => {
 
       await initListCommand.execute(context);
 
-      // formatDataListに渡されたitemsを検証（check値が正しく読み込まれているか）
+      // formatDataListContentに渡されたitemsを検証（check値が正しく読み込まれているか）
       expect(formatDataListSpy).toHaveBeenCalled();
       const [, items] = formatDataListSpy.mock.calls[0];
       
@@ -443,7 +443,7 @@ describe('InitListCommand', () => {
         existed: false,
         created: true
       });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
         success: true,
         messageId: 'test-message-id',
         message: { id: 'test-message-id' }
@@ -452,9 +452,9 @@ describe('InitListCommand', () => {
       await initListCommand.execute(context);
       
       // createOrUpdateMessageWithMetadataが指定されたカテゴリーで呼ばれることを確認
-      expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+      expect(mockMessageManager.createOrUpdateMessageWithMetadataV2).toHaveBeenCalledWith(
         'test-channel-id',
-        expect.any(Object), // embed
+        expect.any(Array), // components
         'test-channelリスト',
         expect.any(Object), // client
         'list',
@@ -496,7 +496,7 @@ describe('InitListCommand', () => {
         existed: false,
         created: true
       });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
         success: true,
         messageId: 'test-message-id',
         message: { id: 'test-message-id' }
@@ -505,9 +505,9 @@ describe('InitListCommand', () => {
       await initListCommand.execute(context);
       
       // createOrUpdateMessageWithMetadataが既存カテゴリーで呼ばれることを確認
-      expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+      expect(mockMessageManager.createOrUpdateMessageWithMetadataV2).toHaveBeenCalledWith(
         'test-channel-id',
-        expect.any(Object), // embed
+        expect.any(Array), // components
         'test-channelリスト',
         expect.any(Object), // client
         'list',
@@ -542,7 +542,7 @@ describe('InitListCommand', () => {
         existed: false,
         created: true
       });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
         success: true,
         messageId: 'test-message-id',
         message: { id: 'test-message-id' }
@@ -551,9 +551,9 @@ describe('InitListCommand', () => {
       await initListCommand.execute(context);
       
       // createOrUpdateMessageWithMetadataが「その他」で呼ばれることを確認
-      expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+      expect(mockMessageManager.createOrUpdateMessageWithMetadataV2).toHaveBeenCalledWith(
         'test-channel-id',
-        expect.any(Object), // embed
+        expect.any(Array), // components
         'test-channelリスト',
         expect.any(Object), // client
         'list',
@@ -604,9 +604,9 @@ describe('InitListCommand', () => {
       
       // ListFormatterをモックして、渡されたitemsを検証
       const ListFormatterModule = await import('../../src/ui/ListFormatter');
-      const formatDataListSpy = vi.spyOn(ListFormatterModule.ListFormatter, 'formatDataList');
+      const formatDataListSpy = vi.spyOn(ListFormatterModule.ListFormatter, 'formatDataListContent');
 
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
         success: true,
         messageId: 'test-message-id',
         message: { id: 'test-message-id' }
@@ -614,7 +614,7 @@ describe('InitListCommand', () => {
 
       await initListCommand.execute(context);
       
-      // formatDataListに渡されたitemsを検証
+      // formatDataListContentに渡されたitemsを検証
       expect(formatDataListSpy).toHaveBeenCalled();
       const [, items, channelId, defaultCategory] = formatDataListSpy.mock.calls[0];
       
@@ -665,7 +665,7 @@ describe('InitListCommand', () => {
         existed: false,
         created: true
       });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
         success: true,
         messageId: 'test-message-id',
         message: { id: 'test-message-id' }
@@ -849,7 +849,7 @@ describe('InitListCommand', () => {
         existed: false,
         created: true
       });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
         success: true,
         messageId: 'test-message-id',
         message: { id: 'test-message-id' }
@@ -906,7 +906,7 @@ describe('InitListCommand', () => {
         existed: false,
         created: true
       });
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
         success: true,
         messageId: 'test-message-id',
         message: { id: 'test-message-id' }

@@ -30,7 +30,7 @@ describe('EditListModalHandler', () => {
     } as any;
 
     mockMessageManager = {
-      createOrUpdateMessageWithMetadata: vi.fn()
+      createOrUpdateMessageWithMetadataV2: vi.fn()
     } as any;
 
     mockMetadataManager = {

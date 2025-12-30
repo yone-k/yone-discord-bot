@@ -10,6 +10,8 @@ export class ConfirmationModalHandler extends BaseModalHandler {
   constructor(logger: Logger, actionCallback: ConfirmationCallback, ephemeral: boolean = true) {
     super('confirmation-modal', logger);
     this.deleteOnSuccess = true;
+    this.deleteOnFailure = true;
+    this.silentOnFailure = true;
     this.ephemeral = ephemeral;
     this.actionCallback = actionCallback;
   }

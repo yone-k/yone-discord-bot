@@ -1,7 +1,7 @@
 import { ModalSubmitInteraction } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { OperationLogService } from '../services/OperationLogService';
-import { MetadataManager } from '../services/MetadataManager';
+import { MetadataProvider } from '../services/MetadataProvider';
 import { OperationResult, OperationInfo } from '../models/types/OperationLog';
 
 export interface ModalHandlerContext {
@@ -13,14 +13,17 @@ export abstract class BaseModalHandler {
   protected readonly logger: Logger;
   protected ephemeral: boolean = true;
   protected deleteOnSuccess: boolean = false;
+  protected deleteOnFailure: boolean = false;
+  protected silentOnSuccess: boolean = false;
+  protected silentOnFailure: boolean = false;
   protected operationLogService?: OperationLogService;
-  protected metadataManager?: MetadataManager;
+  protected metadataManager?: MetadataProvider;
 
   constructor(
     customId: string, 
     logger: Logger, 
     operationLogService?: OperationLogService,
-    metadataManager?: MetadataManager
+    metadataManager?: MetadataProvider
   ) {
     this.customId = customId;
     this.logger = logger;
@@ -42,21 +45,35 @@ export abstract class BaseModalHandler {
       // 操作ログの記録を試行
       await this.tryLogOperation(context, result);
 
-      // 成功時にメッセージを削除
-      if (this.deleteOnSuccess) {
+      const shouldDeleteOnSuccess = this.deleteOnSuccess && result.success;
+      const shouldDeleteOnFailure = this.deleteOnFailure && !result.success;
+      const shouldDelete = shouldDeleteOnSuccess || shouldDeleteOnFailure;
+
+      // 成功時/失敗時にメッセージを削除
+      if (shouldDelete) {
         try {
-          await context.interaction.editReply({ content: '処理が完了しました。' });
-          try {
-            const reply = await context.interaction.fetchReply();
-            await reply.delete();
-          } catch (delayedDeleteError) {
-            this.logger.warn('Failed to delete success message', {
-              error: delayedDeleteError instanceof Error ? delayedDeleteError.message : 'Unknown error',
-              customId: this.customId
+          const shouldSilent =
+            (shouldDeleteOnSuccess && this.silentOnSuccess) ||
+            (shouldDeleteOnFailure && this.silentOnFailure);
+
+          if (shouldSilent) {
+            await context.interaction.deleteReply();
+          } else {
+            await context.interaction.editReply({
+              content: result.success ? '処理が完了しました。' : (result.message || 'エラーが発生しました')
             });
+            try {
+              const reply = await context.interaction.fetchReply();
+              await reply.delete();
+            } catch (delayedDeleteError) {
+              this.logger.warn('Failed to delete modal message', {
+                error: delayedDeleteError instanceof Error ? delayedDeleteError.message : 'Unknown error',
+                customId: this.customId
+              });
+            }
           }
         } catch (deleteError) {
-          this.logger.warn('Failed to delete success message', {
+          this.logger.warn('Failed to delete modal message', {
             error: deleteError instanceof Error ? deleteError.message : 'Unknown error',
             customId: this.customId
           });

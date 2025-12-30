@@ -6,7 +6,7 @@ import { ButtonInteraction } from 'discord.js';
 // 実際の型をインポート
 import { OperationInfo, OperationResult } from '../../src/models/types/OperationLog';
 import { OperationLogService } from '../../src/services/OperationLogService';
-import { MetadataManager } from '../../src/services/MetadataManager';
+import { MetadataProvider } from '../../src/services/MetadataProvider';
 import { Client } from 'discord.js';
 
 class TestButtonHandler extends BaseButtonHandler {
@@ -21,7 +21,7 @@ class TestButtonHandler extends BaseButtonHandler {
     customId: string, 
     logger: Logger, 
     operationLogService?: OperationLogService,
-    metadataManager?: MetadataManager
+    metadataManager?: MetadataProvider
   ) {
     super(customId, logger, operationLogService, metadataManager);
   }
@@ -56,7 +56,7 @@ describe('BaseButtonHandler - 操作ログ機能統合', () => {
   let loggerErrorSpy: MockedFunction<typeof logger.error>;
   let loggerWarnSpy: MockedFunction<typeof logger.warn>;
   let mockOperationLogService: OperationLogService;
-  let mockMetadataManager: MetadataManager;
+  let mockMetadataManager: MetadataProvider;
   let mockInteraction: ButtonInteraction;
 
   beforeEach(() => {

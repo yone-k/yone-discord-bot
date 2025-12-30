@@ -2,11 +2,15 @@ import { ModalManager } from '../services/ModalManager';
 import { EditListModalHandler } from '../modals/EditListModalHandler';
 import { AddListModalHandler } from '../modals/AddListModalHandler';
 import { ConfirmationModalHandler, ConfirmationCallback } from '../modals/ConfirmationModalHandler';
+import { RemindTaskUpdateModalHandler } from '../modals/RemindTaskUpdateModalHandler';
+import { RemindTaskCompleteModalHandler } from '../modals/RemindTaskCompleteModalHandler';
+import { RemindTaskDeleteModalHandler } from '../modals/RemindTaskDeleteModalHandler';
 import { DeleteAllMessageLogic } from '../services/DeleteAllMessageLogic';
 import { Logger } from '../utils/logger';
 import { TextChannel } from 'discord.js';
 import { OperationLogService } from '../services/OperationLogService';
 import { MetadataManager } from '../services/MetadataManager';
+import { RemindMetadataManager } from '../services/RemindMetadataManager';
 
 export function registerAllModals(modalManager: ModalManager, logger: Logger): void {
   // 操作ログ関連のサービスを初期化
@@ -54,6 +58,19 @@ export function registerAllModals(modalManager: ModalManager, logger: Logger): v
   // ConfirmationModalHandlerを明示的に登録
   const confirmationModalHandler = new ConfirmationModalHandler(logger, deleteAllMessageCallback, false);
   modalManager.registerHandler(confirmationModalHandler);
-  
+
+  // Remind用のOperationLogService
+  const remindMetadataManager = RemindMetadataManager.getInstance();
+  const remindOperationLogService = new OperationLogService(logger, remindMetadataManager);
+
+  const remindUpdateModalHandler = new RemindTaskUpdateModalHandler(logger, remindOperationLogService, remindMetadataManager);
+  modalManager.registerHandler(remindUpdateModalHandler);
+
+  const remindCompleteModalHandler = new RemindTaskCompleteModalHandler(logger, remindOperationLogService, remindMetadataManager);
+  modalManager.registerHandler(remindCompleteModalHandler);
+
+  const remindDeleteModalHandler = new RemindTaskDeleteModalHandler(logger, remindOperationLogService, remindMetadataManager);
+  modalManager.registerHandler(remindDeleteModalHandler);
+
   logger.info('All modal handlers registered successfully');
 }

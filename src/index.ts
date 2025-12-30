@@ -16,6 +16,7 @@ import { registerAllButtons } from './registry/RegisterButtons';
 import { registerAllModals } from './registry/RegisterModals';
 import { OperationLogService } from './services/OperationLogService';
 import { MetadataManager } from './services/MetadataManager';
+import { RemindScheduler } from './services/RemindScheduler';
 
 class DiscordBot {
   private client: Client;
@@ -29,6 +30,7 @@ class DiscordBot {
   private server: Server | null = null;
   private operationLogService!: OperationLogService;
   private metadataManager!: MetadataManager;
+  private remindScheduler!: RemindScheduler;
 
   constructor() {
     try {
@@ -201,6 +203,9 @@ class DiscordBot {
       
       // 起動時に統計情報をログ出力
       this.commandManager.logExecutionSummary();
+
+      this.remindScheduler = new RemindScheduler();
+      this.remindScheduler.start(this.client);
     });
 
     this.client.on(Events.InteractionCreate, async (interaction) => {

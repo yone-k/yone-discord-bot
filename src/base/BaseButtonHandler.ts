@@ -1,7 +1,7 @@
 import { ButtonInteraction } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { OperationLogService } from '../services/OperationLogService';
-import { MetadataManager } from '../services/MetadataManager';
+import { MetadataProvider } from '../services/MetadataProvider';
 import { OperationResult, OperationInfo } from '../models/types/OperationLog';
 
 export interface ButtonHandlerContext {
@@ -14,13 +14,13 @@ export abstract class BaseButtonHandler {
   protected ephemeral: boolean = true;
   protected deleteOnSuccess: boolean = false;
   protected operationLogService?: OperationLogService;
-  protected metadataManager?: MetadataManager;
+  protected metadataManager?: MetadataProvider;
 
   constructor(
     customId: string, 
     logger: Logger, 
     operationLogService?: OperationLogService,
-    metadataManager?: MetadataManager
+    metadataManager?: MetadataProvider
   ) {
     this.customId = customId;
     this.logger = logger;

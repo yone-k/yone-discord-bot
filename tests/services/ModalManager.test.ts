@@ -3,14 +3,33 @@ import { ModalSubmitInteraction } from 'discord.js';
 import { Logger } from '../../src/utils/logger';
 import { ModalManager } from '../../src/services/ModalManager';
 import { BaseModalHandler } from '../../src/base/BaseModalHandler';
+import { OperationResult } from '../../src/models/types/OperationLog';
 
 class TestModalHandler extends BaseModalHandler {
   constructor(customId: string, logger: Logger) {
     super(customId, logger);
   }
 
-  protected async executeAction(): Promise<void> {
-    // テスト用の最小実装
+  protected async executeAction(): Promise<OperationResult> {
+    return { success: true };
+  }
+
+  protected getSuccessMessage(): string {
+    return '✅ テスト完了';
+  }
+}
+
+class PrefixModalHandler extends BaseModalHandler {
+  constructor(customId: string, logger: Logger) {
+    super(customId, logger);
+  }
+
+  public shouldHandle(context: any): boolean { // eslint-disable-line @typescript-eslint/no-explicit-any
+    return context.interaction.customId.startsWith(`${this.customId}:`);
+  }
+
+  protected async executeAction(): Promise<OperationResult> {
+    return { success: true };
   }
 
   protected getSuccessMessage(): string {
@@ -115,6 +134,19 @@ describe('ModalManager', () => {
         'No handler found for modal customId',
         expect.objectContaining({ customId: 'unknown-modal' })
       );
+    });
+
+    it('should handle modal submission with prefix handler', async () => {
+      const prefixHandler = new PrefixModalHandler('remind-task-update-modal', logger);
+      const handleSpy = vi.spyOn(prefixHandler, 'handle').mockResolvedValue(undefined);
+      manager.registerHandler(prefixHandler);
+
+      mockInteraction.customId = 'remind-task-update-modal:msg-1';
+      await manager.handleModalSubmit(mockInteraction);
+
+      expect(handleSpy).toHaveBeenCalledWith({
+        interaction: mockInteraction
+      });
     });
 
     it('should handle error from handler', async () => {

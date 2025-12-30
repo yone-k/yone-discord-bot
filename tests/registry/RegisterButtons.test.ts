@@ -97,12 +97,44 @@ describe('RegisterButtons', () => {
       expect(addListHandler?.constructor.name).toBe('AddListButtonHandler');
     });
 
+    it('RemindTaskUpdateButtonHandlerが正しく登録される', () => {
+      registerAllButtons(buttonManager, logger);
+
+      const handler = buttonManager.getHandlerByCustomId('remind-task-update');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('RemindTaskUpdateButtonHandler');
+    });
+
+    it('RemindTaskCompleteButtonHandlerが正しく登録される', () => {
+      registerAllButtons(buttonManager, logger);
+
+      const handler = buttonManager.getHandlerByCustomId('remind-task-complete');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('RemindTaskCompleteButtonHandler');
+    });
+
+    it('RemindTaskDeleteButtonHandlerが正しく登録される', () => {
+      registerAllButtons(buttonManager, logger);
+
+      const handler = buttonManager.getHandlerByCustomId('remind-task-delete');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('RemindTaskDeleteButtonHandler');
+    });
+
+    it('RemindTaskDetailButtonHandlerが正しく登録される', () => {
+      registerAllButtons(buttonManager, logger);
+
+      const handler = buttonManager.getHandlerByCustomId('remind-task-detail');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('RemindTaskDetailButtonHandler');
+    });
+
     it('登録されるハンドラー数が期待する値と一致する', () => {
       registerAllButtons(buttonManager, logger);
       
       const registeredHandlers = buttonManager.getRegisteredHandlers();
-      // 現在のボタンハンドラー数: InitListButtonHandler, EditListButtonHandler, AddListButtonHandler
-      expect(registeredHandlers).toHaveLength(3);
+      // 現在のボタンハンドラー数: InitListButtonHandler, EditListButtonHandler, AddListButtonHandler, RemindTaskUpdateButtonHandler, RemindTaskCompleteButtonHandler, RemindTaskDeleteButtonHandler, RemindTaskDetailButtonHandler
+      expect(registeredHandlers).toHaveLength(7);
     });
   });
 });

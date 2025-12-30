@@ -37,7 +37,8 @@ export abstract class BaseModalHandler {
         return;
       }
 
-      await context.interaction.deferReply({ ephemeral: this.ephemeral });
+      const deferOptions = this.ephemeral ? { flags: ['Ephemeral'] as const } : {};
+      await context.interaction.deferReply(deferOptions);
 
       // 操作を実行してOperationResultを取得
       const result = await this.executeAction(context);

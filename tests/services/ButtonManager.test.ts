@@ -14,7 +14,27 @@ class TestButtonHandler extends BaseButtonHandler {
     // テスト用の実装
     await context.interaction.reply({
       content: 'Test action executed',
-      ephemeral: true
+      flags: ['Ephemeral']
+    });
+  }
+}
+
+class PrefixButtonHandler extends BaseButtonHandler {
+  constructor(customId: string, logger: Logger) {
+    super(customId, logger);
+  }
+
+  public shouldHandle(context: ButtonHandlerContext): boolean {
+    if (context.interaction.user.bot) {
+      return false;
+    }
+    return context.interaction.customId.startsWith(`${this.customId}:`);
+  }
+
+  protected async executeAction(context: ButtonHandlerContext): Promise<void> {
+    await context.interaction.reply({
+      content: 'Prefix action executed',
+      flags: ['Ephemeral']
     });
   }
 }
@@ -78,7 +98,7 @@ describe('ButtonManager', () => {
       
       expect(mockInteraction.reply).toHaveBeenCalledWith({
         content: 'Test action executed',
-        ephemeral: true
+        flags: ['Ephemeral']
       });
     });
 
@@ -89,7 +109,21 @@ describe('ButtonManager', () => {
       
       expect(mockInteraction.reply).toHaveBeenCalledWith({
         content: 'この操作は現在利用できません。',
-        ephemeral: true
+        flags: ['Ephemeral']
+      });
+    });
+
+    it('customIdが一致しなくてもshouldHandleがtrueのハンドラーがあれば実行される', async () => {
+      const prefixHandler = new PrefixButtonHandler('prefix-button', logger);
+      buttonManager.registerHandler(prefixHandler);
+
+      mockInteraction.customId = 'prefix-button:abc';
+
+      await buttonManager.handleButtonInteraction(mockInteraction as ButtonInteraction);
+
+      expect(mockInteraction.reply).toHaveBeenCalledWith({
+        content: 'Prefix action executed',
+        flags: ['Ephemeral']
       });
     });
 

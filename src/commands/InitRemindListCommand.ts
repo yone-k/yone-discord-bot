@@ -31,7 +31,7 @@ export class InitRemindListCommand extends BaseCommand {
       );
     }
 
-    await context.interaction.deferReply({ ephemeral: true });
+    await context.interaction.deferReply({ flags: ['Ephemeral'] as const });
 
     if (!context.channelId) {
       throw new CommandError(

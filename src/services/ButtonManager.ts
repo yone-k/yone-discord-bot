@@ -49,8 +49,12 @@ export class ButtonManager {
 
   public async handleButtonInteraction(interaction: ButtonInteraction): Promise<void> {
     const customId = interaction.customId;
+    let handler = this.handlers.get(customId);
+    if (!handler) {
+      const context: ButtonHandlerContext = { interaction };
+      handler = Array.from(this.handlers.values()).find(candidate => candidate.shouldHandle(context));
+    }
 
-    const handler = this.handlers.get(customId);
     if (!handler) {
       this.logger.debug('No handler found for button customId', {
         customId,
@@ -62,7 +66,7 @@ export class ButtonManager {
         if (!interaction.replied && !interaction.deferred) {
           await interaction.reply({
             content: 'この操作は現在利用できません。',
-            ephemeral: true
+            flags: ['Ephemeral'] as const
           });
         }
       } catch (error) {

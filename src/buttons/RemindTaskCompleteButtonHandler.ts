@@ -39,7 +39,7 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
     const interaction = context.interaction;
 
     if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: ['Ephemeral'] as const });
     }
 
     const replyError = async (message: string): Promise<OperationResult> => {

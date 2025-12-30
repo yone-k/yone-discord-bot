@@ -92,7 +92,7 @@ describe('PingCommand', () => {
   });
 
   describe('interaction対応', () => {
-    it('interactionがある場合はレスポンスを送信する（ephemeral: true）', async () => {
+    it('interactionがある場合はレスポンスを送信する（flags: Ephemeral）', async () => {
       const mockInteraction = {
         reply: vi.fn().mockResolvedValue(undefined)
       };
@@ -106,7 +106,7 @@ describe('PingCommand', () => {
 
       expect(mockInteraction.reply).toHaveBeenCalledWith({
         content: expect.stringMatching(/^🏓 Pong! レスポンス時間: \d+(\.\d+)?ms$/),
-        ephemeral: true
+        flags: ['Ephemeral']
       });
     });
 

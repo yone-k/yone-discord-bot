@@ -114,6 +114,14 @@ describe('RegisterModals', () => {
       expect(handler?.constructor.name).toBe('RemindTaskUpdateModalHandler');
     });
 
+    it('RemindTaskUpdateOverrideModalHandlerが正しく登録される', () => {
+      registerAllModals(modalManager, logger);
+      const registeredHandlers = modalManager.getRegisteredHandlers();
+      const handler = registeredHandlers.find(h => h.getCustomId() === 'remind-task-update-override-modal');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('RemindTaskUpdateOverrideModalHandler');
+    });
+
     it('RemindTaskCompleteModalHandlerが正しく登録される', () => {
       registerAllModals(modalManager, logger);
       const registeredHandlers = modalManager.getRegisteredHandlers();
@@ -142,8 +150,10 @@ describe('RegisterModals', () => {
       registerAllModals(modalManager, logger);
       
       const registeredHandlers = modalManager.getRegisteredHandlers();
-      // 現在のモーダルハンドラー数: EditListModalHandler, AddListModalHandler, ConfirmationModalHandler, RemindTaskUpdateModalHandler, RemindTaskCompleteModalHandler, RemindTaskDeleteModalHandler, RemindTaskAddModalHandler
-      expect(registeredHandlers).toHaveLength(7);
+      // 現在のモーダルハンドラー数: EditListModalHandler, AddListModalHandler, ConfirmationModalHandler,
+      // RemindTaskUpdateModalHandler, RemindTaskUpdateOverrideModalHandler, RemindTaskCompleteModalHandler,
+      // RemindTaskDeleteModalHandler, RemindTaskAddModalHandler
+      expect(registeredHandlers).toHaveLength(8);
     });
   });
 });

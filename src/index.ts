@@ -152,12 +152,12 @@ class DiscordBot {
           if (interaction.replied || interaction.deferred) {
             await interaction.followUp({
               content: `❌ ${errorMessage}`,
-              ephemeral: true
+              flags: ['Ephemeral'] as const
             });
           } else {
             await interaction.reply({
               content: `❌ ${errorMessage}`,
-              ephemeral: true
+              flags: ['Ephemeral'] as const
             });
           }
         } catch (replyError) {
@@ -180,12 +180,12 @@ class DiscordBot {
         if (interaction.replied || interaction.deferred) {
           await interaction.followUp({
             content: `❌ ${errorMessage}`,
-            ephemeral: true
+            flags: ['Ephemeral'] as const
           });
         } else {
           await interaction.reply({
             content: `❌ ${errorMessage}`,
-            ephemeral: true
+            flags: ['Ephemeral'] as const
           });
         }
       } catch (replyError) {

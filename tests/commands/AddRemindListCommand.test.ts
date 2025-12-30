@@ -53,7 +53,7 @@ describe('AddRemindListCommand', () => {
     await command.execute(mockContext);
 
     expect(mockService.addTask).toHaveBeenCalled();
-    expect(mockContext.interaction?.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+    expect(mockContext.interaction?.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(mockContext.interaction?.deleteReply).toHaveBeenCalled();
     expect(mockContext.interaction?.reply).not.toHaveBeenCalled();
   });

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { RemindTaskUpdateButtonHandler } from '../../src/buttons/RemindTaskUpdateButtonHandler';
+import { RemindTaskUpdateBasicButtonHandler } from '../../src/buttons/RemindTaskUpdateBasicButtonHandler';
 import { Logger } from '../../src/utils/logger';
 import { createRemindTask } from '../../src/models/RemindTask';
 
-describe('RemindTaskUpdateButtonHandler', () => {
-  it('replies with update options including message id', async () => {
+describe('RemindTaskUpdateBasicButtonHandler', () => {
+  it('shows update modal using message id from customId', async () => {
     const mockRepository = {
       findTaskByMessageId: vi.fn().mockResolvedValue(createRemindTask({
         id: 'task-1',
@@ -20,7 +20,7 @@ describe('RemindTaskUpdateButtonHandler', () => {
       }))
     };
 
-    const handler = new RemindTaskUpdateButtonHandler(
+    const handler = new RemindTaskUpdateBasicButtonHandler(
       new Logger(),
       undefined,
       undefined,
@@ -28,21 +28,18 @@ describe('RemindTaskUpdateButtonHandler', () => {
     );
 
     const interaction = {
-      customId: 'remind-task-update',
+      customId: 'remind-task-update-basic:msg-1',
       user: { id: 'user-1', bot: false },
       channelId: 'channel-1',
-      message: { id: 'msg-1' },
-      reply: vi.fn()
+      message: { delete: vi.fn() },
+      showModal: vi.fn()
     };
 
     await handler.handle({ interaction } as any);
 
-    expect(interaction.reply).toHaveBeenCalled();
-    const payload = interaction.reply.mock.calls[0][0];
-    expect(payload.components).toHaveLength(1);
-    const row = payload.components[0];
-    const customIds = row.components.map((component: any) => component.data.custom_id);
-    expect(customIds).toContain('remind-task-update-basic:msg-1');
-    expect(customIds).toContain('remind-task-update-override:msg-1');
+    expect(interaction.showModal).toHaveBeenCalled();
+    expect(interaction.message.delete).toHaveBeenCalled();
+    const modalCall = interaction.showModal.mock.calls[0][0];
+    expect(modalCall.data.custom_id).toBe('remind-task-update-modal:msg-1');
   });
 });

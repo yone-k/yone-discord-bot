@@ -72,7 +72,7 @@ export class AddRemindListCommand extends BaseCommand {
       );
     }
 
-    await context.interaction.deferReply({ ephemeral: true });
+    await context.interaction.deferReply({ flags: ['Ephemeral'] as const });
 
     const title = context.interaction.options.getString('title', true);
     const description = context.interaction.options.getString('description') || undefined;

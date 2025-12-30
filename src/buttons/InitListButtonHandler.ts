@@ -55,7 +55,8 @@ export class InitListButtonHandler extends BaseButtonHandler {
 
   protected async executeAction(context: ButtonHandlerContext): Promise<OperationResult> {
     try {
-      await context.interaction.deferReply({ ephemeral: this.ephemeral });
+      const deferOptions = this.ephemeral ? { flags: ['Ephemeral'] as const } : {};
+      await context.interaction.deferReply(deferOptions);
 
       const commandContext: CommandExecutionContext = {
         interaction: context.interaction as unknown as ChatInputCommandInteraction,

@@ -48,7 +48,7 @@ describe('RemindTaskCompleteButtonHandler', () => {
 
     expect(mockRepository.updateTask).toHaveBeenCalled();
     expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();
-    expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+    expect(interaction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(interaction.deleteReply).toHaveBeenCalled();
   });
 });

@@ -86,7 +86,7 @@ describe('BaseModalHandler', () => {
       
       await handler.handle(context);
 
-      expect(mockInteraction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+      expect(mockInteraction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
       expect(executeActionSpy).toHaveBeenCalledWith(context);
       expect(mockInteraction.editReply).toHaveBeenCalledWith({
         content: '✅ テストが完了しました'
@@ -154,7 +154,7 @@ describe('BaseModalHandler', () => {
       
       await handler.handle(context);
 
-      expect(mockInteraction.deferReply).toHaveBeenCalledWith({ ephemeral: false });
+      expect(mockInteraction.deferReply).toHaveBeenCalledWith({});
     });
 
     it('should use ephemeral: true by default', async () => {
@@ -164,7 +164,7 @@ describe('BaseModalHandler', () => {
       
       await handler.handle(context);
 
-      expect(mockInteraction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+      expect(mockInteraction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     });
   });
 

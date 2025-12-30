@@ -38,7 +38,7 @@ describe('InitRemindListCommand', () => {
     await command.execute(context);
 
     expect(mockService.initialize).toHaveBeenCalledWith('channel-1', context.interaction?.client, 'generalリマインド');
-    expect(context.interaction?.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+    expect(context.interaction?.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(context.interaction?.deleteReply).toHaveBeenCalled();
     expect(context.interaction?.editReply).not.toHaveBeenCalled();
   });

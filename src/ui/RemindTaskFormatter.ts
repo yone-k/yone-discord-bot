@@ -45,10 +45,18 @@ export class RemindTaskFormatter {
     const progressBar = this.buildProgressBar(task, now);
     const nextDueText = this.formatTokyoDateTime(task.nextDueAt);
     const remainingDays = this.calculateRemainingDays(task, now);
+    const isOverdue = now.getTime() > task.nextDueAt.getTime();
+    const remainingMillis = task.nextDueAt.getTime() - now.getTime();
+    const isUnderOneDay = remainingMillis > 0 && remainingMillis < 24 * 60 * 60 * 1000;
+    const remainingTimeText = isUnderOneDay ? this.formatRemainingHoursMinutes(remainingMillis) : null;
 
-    const detailsText = remainingDays !== null
-      ? `-# 残り: ${remainingDays}日`
-      : `-# 期限: ${nextDueText}`;
+    const detailsText = isOverdue
+      ? '**期限切れ**'
+      : (remainingTimeText
+        ? `-# 残り: ${remainingTimeText}`
+        : (remainingDays !== null
+          ? `-# 残り: ${remainingDays}日`
+          : `-# 期限: ${nextDueText}`));
 
     return { progressBar, detailsText };
   }
@@ -71,5 +79,15 @@ export class RemindTaskFormatter {
       return null;
     }
     return remainingDays;
+  }
+
+  private static formatRemainingHoursMinutes(remainingMillis: number): string {
+    const totalMinutes = Math.max(0, Math.ceil(remainingMillis / (60 * 1000)));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours === 0) {
+      return `${minutes}分`;
+    }
+    return `${hours}時間${minutes}分`;
   }
 }

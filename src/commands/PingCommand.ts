@@ -37,10 +37,10 @@ export class PingCommand extends BaseCommand {
     
     // Discordのインタラクションがある場合はレスポンスを送信
     if (context?.interaction) {
-      await context.interaction.reply({
-        content: `🏓 Pong! レスポンス時間: ${responseTime.toFixed(2)}ms`,
-        ephemeral: this.ephemeral
-      });
+      const replyOptions = this.ephemeral
+        ? { content: `🏓 Pong! レスポンス時間: ${responseTime.toFixed(2)}ms`, flags: ['Ephemeral'] as const }
+        : { content: `🏓 Pong! レスポンス時間: ${responseTime.toFixed(2)}ms` };
+      await context.interaction.reply(replyOptions);
     }
     
     this.logger.debug('Ping command completed');

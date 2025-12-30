@@ -3,6 +3,7 @@ import { EditListModalHandler } from '../modals/EditListModalHandler';
 import { AddListModalHandler } from '../modals/AddListModalHandler';
 import { ConfirmationModalHandler, ConfirmationCallback } from '../modals/ConfirmationModalHandler';
 import { RemindTaskUpdateModalHandler } from '../modals/RemindTaskUpdateModalHandler';
+import { RemindTaskUpdateOverrideModalHandler } from '../modals/RemindTaskUpdateOverrideModalHandler';
 import { RemindTaskCompleteModalHandler } from '../modals/RemindTaskCompleteModalHandler';
 import { RemindTaskDeleteModalHandler } from '../modals/RemindTaskDeleteModalHandler';
 import { RemindTaskAddModalHandler } from '../modals/RemindTaskAddModalHandler';
@@ -66,6 +67,13 @@ export function registerAllModals(modalManager: ModalManager, logger: Logger): v
 
   const remindUpdateModalHandler = new RemindTaskUpdateModalHandler(logger, remindOperationLogService, remindMetadataManager);
   modalManager.registerHandler(remindUpdateModalHandler);
+
+  const remindUpdateOverrideModalHandler = new RemindTaskUpdateOverrideModalHandler(
+    logger,
+    remindOperationLogService,
+    remindMetadataManager
+  );
+  modalManager.registerHandler(remindUpdateOverrideModalHandler);
 
   const remindCompleteModalHandler = new RemindTaskCompleteModalHandler(logger, remindOperationLogService, remindMetadataManager);
   modalManager.registerHandler(remindCompleteModalHandler);

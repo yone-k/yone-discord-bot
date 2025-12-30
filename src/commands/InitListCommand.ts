@@ -380,10 +380,10 @@ export class InitListCommand extends BaseCommand {
     });
 
     if (context?.interaction) {
-      await context.interaction.reply({
-        content: '📋 リストの初期化が完了しました！',
-        ephemeral: this.ephemeral
-      });
+      const replyOptions = this.ephemeral
+        ? { content: '📋 リストの初期化が完了しました！', flags: ['Ephemeral'] as const }
+        : { content: '📋 リストの初期化が完了しました！' };
+      await context.interaction.reply(replyOptions);
     }
   }
 

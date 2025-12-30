@@ -82,10 +82,10 @@ export abstract class BaseButtonHandler {
       
       try {
         if (!context.interaction.replied && !context.interaction.deferred) {
-          await context.interaction.reply({
-            content: 'エラーが発生しました。もう一度お試しください。',
-            ephemeral: this.ephemeral
-          });
+          const replyOptions = this.ephemeral
+            ? { content: 'エラーが発生しました。もう一度お試しください。', flags: ['Ephemeral'] as const }
+            : { content: 'エラーが発生しました。もう一度お試しください。' };
+          await context.interaction.reply(replyOptions);
         }
       } catch (replyError) {
         this.logger.warn('Failed to send error reply', {

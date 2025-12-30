@@ -1,11 +1,10 @@
-import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
-import { formatRemindBeforeInput } from '../utils/RemindDuration';
 
 export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
@@ -44,60 +43,23 @@ export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
       return { success: false, message: 'タスクが見つかりません' };
     }
 
-    const modal = new ModalBuilder()
-      .setCustomId(`remind-task-update-modal:${messageId}`)
-      .setTitle('リマインド更新');
+    const basicButton = new ButtonBuilder()
+      .setCustomId(`remind-task-update-basic:${messageId}`)
+      .setLabel('基本編集')
+      .setStyle(ButtonStyle.Primary);
 
-    const titleInput = new TextInputBuilder()
-      .setCustomId('title')
-      .setLabel('タスク名')
-      .setStyle(TextInputStyle.Short)
-      .setValue(task.title)
-      .setRequired(true)
-      .setMaxLength(100);
+    const overrideButton = new ButtonBuilder()
+      .setCustomId(`remind-task-update-override:${messageId}`)
+      .setLabel('期限上書き')
+      .setStyle(ButtonStyle.Secondary);
 
-    const descriptionInput = new TextInputBuilder()
-      .setCustomId('description')
-      .setLabel('説明（任意）')
-      .setStyle(TextInputStyle.Paragraph)
-      .setValue(task.description || '')
-      .setRequired(false)
-      .setMaxLength(500);
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(basicButton, overrideButton);
 
-    const intervalInput = new TextInputBuilder()
-      .setCustomId('interval-days')
-      .setLabel('周期（日）')
-      .setStyle(TextInputStyle.Short)
-      .setValue(String(task.intervalDays))
-      .setRequired(true)
-      .setMaxLength(4);
+    await context.interaction.reply({
+      content: '更新内容を選択してください。',
+      components: [row]
+    });
 
-    const timeInput = new TextInputBuilder()
-      .setCustomId('time-of-day')
-      .setLabel('期限時刻（時:分）')
-      .setStyle(TextInputStyle.Short)
-      .setValue(task.timeOfDay)
-      .setRequired(true)
-      .setMaxLength(5);
-
-    const remindInput = new TextInputBuilder()
-      .setCustomId('remind-before')
-      .setLabel('事前通知（日:時:分 もしくは 時:分）')
-      .setStyle(TextInputStyle.Short)
-      .setValue(formatRemindBeforeInput(task.remindBeforeMinutes))
-      .setRequired(false)
-      .setMaxLength(8);
-
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(titleInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(intervalInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(timeInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(remindInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(descriptionInput)
-    );
-
-    await context.interaction.showModal(modal);
-
-    return { success: true, message: '更新モーダルを表示しました' };
+    return { success: true, message: '更新選択を表示しました' };
   }
 }

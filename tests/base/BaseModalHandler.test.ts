@@ -10,13 +10,15 @@ class TestModalHandler extends BaseModalHandler {
     ephemeral = true,
     deleteOnSuccess = false,
     silentOnSuccess = false,
-    deleteOnFailure = false
+    deleteOnFailure = false,
+    silentOnFailure = false
   ) {
     super('test-modal', logger);
     this.ephemeral = ephemeral;
     this.deleteOnSuccess = deleteOnSuccess;
     this.silentOnSuccess = silentOnSuccess;
     this.deleteOnFailure = deleteOnFailure;
+    this.silentOnFailure = silentOnFailure;
   }
 
   protected async executeAction(_context: ModalHandlerContext): Promise<OperationResult> {
@@ -206,15 +208,26 @@ describe('BaseModalHandler', () => {
       expect(mockInteraction.fetchReply).not.toHaveBeenCalled();
     });
 
-    it('should delete message when deleteOnFailure is true and action failed', async () => {
-      const handler = new TestModalHandler(logger, true, true, false, true);
+    it('should delete message with error content when deleteOnFailure is true and action failed', async () => {
+      const handler = new TestModalHandler(logger, true, false, false, true);
       const mockResult: OperationResult = { success: false, message: 'エラーが発生しました' };
       vi.spyOn(handler as any, 'executeAction').mockResolvedValue(mockResult);
 
       await handler.handle(context);
 
-      expect(mockInteraction.editReply).toHaveBeenCalledWith({ content: '処理が完了しました。' });
+      expect(mockInteraction.editReply).toHaveBeenCalledWith({ content: 'エラーが発生しました' });
       expect(mockInteraction.fetchReply).toHaveBeenCalled();
+    });
+
+    it('should delete reply without editing when silentOnFailure is true', async () => {
+      const handler = new TestModalHandler(logger, true, false, false, true, true);
+      const mockResult: OperationResult = { success: false, message: 'エラーが発生しました' };
+      vi.spyOn(handler as any, 'executeAction').mockResolvedValue(mockResult);
+
+      await handler.handle(context);
+
+      expect(mockInteraction.deleteReply).toHaveBeenCalled();
+      expect(mockInteraction.editReply).not.toHaveBeenCalled();
     });
   });
 

@@ -34,7 +34,8 @@ describe('ConfirmationModalHandler', () => {
       channel: {} as any,
       guild: {} as any,
       deferReply: vi.fn(),
-      editReply: vi.fn()
+      editReply: vi.fn(),
+      deleteReply: vi.fn()
     } as any;
 
     mockContext = {
@@ -91,15 +92,13 @@ describe('ConfirmationModalHandler', () => {
       });
     });
 
-    test('コールバックでエラーが発生した場合はdeleteOnSuccessにより処理完了メッセージ表示', async () => {
+    test('コールバックでエラーが発生した場合は返信を削除する', async () => {
       mockCallback.mockRejectedValue(new Error('コールバック処理でエラー'));
 
       await handler.handle(mockContext);
 
-      // deleteOnSuccess=trueのため、エラーの場合でも「処理が完了しました。」が表示される
-      expect(mockInteraction.editReply).toHaveBeenCalledWith({
-        content: '処理が完了しました。'
-      });
+      expect(mockInteraction.deleteReply).toHaveBeenCalled();
+      expect(mockInteraction.editReply).not.toHaveBeenCalled();
     });
   });
 
@@ -110,15 +109,13 @@ describe('ConfirmationModalHandler', () => {
   });
 
   describe('エラーハンドリング', () => {
-    test('コールバック関数が未設定の場合はdeleteOnSuccessにより処理完了メッセージ表示', async () => {
+    test('コールバック関数が未設定の場合は返信を削除する', async () => {
       const handlerWithoutCallback = new ConfirmationModalHandler(mockLogger as unknown as Logger, undefined as any);
       
       await handlerWithoutCallback.handle(mockContext);
 
-      // executeActionがresult.success = falseで返しても、deleteOnSuccess=trueのため処理完了メッセージが表示される
-      expect(mockInteraction.editReply).toHaveBeenCalledWith({
-        content: '処理が完了しました。'
-      });
+      expect(mockInteraction.deleteReply).toHaveBeenCalled();
+      expect(mockInteraction.editReply).not.toHaveBeenCalled();
     });
   });
 });

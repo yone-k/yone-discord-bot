@@ -890,6 +890,26 @@ export class GoogleSheetsService {
     }));
   }
 
+  public async getSheetMetadataByName(sheetName: string): Promise<SheetMetadata> {
+    await this.getAuthClient();
+
+    const response = await this.sheets.spreadsheets.get({
+      spreadsheetId: this.config.spreadsheetId
+    });
+
+    const sheet = response.data.sheets.find((s: any) => s.properties.title === sheetName); // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (!sheet?.properties) {
+      throw new Error(`Sheet not found: ${sheetName}`);
+    }
+
+    return {
+      title: sheet.properties.title,
+      sheetId: sheet.properties.sheetId,
+      rowCount: sheet.properties.gridProperties.rowCount,
+      columnCount: sheet.properties.gridProperties.columnCount
+    };
+  }
+
   public async getSheetMetadata(channelId: string): Promise<SheetMetadata> {
     await this.getAuthClient();
     const sheetName = this.getSheetNameForChannel(channelId);

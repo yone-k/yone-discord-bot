@@ -45,10 +45,13 @@ export class RemindTaskFormatter {
     const progressBar = this.buildProgressBar(task, now);
     const nextDueText = this.formatTokyoDateTime(task.nextDueAt);
     const remainingDays = this.calculateRemainingDays(task, now);
+    const isOverdue = now.getTime() > task.nextDueAt.getTime();
 
-    const detailsText = remainingDays !== null
-      ? `-# 残り: ${remainingDays}日`
-      : `-# 期限: ${nextDueText}`;
+    const detailsText = isOverdue
+      ? '**期限切れ**'
+      : (remainingDays !== null
+        ? `-# 残り: ${remainingDays}日`
+        : `-# 期限: ${nextDueText}`);
 
     return { progressBar, detailsText };
   }

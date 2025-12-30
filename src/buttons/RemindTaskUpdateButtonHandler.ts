@@ -5,6 +5,7 @@ import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
+import { formatRemindBeforeInput } from '../utils/RemindDuration';
 
 export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
@@ -81,11 +82,11 @@ export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
 
     const remindInput = new TextInputBuilder()
       .setCustomId('remind-before')
-      .setLabel('事前通知（分）')
+      .setLabel('事前通知（D:H:I もしくは H:I）')
       .setStyle(TextInputStyle.Short)
-      .setValue(String(task.remindBeforeMinutes))
+      .setValue(formatRemindBeforeInput(task.remindBeforeMinutes))
       .setRequired(false)
-      .setMaxLength(5);
+      .setMaxLength(8);
 
     modal.addComponents(
       new ActionRowBuilder<TextInputBuilder>().addComponents(titleInput),

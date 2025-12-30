@@ -34,11 +34,11 @@ describe('AddRemindListCommand', () => {
             if (name === 'title') return '掃除';
             if (name === 'time-of-day') return '09:00';
             if (name === 'description') return '週次';
+            if (name === 'remind-before') return '1:00';
             return null;
           }),
           getInteger: vi.fn((name: string) => {
             if (name === 'interval-days') return 7;
-            if (name === 'remind-before') return 1440;
             return null;
           })
         },

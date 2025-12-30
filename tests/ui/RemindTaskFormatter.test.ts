@@ -53,4 +53,21 @@ describe('RemindTaskFormatter', () => {
     const embed = RemindTaskFormatter.formatTaskEmbed(task, new Date('2026-01-04T09:00:00+09:00'));
     expect(embed.data.description).toContain('2026/1/5 09:00');
   });
+
+  it('renders remind-before in day-hour-minute format', () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      title: 'フィルター交換',
+      intervalDays: 7,
+      timeOfDay: '09:00',
+      remindBeforeMinutes: 90,
+      startAt: new Date('2025-12-29T09:00:00+09:00'),
+      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+
+    const embed = RemindTaskFormatter.formatTaskEmbed(task, new Date('2026-01-04T09:00:00+09:00'));
+    expect(embed.data.description).toContain('事前通知: 01時間30分前');
+  });
 });

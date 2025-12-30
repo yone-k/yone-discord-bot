@@ -45,7 +45,7 @@ describe('RemindTaskUpdateModalHandler', () => {
           if (key === 'description') return '';
           if (key === 'interval-days') return '7';
           if (key === 'time-of-day') return '09:00';
-          if (key === 'remind-before') return '1440';
+          if (key === 'remind-before') return '1:00:00';
           return '';
         })
       },

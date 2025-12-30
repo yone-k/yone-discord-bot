@@ -6,6 +6,7 @@ import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
+import { parseRemindBeforeInput } from '../utils/RemindDuration';
 import { calculateNextDueAt, calculateStartAt } from '../utils/RemindSchedule';
 
 export class RemindTaskUpdateModalHandler extends BaseModalHandler {
@@ -58,14 +59,17 @@ export class RemindTaskUpdateModalHandler extends BaseModalHandler {
     const intervalDays = Number(context.interaction.fields.getTextInputValue('interval-days'));
     const timeOfDay = context.interaction.fields.getTextInputValue('time-of-day').trim();
     const remindBeforeText = context.interaction.fields.getTextInputValue('remind-before').trim();
-    const remindBeforeMinutes = remindBeforeText === '' ? task.remindBeforeMinutes : Number(remindBeforeText);
+    let remindBeforeMinutes = task.remindBeforeMinutes;
+    if (remindBeforeText !== '') {
+      try {
+        remindBeforeMinutes = parseRemindBeforeInput(remindBeforeText);
+      } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : '事前通知が無効です' };
+      }
+    }
 
     if (!Number.isFinite(intervalDays) || intervalDays < 1) {
       return { success: false, message: '周期は1以上を指定してください' };
-    }
-
-    if (!Number.isFinite(remindBeforeMinutes) || remindBeforeMinutes < 0 || remindBeforeMinutes > 10080) {
-      return { success: false, message: '事前通知は0〜10080の範囲で指定してください' };
     }
 
     const now = new Date();

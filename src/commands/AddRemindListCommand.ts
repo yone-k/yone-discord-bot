@@ -3,6 +3,7 @@ import { Logger } from '../utils/logger';
 import { CommandError, CommandErrorType } from '../utils/CommandError';
 import { SlashCommandBuilder } from 'discord.js';
 import { RemindTaskService } from '../services/RemindTaskService';
+import { parseRemindBeforeInput } from '../utils/RemindDuration';
 
 export class AddRemindListCommand extends BaseCommand {
   static getCommandName(): string {
@@ -36,12 +37,10 @@ export class AddRemindListCommand extends BaseCommand {
           .setDescription('説明（任意）')
           .setRequired(false)
       )
-      .addIntegerOption(option =>
+      .addStringOption(option =>
         option.setName('remind-before')
-          .setDescription('事前通知（分）')
+          .setDescription('事前通知（D:H:I もしくは H:I）')
           .setRequired(false)
-          .setMinValue(0)
-          .setMaxValue(10080)
       ) as SlashCommandBuilder;
   }
 
@@ -79,7 +78,21 @@ export class AddRemindListCommand extends BaseCommand {
     const description = context.interaction.options.getString('description') || undefined;
     const intervalDays = context.interaction.options.getInteger('interval-days', true);
     const timeOfDay = context.interaction.options.getString('time-of-day', true);
-    const remindBeforeMinutes = context.interaction.options.getInteger('remind-before') ?? undefined;
+    const remindBeforeText = context.interaction.options.getString('remind-before') ?? undefined;
+    let remindBeforeMinutes: number | undefined;
+    if (remindBeforeText !== undefined) {
+      try {
+        remindBeforeMinutes = parseRemindBeforeInput(remindBeforeText);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Invalid remind-before input';
+        throw new CommandError(
+          CommandErrorType.INVALID_PARAMETERS,
+          'add-remind-list',
+          message,
+          message
+        );
+      }
+    }
 
     const result = await this.remindTaskService.addTask(
       context.channelId,

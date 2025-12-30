@@ -1,6 +1,7 @@
 import { EmbedBuilder } from 'discord.js';
 import { RemindTask } from '../models/RemindTask';
 import { shouldSendPreReminder } from '../utils/RemindNotification';
+import { formatRemindBeforeDisplay } from '../utils/RemindDuration';
 
 export class RemindTaskFormatter {
   private static readonly EMBED_COLOR = 0xFFA726;
@@ -14,7 +15,7 @@ export class RemindTaskFormatter {
       `次回期限: ${nextDueText}`,
       `周期: ${task.intervalDays}日`,
       `時刻: ${task.timeOfDay}`,
-      `事前通知: ${task.remindBeforeMinutes}分前`
+      `事前通知: ${formatRemindBeforeDisplay(task.remindBeforeMinutes)}`
     ].filter(Boolean).join('\n');
 
     return new EmbedBuilder()

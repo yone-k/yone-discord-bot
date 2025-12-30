@@ -1,6 +1,5 @@
 import { Client } from 'discord.js';
 import { createRemindTask, RemindTask } from '../models/RemindTask';
-import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
 import { calculateNextDueAt, calculateStartAt, normalizeTimeOfDay } from '../utils/RemindSchedule';
 import { RemindSheetManager } from './RemindSheetManager';
 import { RemindTaskRepository } from './RemindTaskRepository';
@@ -70,8 +69,7 @@ export class RemindTaskService {
       return { success: false, message: appendResult.message };
     }
 
-    const embed = RemindTaskFormatter.formatTaskEmbed(task, now);
-    const messageResult = await this.messageManager.createTaskMessage(channelId, embed, client);
+    const messageResult = await this.messageManager.createTaskMessage(channelId, task, client, now);
     if (!messageResult.success || !messageResult.messageId) {
       return { success: false, message: messageResult.message };
     }

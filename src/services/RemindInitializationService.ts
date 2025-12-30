@@ -1,6 +1,5 @@
 import { Client } from 'discord.js';
 import { RemindTask } from '../models/RemindTask';
-import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
 import { RemindMetadataManager } from './RemindMetadataManager';
 import { RemindMessageManager } from './RemindMessageManager';
 import { RemindSheetManager } from './RemindSheetManager';
@@ -42,16 +41,14 @@ export class RemindInitializationService {
   }
 
   private async syncTaskMessage(channelId: string, task: RemindTask, client: Client): Promise<void> {
-    const embed = RemindTaskFormatter.formatTaskEmbed(task);
-
     if (task.messageId) {
-      const updateResult = await this.messageManager.updateTaskMessage(channelId, task.messageId, embed, client);
+      const updateResult = await this.messageManager.updateTaskMessage(channelId, task.messageId, task, client);
       if (updateResult.success) {
         return;
       }
     }
 
-    const createResult = await this.messageManager.createTaskMessage(channelId, embed, client);
+    const createResult = await this.messageManager.createTaskMessage(channelId, task, client);
     if (createResult.success && createResult.messageId) {
       const updatedTask = {
         ...task,

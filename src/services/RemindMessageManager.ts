@@ -1,5 +1,14 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, EmbedBuilder, TextChannel } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, ComponentType, MessageFlags, TextChannel } from 'discord.js';
+import type {
+  APIActionRowComponent,
+  APIComponentInContainer,
+  APIComponentInMessageActionRow,
+  APIMessageTopLevelComponent,
+  APITextDisplayComponent
+} from 'discord-api-types/v10';
 import { OperationResult } from './GoogleSheetsService';
+import { RemindTask } from '../models/RemindTask';
+import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
 
 export interface RemindMessageResult extends OperationResult {
   messageId?: string;
@@ -45,8 +54,9 @@ export class RemindMessageManager {
 
   public async createTaskMessage(
     channelId: string,
-    embed: EmbedBuilder,
-    client: Client
+    task: RemindTask,
+    client: Client,
+    now: Date = new Date()
   ): Promise<RemindMessageResult> {
     const channel = await client.channels.fetch(channelId);
     if (!channel || !channel.isTextBased()) {
@@ -54,8 +64,8 @@ export class RemindMessageManager {
     }
 
     const message = await (channel as TextChannel).send({
-      embeds: [embed],
-      components: [this.buildActionRow()]
+      flags: MessageFlags.IsComponentsV2,
+      components: this.buildMessageComponents(task, now)
     });
 
     return { success: true, messageId: message.id };
@@ -64,8 +74,9 @@ export class RemindMessageManager {
   public async updateTaskMessage(
     channelId: string,
     messageId: string,
-    embed: EmbedBuilder,
-    client: Client
+    task: RemindTask,
+    client: Client,
+    now: Date = new Date()
   ): Promise<OperationResult> {
     const channel = await client.channels.fetch(channelId);
     if (!channel || !channel.isTextBased()) {
@@ -74,8 +85,10 @@ export class RemindMessageManager {
 
     const message = await (channel as TextChannel).messages.fetch(messageId);
     await message.edit({
-      embeds: [embed],
-      components: [this.buildActionRow()]
+      content: null,
+      embeds: [],
+      flags: MessageFlags.IsComponentsV2,
+      components: this.buildMessageComponents(task, now)
     });
 
     return { success: true };
@@ -119,5 +132,31 @@ export class RemindMessageManager {
 
     return new ActionRowBuilder<ButtonBuilder>()
       .addComponents(detailButton, updateButton, completeButton, deleteButton);
+  }
+
+  private buildMessageComponents(task: RemindTask, now: Date): APIMessageTopLevelComponent[] {
+    const summary = RemindTaskFormatter.formatSummaryText(task, now);
+    const containerComponents: APIComponentInContainer[] = [
+      this.buildTextDisplay(`**${task.title}**`),
+      this.buildTextDisplay(`\`${summary.progressBar}\``)
+    ];
+
+    if (summary.detailsText) {
+      containerComponents.push(this.buildTextDisplay(summary.detailsText));
+    }
+
+    containerComponents.push(this.buildActionRow().toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>);
+
+    return [{
+      type: ComponentType.Container,
+      components: containerComponents
+    }];
+  }
+
+  private buildTextDisplay(content: string): APITextDisplayComponent {
+    return {
+      type: ComponentType.TextDisplay,
+      content
+    };
   }
 }

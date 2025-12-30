@@ -1,11 +1,31 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindMessageManager } from '../../src/services/RemindMessageManager';
-import { EmbedBuilder } from 'discord.js';
+import { ComponentType, MessageFlags } from 'discord.js';
+import { createRemindTask } from '../../src/models/RemindTask';
 
 describe('RemindMessageManager', () => {
-  it('creates task message with buttons', async () => {
+  const createTask = () => {
+    const now = new Date('2025-01-01T00:00:00.000Z');
+    return {
+      now,
+      task: createRemindTask({
+        id: 'task-1',
+        title: 'テスト',
+        description: '説明',
+        intervalDays: 1,
+        timeOfDay: '00:00',
+        remindBeforeMinutes: 0,
+        startAt: new Date('2025-01-01T00:00:00.000Z'),
+        nextDueAt: new Date('2025-01-02T00:00:00.000Z'),
+        createdAt: now,
+        updatedAt: now
+      })
+    };
+  };
+
+  it('creates task message with V2 components', async () => {
     const manager = new RemindMessageManager();
-    const embed = new EmbedBuilder().setTitle('テスト');
+    const { task, now } = createTask();
     const mockMessage = { id: 'msg-1' };
     const mockChannel = {
       isTextBased: (): boolean => true,
@@ -17,15 +37,35 @@ describe('RemindMessageManager', () => {
       }
     };
 
-    const result = await manager.createTaskMessage('channel-1', embed, mockClient as any);
+    const result = await manager.createTaskMessage('channel-1', task, mockClient as any, now);
 
     expect(result.success).toBe(true);
     expect(mockChannel.send).toHaveBeenCalled();
+    const payload = mockChannel.send.mock.calls[0][0];
+    expect(payload.flags).toBe(MessageFlags.IsComponentsV2);
+    expect(payload.components).toHaveLength(1);
+    const container = payload.components[0];
+    expect(container.type).toBe(ComponentType.Container);
+    const textContents = container.components
+      .filter((component: any) => component.type === ComponentType.TextDisplay)
+      .map((component: any) => component.content);
+    expect(textContents).toContain('**テスト**');
+    expect(textContents.some((content: string) => content.includes('['))).toBe(true);
+    expect(textContents.some((content: string) => content.includes('期限'))).toBe(true);
+    const actionRow = container.components.find(
+      (component: any) => component.type === ComponentType.ActionRow
+    );
+    expect(actionRow?.components?.map((component: any) => component.custom_id)).toEqual([
+      'remind-task-detail',
+      'remind-task-update',
+      'remind-task-complete',
+      'remind-task-delete'
+    ]);
   });
 
-  it('updates task message', async () => {
+  it('updates task message with V2 components', async () => {
     const manager = new RemindMessageManager();
-    const embed = new EmbedBuilder().setTitle('更新');
+    const { task, now } = createTask();
     const mockMessage = {
       edit: vi.fn().mockResolvedValue(undefined)
     };
@@ -41,10 +81,14 @@ describe('RemindMessageManager', () => {
       }
     };
 
-    const result = await manager.updateTaskMessage('channel-1', 'msg-1', embed, mockClient as any);
+    const result = await manager.updateTaskMessage('channel-1', 'msg-1', task, mockClient as any, now);
 
     expect(result.success).toBe(true);
     expect(mockMessage.edit).toHaveBeenCalled();
+    const payload = mockMessage.edit.mock.calls[0][0];
+    expect(payload.flags).toBe(MessageFlags.IsComponentsV2);
+    expect(payload.components).toHaveLength(1);
+    expect(payload.embeds).toEqual([]);
   });
 
   it('sends reminder to existing thread', async () => {

@@ -5,7 +5,6 @@ import { OperationLogService } from '../services/OperationLogService';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
-import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
 import { calculateNextDueAt } from '../utils/RemindSchedule';
 
 export class RemindTaskCompleteModalHandler extends BaseModalHandler {
@@ -79,8 +78,7 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
       return { success: false, message: updateResult.message };
     }
 
-    const embed = RemindTaskFormatter.formatTaskEmbed(updatedTask, now);
-    await this.messageManager.updateTaskMessage(channelId, messageId, embed, context.interaction.client);
+    await this.messageManager.updateTaskMessage(channelId, messageId, updatedTask, context.interaction.client, now);
 
     return { success: true };
   }

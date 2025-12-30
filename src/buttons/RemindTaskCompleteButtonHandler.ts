@@ -5,7 +5,6 @@ import { OperationLogService } from '../services/OperationLogService';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
-import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
 import { calculateNextDueAt } from '../utils/RemindSchedule';
 
 export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
@@ -90,8 +89,7 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
         return await replyError(updateResult.message || '更新に失敗しました');
       }
 
-      const embed = RemindTaskFormatter.formatTaskEmbed(updatedTask, now);
-      await this.messageManager.updateTaskMessage(channelId, messageId, embed, interaction.client);
+      await this.messageManager.updateTaskMessage(channelId, messageId, updatedTask, interaction.client, now);
 
       try {
         await interaction.deleteReply();

@@ -7,16 +7,8 @@ export class RemindTaskFormatter {
   private static readonly EMBED_COLOR = 0xFFA726;
 
   public static formatTaskEmbed(task: RemindTask, now: Date = new Date()): EmbedBuilder {
-    const progressBar = this.buildProgressBar(task, now);
-    const nextDueText = this.formatTokyoDateTime(task.nextDueAt);
-    const remainingDays = this.calculateRemainingDays(task, now);
-
-    const details = [
-      `*期限: ${nextDueText}*`,
-      remainingDays !== null ? `*残り: ${remainingDays}日*` : null
-    ].filter(Boolean).join('\n');
-
-    const description = [progressBar, details].filter(Boolean).join('\n');
+    const summary = this.formatSummaryText(task, now);
+    const description = [summary.progressBar, summary.detailsText].filter(Boolean).join('\n');
 
     return new EmbedBuilder()
       .setTitle(task.title)
@@ -59,6 +51,22 @@ export class RemindTaskFormatter {
       `時刻: ${task.timeOfDay}`,
       `事前通知: ${formatRemindBeforeDisplay(task.remindBeforeMinutes)}`
     ].filter(Boolean).join('\n');
+  }
+
+  public static formatSummaryText(
+    task: RemindTask,
+    now: Date = new Date()
+  ): { progressBar: string; detailsText: string } {
+    const progressBar = this.buildProgressBar(task, now);
+    const nextDueText = this.formatTokyoDateTime(task.nextDueAt);
+    const remainingDays = this.calculateRemainingDays(task, now);
+
+    const detailsText = [
+      `*期限: ${nextDueText}*`,
+      remainingDays !== null ? `*残り: ${remainingDays}日*` : null
+    ].filter(Boolean).join('\n');
+
+    return { progressBar, detailsText };
   }
 
   private static buildProgressBar(task: RemindTask, now: Date): string {

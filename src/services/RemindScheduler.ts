@@ -1,5 +1,4 @@
 import { Client } from 'discord.js';
-import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
 import { shouldSendOverdue, shouldSendPreReminder } from '../utils/RemindNotification';
 import { formatRemainingDuration } from '../utils/RemindDuration';
 import { RemindMetadataManager } from './RemindMetadataManager';
@@ -64,9 +63,8 @@ export class RemindScheduler {
           updatedAt: now
         };
         await this.repository.updateTask(channelId, updatedTask);
-        const embed = RemindTaskFormatter.formatTaskEmbed(updatedTask, now);
         if (task.messageId) {
-          await this.messageManager.updateTaskMessage(channelId, task.messageId, embed, client);
+          await this.messageManager.updateTaskMessage(channelId, task.messageId, updatedTask, client, now);
         }
         continue;
       }
@@ -89,9 +87,8 @@ export class RemindScheduler {
           updatedAt: now
         };
         await this.repository.updateTask(channelId, updatedTask);
-        const embed = RemindTaskFormatter.formatTaskEmbed(updatedTask, now);
         if (task.messageId) {
-          await this.messageManager.updateTaskMessage(channelId, task.messageId, embed, client);
+          await this.messageManager.updateTaskMessage(channelId, task.messageId, updatedTask, client, now);
         }
       }
     }

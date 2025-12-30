@@ -79,7 +79,10 @@ export class RemindTaskService {
       messageId: messageResult.messageId,
       updatedAt: new Date()
     };
-    await this.repository.updateTask(channelId, updatedTask);
+    const updateResult = await this.repository.updateTask(channelId, updatedTask);
+    if (!updateResult.success) {
+      return { success: false, message: updateResult.message };
+    }
 
     const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
     if (!metadataResult.success) {

@@ -48,18 +48,21 @@ export class RemindInitializationService {
 
     const tasks = await this.repository.fetchTasks(channelId);
     for (const task of tasks) {
-      await this.syncTaskMessage(channelId, task, client);
+      const syncResult = await this.syncTaskMessage(channelId, task, client);
+      if (!syncResult.success) {
+        return { success: false, message: syncResult.message };
+      }
     }
 
     return { success: true };
   }
 
-  private async syncTaskMessage(channelId: string, task: RemindTask, client: Client): Promise<void> {
+  private async syncTaskMessage(channelId: string, task: RemindTask, client: Client): Promise<{ success: boolean; message?: string }> {
     if (task.messageId) {
       try {
         const updateResult = await this.messageManager.updateTaskMessage(channelId, task.messageId, task, client);
         if (updateResult.success) {
-          return;
+          return { success: true };
         }
       } catch {
         // fall through to recreate message
@@ -73,7 +76,12 @@ export class RemindInitializationService {
         messageId: createResult.messageId,
         updatedAt: new Date()
       };
-      await this.repository.updateTask(channelId, updatedTask);
+      const updateResult = await this.repository.updateTask(channelId, updatedTask);
+      if (!updateResult.success) {
+        return { success: false, message: updateResult.message };
+      }
+      return { success: true };
     }
+    return { success: false, message: createResult.message };
   }
 }

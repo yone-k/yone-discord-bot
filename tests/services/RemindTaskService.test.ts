@@ -78,4 +78,32 @@ describe('RemindTaskService', () => {
       expect.objectContaining({ timeOfDay: '00:00' })
     );
   });
+
+  it('returns failure when messageId persistence fails', async () => {
+    mockRepository.updateTask.mockResolvedValue({ success: false, message: 'update failed' });
+
+    const service = new RemindTaskService(
+      mockSheetManager,
+      mockRepository,
+      mockMetadataManager,
+      mockMessageManager,
+      () => 'task-1'
+    );
+
+    const result = await service.addTask(
+      'channel-1',
+      {
+        title: '掃除',
+        intervalDays: 7,
+        timeOfDay: '09:00',
+        remindBeforeMinutes: 1440
+      },
+      {} as any,
+      new Date('2025-12-29T09:00:00+09:00'),
+      'リマインドリスト'
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.message).toBe('update failed');
+  });
 });

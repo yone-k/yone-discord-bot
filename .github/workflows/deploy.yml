@@ -68,19 +68,27 @@ jobs:
       run: |-
         AR_HOST="$ARTIFACT_REGISTRY_REGION-docker.pkg.dev"
         IMAGE_PATH="$AR_HOST/$PROJECT_ID/$ARTIFACT_REGISTRY_REPO/$IMAGE_NAME"
+        echo "Resolving latest digest for $IMAGE_PATH"
+        KEEP_DIGEST=$(gcloud artifacts docker images describe "$IMAGE_PATH:latest" \
+          --format="value(image_summary.digest)" 2>/dev/null || true)
+
+        if [ -z "$KEEP_DIGEST" ]; then
+          echo "No latest tag found. Skip cleanup."
+          exit 0
+        fi
+
         echo "Listing digests for $IMAGE_PATH"
         DIGESTS=$(gcloud artifacts docker images list "$IMAGE_PATH" \
           --include-tags \
           --sort-by=~createTime \
           --format="value(digest)")
 
-        KEEP_DIGEST=$(echo "$DIGESTS" | head -n 1)
-        DELETE_DIGESTS=$(echo "$DIGESTS" | tail -n +2)
-
-        if [ -z "$KEEP_DIGEST" ]; then
+        if [ -z "$DIGESTS" ]; then
           echo "No images found to cleanup."
           exit 0
         fi
+
+        DELETE_DIGESTS=$(printf '%s\n' "$DIGESTS" | awk -v keep="$KEEP_DIGEST" 'NF && $0 != keep { if (!seen[$0]++) print }')
 
         if [ -z "$DELETE_DIGESTS" ]; then
           echo "Only one image digest exists. Nothing to delete."

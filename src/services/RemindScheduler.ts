@@ -45,6 +45,7 @@ export class RemindScheduler {
     const tasks = await this.repository.fetchTasks(channelId);
     let currentThreadId = remindNoticeThreadId;
     let currentMessageId = remindNoticeMessageId;
+    const shouldUpdateProgress = now.getMinutes() === 0;
 
     for (const task of tasks) {
       if (task.isPaused) {
@@ -119,6 +120,11 @@ export class RemindScheduler {
         if (task.messageId) {
           await this.messageManager.updateTaskMessage(channelId, task.messageId, updatedTask, client, now);
         }
+        continue;
+      }
+
+      if (shouldUpdateProgress && task.messageId) {
+        await this.messageManager.updateTaskMessage(channelId, task.messageId, task, client, now);
       }
     }
   }

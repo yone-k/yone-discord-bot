@@ -136,9 +136,10 @@ export class RemindMessageManager {
 
   private buildMessageComponents(task: RemindTask, now: Date): APIMessageTopLevelComponent[] {
     const summary = RemindTaskFormatter.formatSummaryText(task, now);
+    const progressBlock = `\`\`\`\n${summary.progressBar}\n\`\`\``;
     const containerComponents: APIComponentInContainer[] = [
       this.buildTextDisplay(`## ${task.title}`),
-      this.buildTextDisplay(`\`${summary.progressBar}\``)
+      this.buildTextDisplay(progressBlock)
     ];
 
     if (summary.detailsText) {

@@ -51,7 +51,8 @@ describe('RemindMessageManager', () => {
       .map((component: any) => component.content);
     expect(textContents.some((content: string) => content.startsWith('## '))).toBe(true);
     expect(textContents.some((content: string) => content.includes('テスト'))).toBe(true);
-    expect(textContents.some((content: string) => content.includes('['))).toBe(true);
+    expect(textContents.some((content: string) => content.includes('```'))).toBe(true);
+    expect(textContents.some((content: string) => content.includes('█') || content.includes('░'))).toBe(true);
     expect(textContents.some((content: string) => content.includes('期限') || content.includes('残り'))).toBe(true);
     const actionRow = container.components.find(
       (component: any) => component.type === ComponentType.ActionRow

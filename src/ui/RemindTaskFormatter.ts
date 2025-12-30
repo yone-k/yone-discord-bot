@@ -1,7 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
 import { RemindTask } from '../models/RemindTask';
-import { shouldSendPreReminder } from '../utils/RemindNotification';
-import { formatRemindBeforeDisplay } from '../utils/RemindDuration';
+import { formatRemainingDuration } from '../utils/RemindDuration';
 
 export class RemindTaskFormatter {
   private static readonly EMBED_COLOR = 0xFFA726;
@@ -17,18 +16,6 @@ export class RemindTaskFormatter {
       .setTimestamp();
   }
 
-  private static buildStatus(task: RemindTask, now: Date): string {
-    if (now.getTime() > task.nextDueAt.getTime()) {
-      return '❗期限超過';
-    }
-
-    if (shouldSendPreReminder(task, now)) {
-      return '⌛ 期限が近づいています';
-    }
-
-    return '✅ 期限まで余裕があります';
-  }
-
   private static formatTokyoDateTime(date: Date): string {
     const tokyoOffset = 9 * 60;
     const tokyoDate = new Date(date.getTime() + tokyoOffset * 60 * 1000);
@@ -40,16 +27,14 @@ export class RemindTaskFormatter {
     return `${year}/${month}/${day} ${hours}:${minutes}`;
   }
 
-  public static formatDetailText(task: RemindTask, now: Date = new Date()): string {
-    const status = this.buildStatus(task, now);
+  public static formatDetailText(task: RemindTask, _now: Date = new Date()): string {
     const nextDueText = this.formatTokyoDateTime(task.nextDueAt);
+    const remindBeforeText = formatRemainingDuration(task.remindBeforeMinutes);
 
     return [
-      status,
-      `次回期限: ${nextDueText}`,
+      `期限: ${nextDueText}`,
       `周期: ${task.intervalDays}日`,
-      `時刻: ${task.timeOfDay}`,
-      `事前通知: ${formatRemindBeforeDisplay(task.remindBeforeMinutes)}`
+      `事前通知: ${remindBeforeText}前`
     ].filter(Boolean).join('\n');
   }
 

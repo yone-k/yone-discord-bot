@@ -3,7 +3,7 @@ import { RemindTaskFormatter } from '../../src/ui/RemindTaskFormatter';
 import { createRemindTask } from '../../src/models/RemindTask';
 
 describe('RemindTaskFormatter', () => {
-  it('marks upcoming task with hourglass', () => {
+  it('renders detail text with deadline, interval, and remind-before', () => {
     const task = createRemindTask({
       id: 'task-1',
       title: 'フィルター交換',
@@ -17,24 +17,9 @@ describe('RemindTaskFormatter', () => {
     });
 
     const detail = RemindTaskFormatter.formatDetailText(task, new Date('2026-01-05T08:30:00+09:00'));
-    expect(detail).toContain('⌛');
-  });
-
-  it('marks overdue task with warning', () => {
-    const task = createRemindTask({
-      id: 'task-1',
-      title: 'フィルター交換',
-      intervalDays: 7,
-      timeOfDay: '09:00',
-      remindBeforeMinutes: 60,
-      startAt: new Date('2025-12-29T09:00:00+09:00'),
-      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
-      createdAt: new Date('2025-12-29T09:00:00+09:00'),
-      updatedAt: new Date('2025-12-29T09:00:00+09:00')
-    });
-
-    const detail = RemindTaskFormatter.formatDetailText(task, new Date('2026-01-06T10:00:00+09:00'));
-    expect(detail).toContain('❗');
+    expect(detail).toContain('期限: 2026/1/5 09:00');
+    expect(detail).toContain('周期: 7日');
+    expect(detail).toContain('事前通知: 1時間前');
   });
 
   it('renders next due date in description', () => {
@@ -68,7 +53,7 @@ describe('RemindTaskFormatter', () => {
     });
 
     const detail = RemindTaskFormatter.formatDetailText(task, new Date('2026-01-04T09:00:00+09:00'));
-    expect(detail).toContain('事前通知: 01時間30分前');
+    expect(detail).toContain('事前通知: 1時間30分前');
   });
 
   it('shows remaining days when under 1 month', () => {

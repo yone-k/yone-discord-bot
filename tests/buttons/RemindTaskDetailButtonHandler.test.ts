@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskDetailButtonHandler } from '../../src/buttons/RemindTaskDetailButtonHandler';
 import { Logger } from '../../src/utils/logger';
+import { ComponentType, MessageFlags } from 'discord.js';
 import { createRemindTask } from '../../src/models/RemindTask';
 
 describe('RemindTaskDetailButtonHandler', () => {
-  it('shows detail modal with task info', async () => {
+  it('replies with detail text', async () => {
     const task = createRemindTask({
       id: 'task-1',
       messageId: 'msg-1',
@@ -34,12 +35,24 @@ describe('RemindTaskDetailButtonHandler', () => {
       user: { id: 'user-1', bot: false },
       channelId: 'channel-1',
       message: { id: 'msg-1' },
-      showModal: vi.fn()
+      replied: false,
+      deferred: false,
+      reply: vi.fn()
     };
 
     await handler.handle({ interaction } as any);
 
     expect(mockRepository.findTaskByMessageId).toHaveBeenCalledWith('channel-1', 'msg-1');
-    expect(interaction.showModal).toHaveBeenCalled();
+    const payload = interaction.reply.mock.calls[0][0];
+    expect(payload.flags).toBe(MessageFlags.Ephemeral | MessageFlags.IsComponentsV2);
+    expect(payload.components).toHaveLength(1);
+    const container = payload.components[0];
+    expect(container.type).toBe(ComponentType.Container);
+    const textContents = container.components
+      .filter((component: any) => component.type === ComponentType.TextDisplay)
+      .map((component: any) => component.content);
+    expect(textContents.some((content: string) => content.includes('掃除'))).toBe(true);
+    expect(textContents.some((content: string) => content.includes('事前通知: 1日前'))).toBe(true);
+    expect(textContents.some((content: string) => content.includes('```'))).toBe(true);
   });
 });

@@ -35,7 +35,7 @@ vi.mock('../../src/services/ChannelSheetManager', () => ({
 
 vi.mock('../../src/services/MessageManager', () => ({
   MessageManager: vi.fn().mockImplementation(() => ({
-    createOrUpdateMessageWithMetadata: vi.fn().mockResolvedValue({
+    createOrUpdateMessageWithMetadataV2: vi.fn().mockResolvedValue({
       success: true,
       message: { id: 'test-message-id' }
     })

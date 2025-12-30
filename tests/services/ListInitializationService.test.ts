@@ -78,7 +78,7 @@ describe('ListInitializationService', () => {
     };
 
     mockMessageManager = {
-      createOrUpdateMessageWithMetadata: vi.fn()
+      createOrUpdateMessageWithMetadataV2: vi.fn()
     };
 
     mockMetadataManager = {
@@ -104,7 +104,7 @@ describe('ListInitializationService', () => {
     mockGoogleSheetsService.getSheetData.mockResolvedValue([]);
     mockGoogleSheetsService.validateData.mockReturnValue({ isValid: true, errors: [] });
     mockGoogleSheetsService.normalizeData.mockImplementation((data) => data);
-    mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+    mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
       success: true,
       message: mockMessage
     });
@@ -114,9 +114,10 @@ describe('ListInitializationService', () => {
     });
 
     // ListFormatterのモック設定
-    const mockEmbed = { description: 'test embed' };
-    vi.mocked(ListFormatter.formatEmptyList).mockResolvedValue(mockEmbed as any);
-    vi.mocked(ListFormatter.formatDataList).mockResolvedValue(mockEmbed as any);
+    const mockContent = 'test content';
+    vi.mocked(ListFormatter.formatEmptyListContent).mockResolvedValue(mockContent);
+    vi.mocked(ListFormatter.formatDataListContent).mockResolvedValue(mockContent);
+    vi.mocked(ListFormatter.buildListComponents).mockReturnValue([]);
 
     // スレッド作成のモック設定
     mockChannel.threads.create.mockResolvedValue(mockThread);
@@ -138,7 +139,7 @@ describe('ListInitializationService', () => {
         const enableLog = true;
         const defaultCategory = 'テスト';
 
-        mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+        mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
           success: true,
           message: mockMessage,
           operationLogThreadId: 'thread-123'
@@ -154,9 +155,9 @@ describe('ListInitializationService', () => {
           autoArchiveDuration: 1440,
           reason: 'リスト操作の記録用スレッド'
         });
-        expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+        expect(mockMessageManager.createOrUpdateMessageWithMetadataV2).toHaveBeenCalledWith(
           'test-channel-123',
-          expect.any(Object), // embed
+          expect.any(Array), // components
           'test-channelリスト',
           mockClient,
           'list',
@@ -176,9 +177,9 @@ describe('ListInitializationService', () => {
 
         // Assert
         expect(result.success).toBe(true);
-        expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+        expect(mockMessageManager.createOrUpdateMessageWithMetadataV2).toHaveBeenCalledWith(
           'test-channel-123',
-          expect.any(Object), // embed
+          expect.any(Array), // components
           'test-channelリスト',
           mockClient,
           'list',
@@ -212,9 +213,9 @@ describe('ListInitializationService', () => {
 
         // Assert
         expect(result.success).toBe(true);
-        expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+        expect(mockMessageManager.createOrUpdateMessageWithMetadataV2).toHaveBeenCalledWith(
           'test-channel-123',
-          expect.any(Object), // embed
+          expect.any(Array), // components
           'test-channelリスト',
           mockClient,
           'list',
@@ -239,9 +240,9 @@ describe('ListInitializationService', () => {
 
         // Assert
         expect(result.success).toBe(true);
-        expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+        expect(mockMessageManager.createOrUpdateMessageWithMetadataV2).toHaveBeenCalledWith(
           'test-channel-123',
-          expect.any(Object), // embed
+          expect.any(Array), // components
           'test-channelリスト',
           mockClient,
           'list',
@@ -263,9 +264,9 @@ describe('ListInitializationService', () => {
 
         // Assert
         expect(result.success).toBe(true);
-        expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+        expect(mockMessageManager.createOrUpdateMessageWithMetadataV2).toHaveBeenCalledWith(
           'test-channel-123',
-          expect.any(Object), // embed
+          expect.any(Array), // components
           'test-channelリスト',
           mockClient,
           'list',
@@ -325,7 +326,7 @@ describe('ListInitializationService', () => {
         const enableLog = false;
         const defaultCategory = 'テスト';
 
-        mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+        mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
           success: false,
           errorMessage: 'Message creation failed'
         });
@@ -371,7 +372,7 @@ describe('ListInitializationService', () => {
 
         // Assert
         expect(result.success).toBe(true);
-        expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalled();
+        expect(mockMessageManager.createOrUpdateMessageWithMetadataV2).toHaveBeenCalled();
       });
     });
 
@@ -387,9 +388,9 @@ describe('ListInitializationService', () => {
 
         // Assert
         expect(result.success).toBe(true);
-        expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+        expect(mockMessageManager.createOrUpdateMessageWithMetadataV2).toHaveBeenCalledWith(
           'test-channel-123',
-          expect.any(Object), // embed
+          expect.any(Array), // components
           'test-channelリスト', // チャンネル名 + 'リスト'
           mockClient,
           'list',
@@ -420,9 +421,9 @@ describe('ListInitializationService', () => {
 
         // Assert
         expect(result.success).toBe(true);
-        expect(mockMessageManager.createOrUpdateMessageWithMetadata).toHaveBeenCalledWith(
+        expect(mockMessageManager.createOrUpdateMessageWithMetadataV2).toHaveBeenCalledWith(
           'test-channel-123',
-          expect.any(Object), // embed
+          expect.any(Array), // components
           'リストリスト', // デフォルト名 + 'リスト'
           mockClient,
           'list',

@@ -28,7 +28,7 @@ class MockChannelSheetManager {
 }
 
 class MockMessageManager {
-  createOrUpdateMessageWithMetadata = vi.fn();
+  createOrUpdateMessageWithMetadataV2 = vi.fn();
 }
 
 class MockMetadataManager {
@@ -178,7 +178,7 @@ describe('InitListCommand Permission Error Tests', () => {
         created: true
       });
       
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockResolvedValue({
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({
         success: true,
         message: { id: 'test-message-id' }
       });
@@ -243,7 +243,7 @@ describe('InitListCommand Permission Error Tests', () => {
     test('予期しないエラー発生時に汎用エラーメッセージが生成される', async () => {
       // checkSpreadsheetExistsは成功させ、MessageManagerでエラーを発生させる
       mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true);
-      mockMessageManager.createOrUpdateMessageWithMetadata.mockRejectedValue(new Error('Unexpected error'));
+      mockMessageManager.createOrUpdateMessageWithMetadataV2.mockRejectedValue(new Error('Unexpected error'));
 
       await expect(command.execute(mockContext)).rejects.toThrow(CommandError);
 

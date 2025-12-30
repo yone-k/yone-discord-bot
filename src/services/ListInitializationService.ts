@@ -96,13 +96,14 @@ export class ListInitializationService {
       const listTitle = `${channelName}リスト`;
 
       // ステップ5: Embed形式変換と固定メッセージ処理
-      const embed = items.length > 0 
-        ? await ListFormatter.formatDataList(listTitle, items, context.channelId, defaultCategory)
-        : await ListFormatter.formatEmptyList(listTitle, context.channelId, undefined, defaultCategory);
+      const content = items.length > 0 
+        ? await ListFormatter.formatDataListContent(listTitle, items, context.channelId, defaultCategory)
+        : await ListFormatter.formatEmptyListContent(listTitle, context.channelId, undefined, defaultCategory);
+      const components = ListFormatter.buildListComponents(content);
 
-      const messageResult = await this.messageManager.createOrUpdateMessageWithMetadata(
+      const messageResult = await this.messageManager.createOrUpdateMessageWithMetadataV2(
         context.channelId,
-        embed,
+        components,
         listTitle,
         context.interaction.client,
         'list',

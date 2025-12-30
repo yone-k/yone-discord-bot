@@ -1,4 +1,5 @@
-import { EmbedBuilder, TextChannel, Message, ChannelType, Client, ActionRowBuilder, ButtonBuilder } from 'discord.js';
+import { EmbedBuilder, TextChannel, Message, ChannelType, Client, ActionRowBuilder, ButtonBuilder, ComponentType, MessageFlags } from 'discord.js';
+import type { APIActionRowComponent, APIComponentInContainer, APIComponentInMessageActionRow, APIMessageTopLevelComponent } from 'discord.js';
 import { MetadataManager, MetadataOperationResult } from './MetadataManager';
 import { ChannelMetadata } from '../models/ChannelMetadata';
 import { ButtonConfigManager } from './ButtonConfigManager';
@@ -13,6 +14,7 @@ export enum MessageManagerErrorType {
   INVALID_CHANNEL_TYPE = 'INVALID_CHANNEL_TYPE', // 非テキストチャンネルエラー
   METADATA_ERROR = 'METADATA_ERROR' // メタデータ操作エラー
 }
+
 
 export class MessageManagerError extends Error {
   public readonly type: MessageManagerErrorType;
@@ -344,6 +346,135 @@ export class MessageManager {
   }
 
   /**
+   * コンポーネントV2メッセージを新規作成
+   */
+  public async createMessageV2(
+    channelId: string,
+    components: APIMessageTopLevelComponent[],
+    client: Client,
+    commandName?: string
+  ): Promise<MessageOperationResult> {
+    try {
+      const channel = await client.channels.fetch(channelId);
+      
+      if (!channel) {
+        throw new MessageManagerError(
+          MessageManagerErrorType.CHANNEL_NOT_FOUND,
+          `Channel not found: ${channelId}`
+        );
+      }
+      
+      if (channel.type !== ChannelType.GuildText) {
+        throw new MessageManagerError(
+          MessageManagerErrorType.INVALID_CHANNEL_TYPE,
+          `Channel is not a text channel: ${channelId}`
+        );
+      }
+
+      const textChannel = channel as TextChannel;
+      const finalComponents = this.buildComponentsV2WithButtons(components, commandName);
+      const message = await textChannel.send({
+        flags: MessageFlags.IsComponentsV2,
+        components: finalComponents
+      });
+      
+      return {
+        success: true,
+        message
+      };
+      
+    } catch (error) {
+      if (error instanceof MessageManagerError) {
+        return {
+          success: false,
+          errorMessage: error.userMessage
+        };
+      }
+      
+      return {
+        success: false,
+        errorMessage: `Failed to create message: ${(error as Error).message}`
+      };
+    }
+  }
+
+  /**
+   * コンポーネントV2メッセージを更新
+   */
+  public async updateMessageV2(
+    channelId: string,
+    messageId: string,
+    components: APIMessageTopLevelComponent[],
+    client: Client,
+    commandName?: string
+  ): Promise<MessageOperationResult> {
+    try {
+      const getResult = await this.getMessage(channelId, messageId, client);
+      
+      if (!getResult.success || !getResult.message) {
+        throw new MessageManagerError(
+          MessageManagerErrorType.MESSAGE_NOT_FOUND,
+          `Failed to get message for update: ${getResult.errorMessage}`
+        );
+      }
+
+      const finalComponents = this.buildComponentsV2WithButtons(components, commandName);
+      const updatedMessage = await getResult.message.edit({
+        content: null,
+        embeds: [],
+        flags: MessageFlags.IsComponentsV2,
+        components: finalComponents
+      });
+      
+      return {
+        success: true,
+        message: updatedMessage
+      };
+      
+    } catch (error) {
+      if (error instanceof MessageManagerError) {
+        return {
+          success: false,
+          errorMessage: error.userMessage
+        };
+      }
+      
+      return {
+        success: false,
+        errorMessage: `Failed to update message: ${(error as Error).message}`
+      };
+    }
+  }
+
+  private buildComponentsV2WithButtons(
+    components: APIMessageTopLevelComponent[],
+    commandName?: string
+  ): APIMessageTopLevelComponent[] {
+    const buttonActionRow = commandName ? this.createButtonActionRow(commandName) : null;
+    if (!buttonActionRow) {
+      return components;
+    }
+
+    const actionRow = buttonActionRow.toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>;
+    const containerIndex = components.findIndex(component => component.type === ComponentType.Container);
+    if (containerIndex === -1) {
+      return [...components, actionRow as unknown as APIMessageTopLevelComponent];
+    }
+
+    const container = components[containerIndex] as { type: ComponentType.Container; components: APIComponentInContainer[] };
+    const nextContainer: APIMessageTopLevelComponent = {
+      ...container,
+      components: [...container.components, actionRow as unknown as APIComponentInContainer]
+    };
+
+    return [
+      ...components.slice(0, containerIndex),
+      nextContainer,
+      ...components.slice(containerIndex + 1)
+    ];
+  }
+
+  /**
    * メタデータマネージャーを使用してメッセージIDを更新（内部使用のみ、既存メタデータ付き）
    */
   private async updateMessageMetadataInternal(
@@ -527,6 +658,121 @@ export class MessageManager {
         }
 
         // ボタンは既にメッセージ作成・更新時に追加済み
+        return messageResult;
+        
+      } catch (error) {
+        return {
+          success: false,
+          errorMessage: `Failed to create or update message with metadata: ${(error as Error).message}`
+        };
+      }
+    });
+  }
+
+  /**
+   * コンポーネントV2メッセージとメタデータを同時に作成または更新（原子的操作）
+   */
+  public async createOrUpdateMessageWithMetadataV2(
+    channelId: string,
+    components: APIMessageTopLevelComponent[],
+    listTitle: string,
+    client: Client,
+    commandName?: string,
+    defaultCategory?: string,
+    operationLogThreadId?: string,
+    createOperationLogThread?: boolean
+  ): Promise<MessageOperationResult> {
+    return this.withChannelLock(channelId, async () => {
+      try {
+        const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+        
+        let messageResult: MessageOperationResult;
+        
+        if (metadataResult.success && metadataResult.metadata?.messageId) {
+          messageResult = await this.updateMessageV2(
+            channelId,
+            metadataResult.metadata.messageId,
+            components,
+            client,
+            commandName
+          );
+          
+          if (!messageResult.success) {
+            this.logger.warn(`Failed to update message ${metadataResult.metadata.messageId}, creating new message`);
+            messageResult = await this.createMessageV2(channelId, components, client, commandName);
+          }
+        } else {
+          messageResult = await this.createMessageV2(channelId, components, client, commandName);
+        }
+        
+        if (!messageResult.success || !messageResult.message) {
+          return messageResult;
+        }
+        
+        let finalOperationLogThreadId = operationLogThreadId;
+        if (createOperationLogThread) {
+          const existingThreadId = metadataResult.success && metadataResult.metadata?.operationLogThreadId 
+            ? metadataResult.metadata.operationLogThreadId 
+            : operationLogThreadId;
+
+          let shouldCreateNewThread = true;
+
+          if (existingThreadId) {
+            try {
+              const existingThread = await client.channels.fetch(existingThreadId);
+              if (existingThread && existingThread.isThread()) {
+                finalOperationLogThreadId = existingThreadId;
+                shouldCreateNewThread = false;
+                this.logger.info(`Using existing operation log thread: ${existingThreadId}`);
+              } else {
+                throw new Error('Existing thread is not valid');
+              }
+            } catch (error) {
+              this.logger.warn(`Existing thread ${existingThreadId} is not accessible, creating new one: ${(error as Error).message}`);
+              shouldCreateNewThread = true;
+            }
+          }
+
+          if (shouldCreateNewThread) {
+            try {
+              const threadResult = await messageResult.message.startThread({
+                name: '操作ログ',
+                autoArchiveDuration: 1440
+              });
+              
+              if (threadResult) {
+                finalOperationLogThreadId = threadResult.id;
+                this.logger.info(`Created new operation log thread: ${threadResult.id}`);
+              }
+            } catch (error) {
+              this.logger.warn(`Failed to create operation log thread: ${(error as Error).message}`);
+            }
+          }
+        }
+
+        const metadataUpdateResult = await this.updateMessageMetadataInternal(
+          channelId,
+          messageResult.message.id,
+          listTitle,
+          metadataResult.success ? metadataResult.metadata : undefined,
+          defaultCategory,
+          finalOperationLogThreadId
+        );
+        
+        if (!metadataUpdateResult.success) {
+          this.logger.warn(`Failed to update metadata: ${metadataUpdateResult.message}`);
+        }
+        
+        const pinResult = await this.ensureMessagePinned(
+          channelId,
+          messageResult.message.id,
+          client
+        );
+        
+        if (!pinResult.success) {
+          this.logger.warn(`Failed to pin message: ${pinResult.errorMessage}`);
+        }
+
         return messageResult;
         
       } catch (error) {

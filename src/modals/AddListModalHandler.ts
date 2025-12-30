@@ -329,15 +329,16 @@ export class AddListModalHandler extends BaseModalHandler {
         });
       }
 
-      // Embedを作成
-      const embed = items.length > 0 
-        ? await ListFormatter.formatDataList(listTitle, items, channelId, defaultCategory)
-        : await ListFormatter.formatEmptyList(listTitle, channelId, undefined, defaultCategory);
+      // コンポーネントV2用の表示を作成
+      const content = items.length > 0 
+        ? await ListFormatter.formatDataListContent(listTitle, items, channelId, defaultCategory)
+        : await ListFormatter.formatEmptyListContent(listTitle, channelId, undefined, defaultCategory);
+      const components = ListFormatter.buildListComponents(content);
 
       // MessageManagerを使用してメッセージを更新
-      const messageResult = await this.messageManager.createOrUpdateMessageWithMetadata(
+      const messageResult = await this.messageManager.createOrUpdateMessageWithMetadataV2(
         channelId,
-        embed,
+        components,
         listTitle,
         client,
         'list'

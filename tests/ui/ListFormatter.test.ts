@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { ComponentType } from 'discord.js';
 import { ListFormatter } from '../../src/ui/ListFormatter';
 import { ListItem } from '../../src/models/ListItem';
 
@@ -465,6 +466,19 @@ describe('ListFormatter', () => {
 
       expect(result.data.description).toContain('[スプレッドシートを開く](https://docs.google.com/spreadsheets/d/');
       expect(result.data.description).toContain('#gid=');
+    });
+  });
+
+  describe('buildListComponents', () => {
+    it('should wrap content in container text display component', () => {
+      const components = ListFormatter.buildListComponents('テストコンテンツ');
+
+      expect(components[0].type).toBe(ComponentType.Container);
+      const container = components[0] as any;
+      expect(container.components[0]).toEqual({
+        type: ComponentType.TextDisplay,
+        content: 'テストコンテンツ'
+      });
     });
   });
 });

@@ -61,23 +61,22 @@ export class RemindTaskFormatter {
     const nextDueText = this.formatTokyoDateTime(task.nextDueAt);
     const remainingDays = this.calculateRemainingDays(task, now);
 
-    const detailsText = [
-      `*期限: ${nextDueText}*`,
-      remainingDays !== null ? `*残り: ${remainingDays}日*` : null
-    ].filter(Boolean).join('\n');
+    const detailsText = remainingDays !== null
+      ? `-# 残り: ${remainingDays}日`
+      : `-# 期限: ${nextDueText}`;
 
     return { progressBar, detailsText };
   }
 
   private static buildProgressBar(task: RemindTask, now: Date): string {
-    const barLength = 20;
+    const barLength = 40;
     const intervalStart = task.lastDoneAt ?? task.startAt;
     const total = task.nextDueAt.getTime() - intervalStart.getTime();
     const elapsed = now.getTime() - intervalStart.getTime();
     const ratio = total <= 0 ? 1 : Math.min(1, Math.max(0, elapsed / total));
     const filled = Math.round(ratio * barLength);
     const empty = barLength - filled;
-    return `[${'='.repeat(filled)}${'-'.repeat(empty)}]`;
+    return `${'█'.repeat(filled)}${'░'.repeat(empty)}`;
   }
 
   private static calculateRemainingDays(task: RemindTask, now: Date): number | null {

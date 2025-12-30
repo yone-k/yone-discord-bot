@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindMessageManager } from '../../src/services/RemindMessageManager';
 import { ComponentType, MessageFlags } from 'discord.js';
-import { createRemindTask } from '../../src/models/RemindTask';
+import { createRemindTask, type RemindTask } from '../../src/models/RemindTask';
 
 describe('RemindMessageManager', () => {
-  const createTask = () => {
+  const createTask = (): { now: Date; task: RemindTask } => {
     const now = new Date('2025-01-01T00:00:00.000Z');
     return {
       now,
@@ -49,9 +49,10 @@ describe('RemindMessageManager', () => {
     const textContents = container.components
       .filter((component: any) => component.type === ComponentType.TextDisplay)
       .map((component: any) => component.content);
-    expect(textContents).toContain('**テスト**');
+    expect(textContents.some((content: string) => content.startsWith('## '))).toBe(true);
+    expect(textContents.some((content: string) => content.includes('テスト'))).toBe(true);
     expect(textContents.some((content: string) => content.includes('['))).toBe(true);
-    expect(textContents.some((content: string) => content.includes('期限'))).toBe(true);
+    expect(textContents.some((content: string) => content.includes('期限') || content.includes('残り'))).toBe(true);
     const actionRow = container.components.find(
       (component: any) => component.type === ComponentType.ActionRow
     );

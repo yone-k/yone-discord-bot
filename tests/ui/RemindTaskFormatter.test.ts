@@ -50,7 +50,7 @@ describe('RemindTaskFormatter', () => {
       updatedAt: new Date('2025-12-29T09:00:00+09:00')
     });
 
-    const embed = RemindTaskFormatter.formatTaskEmbed(task, new Date('2026-01-04T09:00:00+09:00'));
+    const embed = RemindTaskFormatter.formatTaskEmbed(task, new Date('2025-12-01T09:00:00+09:00'));
     expect(embed.data.description).toContain('期限: 2026/1/5 09:00');
   });
 
@@ -86,5 +86,6 @@ describe('RemindTaskFormatter', () => {
 
     const embed = RemindTaskFormatter.formatTaskEmbed(task, new Date('2026-01-04T09:00:00+09:00'));
     expect(embed.data.description).toContain('残り: 6日');
+    expect(embed.data.description).not.toContain('期限:');
   });
 });

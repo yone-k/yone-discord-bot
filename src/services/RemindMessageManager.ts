@@ -6,6 +6,43 @@ export interface RemindMessageResult extends OperationResult {
 }
 
 export class RemindMessageManager {
+  public async sendReminderToThread(
+    channelId: string,
+    messageId: string,
+    content: string,
+    client: Client,
+    threadName: string = 'リマインド通知'
+  ): Promise<OperationResult> {
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased()) {
+      return { success: false, message: 'Channel not found' };
+    }
+
+    const message = await (channel as TextChannel).messages.fetch(messageId);
+    let thread = message.thread;
+
+    if (!thread && message.hasThread) {
+      const refreshedMessage = await message.fetch();
+      thread = refreshedMessage.thread;
+    }
+
+    if (!thread) {
+      thread = await message.startThread({
+        name: threadName,
+        autoArchiveDuration: 1440
+      });
+    } else if (thread.archived) {
+      try {
+        await thread.setArchived(false);
+      } catch {
+        // ignore unarchive failures and try to send anyway
+      }
+    }
+
+    await thread.send(content);
+    return { success: true };
+  }
+
   public async createTaskMessage(
     channelId: string,
     embed: EmbedBuilder,

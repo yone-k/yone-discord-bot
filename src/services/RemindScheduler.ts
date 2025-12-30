@@ -1,4 +1,4 @@
-import { Client, TextChannel } from 'discord.js';
+import { Client } from 'discord.js';
 import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
 import { shouldSendOverdue, shouldSendPreReminder } from '../utils/RemindNotification';
 import { RemindMetadataManager } from './RemindMetadataManager';
@@ -38,10 +38,6 @@ export class RemindScheduler {
 
   private async processChannel(channelId: string, client: Client, now: Date): Promise<void> {
     const tasks = await this.repository.fetchTasks(channelId);
-    const channel = await client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) {
-      return;
-    }
 
     for (const task of tasks) {
       if (task.isPaused) {
@@ -49,7 +45,16 @@ export class RemindScheduler {
       }
 
       if (shouldSendPreReminder(task, now)) {
-        await (channel as TextChannel).send(`⌛ リマインド: ${task.title}`);
+        if (!task.messageId) {
+          continue;
+        }
+
+        await this.messageManager.sendReminderToThread(
+          channelId,
+          task.messageId,
+          `@everyone ⌛ リマインド: ${task.title}`,
+          client
+        );
         const updatedTask = {
           ...task,
           lastRemindDueAt: task.nextDueAt,
@@ -64,7 +69,16 @@ export class RemindScheduler {
       }
 
       if (shouldSendOverdue(task, now)) {
-        await (channel as TextChannel).send(`❗ 期限超過: ${task.title}`);
+        if (!task.messageId) {
+          continue;
+        }
+
+        await this.messageManager.sendReminderToThread(
+          channelId,
+          task.messageId,
+          `@everyone ❗ 期限超過: ${task.title}`,
+          client
+        );
         const updatedTask = {
           ...task,
           overdueNotifyCount: task.overdueNotifyCount + 1,

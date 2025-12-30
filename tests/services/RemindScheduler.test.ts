@@ -25,11 +25,11 @@ describe('RemindScheduler', () => {
       updateTask: vi.fn().mockResolvedValue({ success: true })
     };
     const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
+      updateTaskMessage: vi.fn().mockResolvedValue({ success: true }),
+      sendReminderToThread: vi.fn().mockResolvedValue({ success: true })
     };
 
-    const mockChannel = { send: vi.fn().mockResolvedValue(undefined), isTextBased: (): boolean => true };
-    const mockClient = { channels: { fetch: vi.fn().mockResolvedValue(mockChannel) } };
+    const mockClient = { channels: { fetch: vi.fn() } };
 
     const scheduler = new RemindScheduler(
       mockMetadataManager as any,
@@ -39,7 +39,12 @@ describe('RemindScheduler', () => {
 
     await scheduler.runOnce(mockClient as any, new Date('2026-01-05T08:30:00+09:00'));
 
-    expect(mockChannel.send).toHaveBeenCalled();
+    expect(mockMessageManager.sendReminderToThread).toHaveBeenCalledWith(
+      'channel-1',
+      'msg-1',
+      '@everyone ⌛ リマインド: 掃除',
+      mockClient
+    );
     expect(mockRepository.updateTask).toHaveBeenCalled();
   });
 });

@@ -96,28 +96,36 @@ describe('RemindMessageManager', () => {
   it('sends reminder to existing thread', async () => {
     const manager = new RemindMessageManager();
     const mockThread = {
+      id: 'thread-1',
       send: vi.fn().mockResolvedValue(undefined),
-      archived: false
+      archived: false,
+      isThread: (): boolean => true
     };
-    const mockMessage = {
-      thread: mockThread,
-      hasThread: true,
-      startThread: vi.fn()
-    };
+    const mockParentMessage = { id: 'msg-1' };
     const mockChannel = {
       isTextBased: (): boolean => true,
       messages: {
-        fetch: vi.fn().mockResolvedValue(mockMessage)
+        fetch: vi.fn().mockResolvedValue(mockParentMessage)
       }
     };
+    const mockFetch = vi.fn(async (id: string) => {
+      if (id === 'channel-1') {
+        return mockChannel;
+      }
+      if (id === 'thread-1') {
+        return mockThread;
+      }
+      return null;
+    });
     const mockClient = {
       channels: {
-        fetch: vi.fn().mockResolvedValue(mockChannel)
+        fetch: mockFetch
       }
     };
 
     const result = await manager.sendReminderToThread(
       'channel-1',
+      'thread-1',
       'msg-1',
       '@everyone ⌛ リマインド: 掃除',
       mockClient as any
@@ -125,40 +133,107 @@ describe('RemindMessageManager', () => {
 
     expect(result.success).toBe(true);
     expect(mockThread.send).toHaveBeenCalledWith('@everyone ⌛ リマインド: 掃除');
-    expect(mockMessage.startThread).not.toHaveBeenCalled();
   });
 
-  it('creates thread when missing and sends reminder', async () => {
+  it('recreates thread when parent message is missing', async () => {
     const manager = new RemindMessageManager();
     const mockThread = {
+      id: 'thread-1',
+      archived: false,
+      isThread: (): boolean => true,
       send: vi.fn().mockResolvedValue(undefined)
     };
-    const mockMessage = {
-      thread: null,
-      hasThread: false,
-      startThread: vi.fn().mockResolvedValue(mockThread)
+    const mockNewThread = {
+      id: 'thread-2',
+      archived: false,
+      isThread: (): boolean => true,
+      send: vi.fn().mockResolvedValue(undefined)
+    };
+    const mockParentMessage = {
+      id: 'msg-new',
+      pin: vi.fn().mockResolvedValue(undefined),
+      startThread: vi.fn().mockResolvedValue(mockNewThread)
     };
     const mockChannel = {
       isTextBased: (): boolean => true,
       messages: {
-        fetch: vi.fn().mockResolvedValue(mockMessage)
-      }
+        fetch: vi.fn().mockRejectedValue(new Error('Unknown Message'))
+      },
+      send: vi.fn().mockResolvedValue(mockParentMessage)
     };
+    const mockFetch = vi.fn(async (id: string) => {
+      if (id === 'channel-1') {
+        return mockChannel;
+      }
+      if (id === 'thread-1') {
+        return mockThread;
+      }
+      if (id === 'thread-2') {
+        return mockNewThread;
+      }
+      return null;
+    });
     const mockClient = {
       channels: {
-        fetch: vi.fn().mockResolvedValue(mockChannel)
+        fetch: mockFetch
       }
     };
 
     const result = await manager.sendReminderToThread(
       'channel-1',
-      'msg-1',
+      'thread-1',
+      'msg-old',
+      '@everyone ⌛ リマインド: 掃除',
+      mockClient as any
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockChannel.send).toHaveBeenCalled();
+    expect(mockNewThread.send).toHaveBeenCalledWith('@everyone ⌛ リマインド: 掃除');
+  });
+
+  it('creates thread when missing and sends reminder', async () => {
+    const manager = new RemindMessageManager();
+    const mockThread = {
+      id: 'thread-2',
+      send: vi.fn().mockResolvedValue(undefined),
+      archived: false,
+      isThread: (): boolean => true
+    };
+    const mockParentMessage = {
+      id: 'msg-2',
+      pin: vi.fn().mockResolvedValue(undefined),
+      startThread: vi.fn().mockResolvedValue(mockThread)
+    };
+    const mockChannel = {
+      isTextBased: (): boolean => true,
+      send: vi.fn().mockResolvedValue(mockParentMessage)
+    };
+    const mockFetch = vi.fn(async (id: string) => {
+      if (id === 'channel-1') {
+        return mockChannel;
+      }
+      if (id === 'thread-2') {
+        return mockThread;
+      }
+      return null;
+    });
+    const mockClient = {
+      channels: {
+        fetch: mockFetch
+      }
+    };
+
+    const result = await manager.sendReminderToThread(
+      'channel-1',
+      undefined,
+      undefined,
       '@everyone ❗ 期限超過: 掃除',
       mockClient as any
     );
 
     expect(result.success).toBe(true);
-    expect(mockMessage.startThread).toHaveBeenCalledWith({
+    expect(mockParentMessage.startThread).toHaveBeenCalledWith({
       name: 'リマインド通知',
       autoArchiveDuration: 1440
     });

@@ -23,7 +23,8 @@ describe('RemindInitializationService', () => {
     };
     mockMessageManager = {
       createTaskMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'msg-1' }),
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
+      updateTaskMessage: vi.fn().mockResolvedValue({ success: true }),
+      ensureReminderThread: vi.fn().mockResolvedValue({ success: true, threadId: 'thread-1' })
     };
   });
 
@@ -51,7 +52,45 @@ describe('RemindInitializationService', () => {
     const result = await service.initialize('channel-1', {} as any, 'リマインドリスト');
 
     expect(result.success).toBe(true);
+    expect(mockMessageManager.ensureReminderThread).toHaveBeenCalled();
     expect(mockMessageManager.createTaskMessage).toHaveBeenCalled();
     expect(mockRepository.updateTask).toHaveBeenCalled();
+    expect(mockMessageManager.ensureReminderThread.mock.invocationCallOrder[0])
+      .toBeLessThan(mockRepository.fetchTasks.mock.invocationCallOrder[0]);
+  });
+
+  it('recreates message when existing message is missing', async () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      messageId: 'msg-old',
+      title: '掃除',
+      intervalDays: 7,
+      timeOfDay: '09:00',
+      remindBeforeMinutes: 1440,
+      startAt: new Date('2025-12-29T09:00:00+09:00'),
+      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+    mockRepository.fetchTasks.mockResolvedValue([task]);
+    mockMessageManager.updateTaskMessage.mockRejectedValue(new Error('Unknown Message'));
+    mockMessageManager.createTaskMessage.mockResolvedValue({ success: true, messageId: 'msg-new' });
+
+    const service = new RemindInitializationService(
+      mockSheetManager,
+      mockRepository,
+      mockMetadataManager,
+      mockMessageManager
+    );
+
+    const result = await service.initialize('channel-1', {} as any, 'リマインドリスト');
+
+    expect(result.success).toBe(true);
+    expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();
+    expect(mockMessageManager.createTaskMessage).toHaveBeenCalled();
+    expect(mockRepository.updateTask).toHaveBeenCalledWith(
+      'channel-1',
+      expect.objectContaining({ messageId: 'msg-new' })
+    );
   });
 });

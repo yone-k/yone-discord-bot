@@ -14,42 +14,104 @@ export interface RemindMessageResult extends OperationResult {
   messageId?: string;
 }
 
+export interface RemindThreadResult extends OperationResult {
+  threadId?: string;
+  parentMessageId?: string;
+}
+
 export class RemindMessageManager {
   public async sendReminderToThread(
     channelId: string,
-    messageId: string,
+    threadId: string | undefined,
+    parentMessageId: string | undefined,
     content: string,
     client: Client,
     threadName: string = 'リマインド通知'
-  ): Promise<OperationResult> {
+  ): Promise<RemindThreadResult> {
+    const ensureResult = await this.ensureReminderThread(
+      channelId,
+      client,
+      threadId,
+      parentMessageId,
+      threadName
+    );
+    if (!ensureResult.success || !ensureResult.threadId || !ensureResult.parentMessageId) {
+      return { success: false, message: ensureResult.message };
+    }
+
+    const threadChannel = await client.channels.fetch(ensureResult.threadId);
+    if (!threadChannel || !threadChannel.isThread()) {
+      return { success: false, message: 'Thread not found' };
+    }
+
+    if (threadChannel.archived) {
+      try {
+        await threadChannel.setArchived(false);
+      } catch {
+        // ignore unarchive failures
+      }
+    }
+
+    await threadChannel.send(content);
+    return {
+      success: true,
+      threadId: ensureResult.threadId,
+      parentMessageId: ensureResult.parentMessageId
+    };
+  }
+
+  public async ensureReminderThread(
+    channelId: string,
+    client: Client,
+    threadId?: string,
+    parentMessageId?: string,
+    threadName: string = 'リマインド通知'
+  ): Promise<RemindThreadResult> {
     const channel = await client.channels.fetch(channelId);
     if (!channel || !channel.isTextBased()) {
       return { success: false, message: 'Channel not found' };
     }
 
-    const message = await (channel as TextChannel).messages.fetch(messageId);
-    let thread = message.thread;
-
-    if (!thread && message.hasThread) {
-      const refreshedMessage = await message.fetch();
-      thread = refreshedMessage.thread;
-    }
-
-    if (!thread) {
-      thread = await message.startThread({
-        name: threadName,
-        autoArchiveDuration: 1440
-      });
-    } else if (thread.archived) {
-      try {
-        await thread.setArchived(false);
-      } catch {
-        // ignore unarchive failures and try to send anyway
+    const textChannel = channel as TextChannel;
+    if (threadId) {
+      const existingThread = await client.channels.fetch(threadId);
+      if (existingThread && existingThread.isThread()) {
+        if (existingThread.archived) {
+          try {
+            await existingThread.setArchived(false);
+          } catch {
+            // ignore unarchive failures and try to send anyway
+          }
+        }
+        if (parentMessageId) {
+          try {
+            await textChannel.messages.fetch(parentMessageId);
+            return { success: true, threadId: existingThread.id, parentMessageId };
+          } catch {
+            // fall through to recreate thread
+          }
+        } else {
+          // parent message is unknown; recreate to ensure the message exists
+        }
       }
     }
 
-    await thread.send(content);
-    return { success: true };
+    const parentMessage = await textChannel.send({
+      content: 'リマインド通知'
+    });
+
+    try {
+      await parentMessage.pin();
+    } catch {
+      // ignore pin failures
+    }
+
+    const thread = await parentMessage.startThread({
+      name: threadName,
+      autoArchiveDuration: 1440
+    });
+
+    return { success: true, threadId: thread.id, parentMessageId: parentMessage.id };
   }
 
   public async createTaskMessage(

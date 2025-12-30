@@ -25,11 +25,6 @@ export class RemindInitializationService {
   ): Promise<RemindInitializationResult> {
     await this.sheetManager.getOrCreateChannelSheet(channelId);
 
-    const tasks = await this.repository.fetchTasks(channelId);
-    for (const task of tasks) {
-      await this.syncTaskMessage(channelId, task, client);
-    }
-
     const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
     if (metadataResult.success) {
       await this.metadataManager.updateChannelMetadata(channelId, { listTitle });
@@ -37,14 +32,37 @@ export class RemindInitializationService {
       await this.metadataManager.createChannelMetadata(channelId, '', listTitle);
     }
 
+    const refreshedMetadata = await this.metadataManager.getChannelMetadata(channelId);
+    const threadResult = await this.messageManager.ensureReminderThread(
+      channelId,
+      client,
+      refreshedMetadata.metadata?.remindNoticeThreadId,
+      refreshedMetadata.metadata?.remindNoticeMessageId
+    );
+    if (threadResult.success && threadResult.threadId && threadResult.parentMessageId) {
+      await this.metadataManager.updateChannelMetadata(channelId, {
+        remindNoticeThreadId: threadResult.threadId,
+        remindNoticeMessageId: threadResult.parentMessageId
+      });
+    }
+
+    const tasks = await this.repository.fetchTasks(channelId);
+    for (const task of tasks) {
+      await this.syncTaskMessage(channelId, task, client);
+    }
+
     return { success: true };
   }
 
   private async syncTaskMessage(channelId: string, task: RemindTask, client: Client): Promise<void> {
     if (task.messageId) {
-      const updateResult = await this.messageManager.updateTaskMessage(channelId, task.messageId, task, client);
-      if (updateResult.success) {
-        return;
+      try {
+        const updateResult = await this.messageManager.updateTaskMessage(channelId, task.messageId, task, client);
+        if (updateResult.success) {
+          return;
+        }
+      } catch {
+        // fall through to recreate message
       }
     }
 

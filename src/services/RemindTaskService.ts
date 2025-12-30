@@ -83,7 +83,14 @@ export class RemindTaskService {
 
     const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
     if (!metadataResult.success) {
-      await this.metadataManager.createChannelMetadata(channelId, '', listTitle, metadataResult.metadata?.operationLogThreadId);
+      await this.metadataManager.createChannelMetadata(
+        channelId,
+        '',
+        listTitle,
+        metadataResult.metadata?.operationLogThreadId,
+        metadataResult.metadata?.remindNoticeThreadId,
+        metadataResult.metadata?.remindNoticeMessageId
+      );
     }
 
     return { success: true, task: updatedTask, messageId: messageResult.messageId };

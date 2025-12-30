@@ -7,6 +7,8 @@ export interface RemindChannelMetadata {
   listTitle: string;
   lastSyncTime: Date;
   operationLogThreadId?: string;
+  remindNoticeThreadId?: string;
+  remindNoticeMessageId?: string;
 }
 
 export interface RemindMetadataOperationResult extends MetadataProviderResult {
@@ -17,7 +19,15 @@ export class RemindMetadataManager {
   private static instance: RemindMetadataManager | undefined;
   private googleSheetsService: GoogleSheetsService;
   private readonly METADATA_SHEET_NAME = 'remind_metadata';
-  private readonly metadataHeaders = ['channel_id', 'message_id', 'list_title', 'last_sync_time', 'operation_log_thread_id'];
+  private readonly metadataHeaders = [
+    'channel_id',
+    'message_id',
+    'list_title',
+    'last_sync_time',
+    'operation_log_thread_id',
+    'remind_notice_thread_id',
+    'remind_notice_message_id'
+  ];
 
   private constructor() {
     this.googleSheetsService = GoogleSheetsService.getInstance();
@@ -33,6 +43,13 @@ export class RemindMetadataManager {
   public async getOrCreateMetadataSheet(): Promise<OperationResult> {
     const existing = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
     if (existing.length > 0) {
+      if (existing[0].length < this.metadataHeaders.length) {
+        const normalized = this.normalizeSheet(existing);
+        const updateResult = await this.googleSheetsService.updateSheetData(this.METADATA_SHEET_NAME, normalized);
+        if (!updateResult.success) {
+          return { success: false, message: updateResult.message };
+        }
+      }
       return { success: true };
     }
 
@@ -70,7 +87,9 @@ export class RemindMetadataManager {
     channelId: string,
     messageId: string,
     listTitle: string,
-    operationLogThreadId?: string
+    operationLogThreadId?: string,
+    remindNoticeThreadId?: string,
+    remindNoticeMessageId?: string
   ): Promise<RemindMetadataOperationResult> {
     await this.getOrCreateMetadataSheet();
 
@@ -79,7 +98,9 @@ export class RemindMetadataManager {
       messageId,
       listTitle,
       lastSyncTime: new Date(),
-      operationLogThreadId
+      operationLogThreadId,
+      remindNoticeThreadId,
+      remindNoticeMessageId
     };
 
     const row = this.formatRow(metadata);
@@ -95,9 +116,13 @@ export class RemindMetadataManager {
     channelId: string,
     updates: Partial<Omit<RemindChannelMetadata, 'channelId'>>
   ): Promise<RemindMetadataOperationResult> {
-    const sheetData = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+    let sheetData = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
     if (sheetData.length <= 1) {
       return { success: false, message: 'metadataが見つかりません' };
+    }
+
+    if (sheetData[0].length < this.metadataHeaders.length) {
+      sheetData = this.normalizeSheet(sheetData);
     }
 
     const rowIndex = sheetData.findIndex((row, index) => index > 0 && row[0] === channelId);
@@ -138,7 +163,9 @@ export class RemindMetadataManager {
       messageId: row[1],
       listTitle: row[2],
       lastSyncTime: this.parseDate(row[3]),
-      operationLogThreadId: row[4] || undefined
+      operationLogThreadId: row[4] || undefined,
+      remindNoticeThreadId: row[5] || undefined,
+      remindNoticeMessageId: row[6] || undefined
     };
   }
 
@@ -148,8 +175,25 @@ export class RemindMetadataManager {
       metadata.messageId,
       metadata.listTitle,
       this.formatDate(metadata.lastSyncTime),
-      metadata.operationLogThreadId || ''
+      metadata.operationLogThreadId || '',
+      metadata.remindNoticeThreadId || '',
+      metadata.remindNoticeMessageId || ''
     ];
+  }
+
+  private normalizeSheet(sheetData: string[][]): string[][] {
+    const normalizedRows = sheetData.map((row, index) => {
+      if (index === 0) {
+        return this.metadataHeaders;
+      }
+      const normalized = [...row];
+      while (normalized.length < this.metadataHeaders.length) {
+        normalized.push('');
+      }
+      return normalized;
+    });
+
+    return normalizedRows;
   }
 
   private parseDate(value: string): Date {

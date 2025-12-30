@@ -29,15 +29,22 @@ export class RemindScheduler {
     try {
       const channels = await this.metadataManager.listChannelMetadata();
       for (const channel of channels) {
-        await this.processChannel(channel.channelId, client, now);
+        await this.processChannel(channel, client, now);
       }
     } finally {
       this.isRunning = false;
     }
   }
 
-  private async processChannel(channelId: string, client: Client, now: Date): Promise<void> {
+  private async processChannel(
+    channelMetadata: { channelId: string; remindNoticeThreadId?: string; remindNoticeMessageId?: string },
+    client: Client,
+    now: Date
+  ): Promise<void> {
+    const { channelId, remindNoticeThreadId, remindNoticeMessageId } = channelMetadata;
     const tasks = await this.repository.fetchTasks(channelId);
+    let currentThreadId = remindNoticeThreadId;
+    let currentMessageId = remindNoticeMessageId;
 
     for (const task of tasks) {
       if (task.isPaused) {
@@ -51,12 +58,23 @@ export class RemindScheduler {
 
         const remainingText = formatRemainingDuration(task.remindBeforeMinutes);
 
-        await this.messageManager.sendReminderToThread(
+        const sendResult = await this.messageManager.sendReminderToThread(
           channelId,
-          task.messageId,
+          currentThreadId,
+          currentMessageId,
           `@everyone ${task.title}の期限まであと${remainingText}になりました。`,
           client
         );
+        if (sendResult.threadId && sendResult.parentMessageId) {
+          if (sendResult.threadId !== currentThreadId || sendResult.parentMessageId !== currentMessageId) {
+            currentThreadId = sendResult.threadId;
+            currentMessageId = sendResult.parentMessageId;
+            await this.metadataManager.updateChannelMetadata(channelId, {
+              remindNoticeThreadId: currentThreadId,
+              remindNoticeMessageId: currentMessageId
+            });
+          }
+        }
         const updatedTask = {
           ...task,
           lastRemindDueAt: task.nextDueAt,
@@ -74,12 +92,23 @@ export class RemindScheduler {
           continue;
         }
 
-        await this.messageManager.sendReminderToThread(
+        const sendResult = await this.messageManager.sendReminderToThread(
           channelId,
-          task.messageId,
+          currentThreadId,
+          currentMessageId,
           `@everyone ${task.title}の期限が切れています。`,
           client
         );
+        if (sendResult.threadId && sendResult.parentMessageId) {
+          if (sendResult.threadId !== currentThreadId || sendResult.parentMessageId !== currentMessageId) {
+            currentThreadId = sendResult.threadId;
+            currentMessageId = sendResult.parentMessageId;
+            await this.metadataManager.updateChannelMetadata(channelId, {
+              remindNoticeThreadId: currentThreadId,
+              remindNoticeMessageId: currentMessageId
+            });
+          }
+        }
         const updatedTask = {
           ...task,
           overdueNotifyCount: task.overdueNotifyCount + 1,

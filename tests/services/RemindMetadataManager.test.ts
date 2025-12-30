@@ -38,8 +38,16 @@ describe('RemindMetadataManager', () => {
 
   it('returns channel metadata when exists', async () => {
     mockGoogleSheetsService.getSheetDataByName.mockResolvedValue([
-      ['channel_id', 'message_id', 'list_title', 'last_sync_time', 'operation_log_thread_id'],
-      ['channel-1', 'message-1', 'リマインドリスト', '2025-12-29T09:00:00+09:00', 'thread-1']
+      [
+        'channel_id',
+        'message_id',
+        'list_title',
+        'last_sync_time',
+        'operation_log_thread_id',
+        'remind_notice_thread_id',
+        'remind_notice_message_id'
+      ],
+      ['channel-1', 'message-1', 'リマインドリスト', '2025-12-29T09:00:00+09:00', 'thread-1', 'remind-thread-1', 'notice-msg-1']
     ]);
 
     const result = await manager.getChannelMetadata('channel-1');
@@ -47,19 +55,31 @@ describe('RemindMetadataManager', () => {
     expect(result.success).toBe(true);
     expect(result.metadata?.messageId).toBe('message-1');
     expect(result.metadata?.operationLogThreadId).toBe('thread-1');
+    expect(result.metadata?.remindNoticeThreadId).toBe('remind-thread-1');
+    expect(result.metadata?.remindNoticeMessageId).toBe('notice-msg-1');
   });
 
   it('updates channel metadata', async () => {
     mockGoogleSheetsService.getSheetDataByName.mockResolvedValue([
-      ['channel_id', 'message_id', 'list_title', 'last_sync_time', 'operation_log_thread_id'],
-      ['channel-1', 'message-1', 'リマインドリスト', '2025-12-29T09:00:00+09:00', 'thread-1']
+      [
+        'channel_id',
+        'message_id',
+        'list_title',
+        'last_sync_time',
+        'operation_log_thread_id',
+        'remind_notice_thread_id',
+        'remind_notice_message_id'
+      ],
+      ['channel-1', 'message-1', 'リマインドリスト', '2025-12-29T09:00:00+09:00', 'thread-1', 'remind-thread-1', 'notice-msg-1']
     ]);
     mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
 
     const result = await manager.updateChannelMetadata('channel-1', {
       messageId: 'message-2',
       listTitle: 'リマインドリスト',
-      operationLogThreadId: 'thread-1'
+      operationLogThreadId: 'thread-1',
+      remindNoticeThreadId: 'remind-thread-1',
+      remindNoticeMessageId: 'notice-msg-1'
     });
 
     expect(result.success).toBe(true);
@@ -68,9 +88,17 @@ describe('RemindMetadataManager', () => {
 
   it('lists all channel metadata', async () => {
     mockGoogleSheetsService.getSheetDataByName.mockResolvedValue([
-      ['channel_id', 'message_id', 'list_title', 'last_sync_time', 'operation_log_thread_id'],
-      ['channel-1', '', 'リマインドリスト', '2025-12-29T09:00:00+09:00', ''],
-      ['channel-2', '', 'リマインドリスト', '2025-12-29T09:00:00+09:00', '']
+      [
+        'channel_id',
+        'message_id',
+        'list_title',
+        'last_sync_time',
+        'operation_log_thread_id',
+        'remind_notice_thread_id',
+        'remind_notice_message_id'
+      ],
+      ['channel-1', '', 'リマインドリスト', '2025-12-29T09:00:00+09:00', '', '', ''],
+      ['channel-2', '', 'リマインドリスト', '2025-12-29T09:00:00+09:00', '', '', '']
     ]);
 
     const result = await manager.listChannelMetadata();

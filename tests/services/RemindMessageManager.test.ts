@@ -234,14 +234,17 @@ describe('RemindMessageManager', () => {
 
     expect(result.success).toBe(true);
     expect(mockParentMessage.startThread).toHaveBeenCalledWith({
-      name: 'リマインド通知',
+      name: '通知用スレッド',
       autoArchiveDuration: 1440
     });
     expect(mockThread.send).toHaveBeenCalledWith('@everyone ❗ 期限超過: 掃除');
   });
 
-  it('creates reminder thread parent message with add button', async () => {
-    const manager = new RemindMessageManager();
+  it('creates reminder thread parent message with V2 components and sheet link', async () => {
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/test-spreadsheet-id/edit#gid=0';
+    const manager = new RemindMessageManager({
+      sheetUrlResolver: async (): Promise<string> => sheetUrl
+    });
     const mockThread = {
       id: 'thread-1',
       archived: false,
@@ -266,9 +269,20 @@ describe('RemindMessageManager', () => {
 
     expect(result.success).toBe(true);
     const payload = mockChannel.send.mock.calls[0][0];
-    const actionRow = payload.components?.[0];
-    const button = actionRow?.components?.[0];
-    expect(button?.data?.custom_id).toBe('remind-task-add');
+    expect(payload.flags).toBe(MessageFlags.IsComponentsV2);
+    expect(payload.components).toHaveLength(1);
+    const container = payload.components[0];
+    expect(container.type).toBe(ComponentType.Container);
+    const textContents = container.components
+      .filter((component: any) => component.type === ComponentType.TextDisplay)
+      .map((component: any) => component.content);
+    expect(textContents.some((content: string) => content.includes('### 通知用スレッド'))).toBe(true);
+    expect(textContents.some((content: string) => content.includes('[スプレッドシートを開く]'))).toBe(true);
+    expect(textContents.some((content: string) => content.includes(sheetUrl))).toBe(true);
+    const actionRow = container.components.find(
+      (component: any) => component.type === ComponentType.ActionRow
+    );
+    expect(actionRow?.components?.[0]?.custom_id).toBe('remind-task-add');
   });
 
   it('updates parent message to add button when missing', async () => {

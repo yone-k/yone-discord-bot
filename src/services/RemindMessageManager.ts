@@ -7,7 +7,7 @@ import type {
   APIMessageTopLevelComponent,
   APITextDisplayComponent
 } from 'discord-api-types/v10';
-import { OperationResult } from './GoogleSheetsService';
+import { GoogleSheetsService, OperationResult } from './GoogleSheetsService';
 import { RemindTask } from '../models/RemindTask';
 import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
 
@@ -20,14 +20,24 @@ export interface RemindThreadResult extends OperationResult {
   parentMessageId?: string;
 }
 
+export interface RemindMessageManagerOptions {
+  sheetUrlResolver?: (channelId: string) => Promise<string>;
+}
+
 export class RemindMessageManager {
+  private sheetUrlResolver: (channelId: string) => Promise<string>;
+
+  constructor(options: RemindMessageManagerOptions = {}) {
+    this.sheetUrlResolver = options.sheetUrlResolver ?? this.resolveSheetUrl.bind(this);
+  }
+
   public async sendReminderToThread(
     channelId: string,
     threadId: string | undefined,
     parentMessageId: string | undefined,
     content: string,
     client: Client,
-    threadName: string = 'リマインド通知'
+    threadName: string = '通知用スレッド'
   ): Promise<RemindThreadResult> {
     const ensureResult = await this.ensureReminderThread(
       channelId,
@@ -66,7 +76,7 @@ export class RemindMessageManager {
     client: Client,
     threadId?: string,
     parentMessageId?: string,
-    threadName: string = 'リマインド通知'
+    threadName: string = '通知用スレッド'
   ): Promise<RemindThreadResult> {
     const channel = await client.channels.fetch(channelId);
     if (!channel || !channel.isTextBased()) {
@@ -87,7 +97,7 @@ export class RemindMessageManager {
         if (parentMessageId) {
           try {
             const parentMessage = await textChannel.messages.fetch(parentMessageId);
-            await this.ensureNoticeMessageState(parentMessage);
+            await this.ensureNoticeMessageState(parentMessage, channelId);
             return { success: true, threadId: existingThread.id, parentMessageId };
           } catch {
             // fall through to recreate thread
@@ -98,7 +108,11 @@ export class RemindMessageManager {
       }
     }
 
-    const parentMessage = await textChannel.send(this.buildNoticeMessagePayload());
+    const noticeComponents = await this.buildNoticeMessageComponents(channelId);
+    const parentMessage = await textChannel.send({
+      flags: MessageFlags.IsComponentsV2,
+      components: noticeComponents
+    });
 
     try {
       await parentMessage.pin();
@@ -205,29 +219,16 @@ export class RemindMessageManager {
     return new ActionRowBuilder<ButtonBuilder>().addComponents(addButton);
   }
 
-  private buildNoticeMessagePayload(): { content: string; components: ActionRowBuilder<ButtonBuilder>[] } {
-    return {
-      content: 'リマインド通知',
-      components: [this.buildNoticeActionRow()]
-    };
-  }
-
-  private async ensureNoticeMessageState(parentMessage: Message): Promise<void> {
+  private async ensureNoticeMessageState(parentMessage: Message, channelId: string): Promise<void> {
     const components = Array.isArray(parentMessage.components) ? parentMessage.components : [];
-    const hasAddButton = components.some((row) => {
-      const rowComponents = (row as { components?: unknown[] }).components;
-      if (!Array.isArray(rowComponents)) {
-        return false;
-      }
-      return rowComponents.some((component) => {
-        if (component && typeof component === 'object' && 'customId' in component) {
-          return (component as { customId?: string }).customId === 'remind-task-add';
-        }
-        return false;
-      });
-    });
-    const contentMatches = parentMessage.content === 'リマインド通知';
-    if (hasAddButton && contentMatches) {
+    const hasAddButton = this.hasCustomId(components, 'remind-task-add');
+    const textContents = this.collectTextContents(components);
+    const hasTitle = textContents.some((content) => content.includes('通知用スレッド'));
+    const hasSheetLink = textContents.some((content) => content.includes('スプレッドシートを開く'));
+    const hasV2Flag = typeof parentMessage.flags?.has === 'function'
+      ? parentMessage.flags.has(MessageFlags.IsComponentsV2)
+      : false;
+    if (hasAddButton && hasTitle && hasSheetLink && hasV2Flag) {
       return;
     }
 
@@ -235,7 +236,100 @@ export class RemindMessageManager {
       return;
     }
 
-    await parentMessage.edit(this.buildNoticeMessagePayload());
+    const noticeComponents = await this.buildNoticeMessageComponents(channelId);
+    await parentMessage.edit({
+      content: null,
+      embeds: [],
+      flags: MessageFlags.IsComponentsV2,
+      components: noticeComponents
+    });
+  }
+
+  private async buildNoticeMessageComponents(channelId: string): Promise<APIMessageTopLevelComponent[]> {
+    const spreadsheetUrl = await this.sheetUrlResolver(channelId);
+    const containerComponents: APIComponentInContainer[] = [
+      this.buildTextDisplay('### 通知用スレッド')
+    ];
+
+    if (spreadsheetUrl) {
+      containerComponents.push(this.buildTextDisplay(`[スプレッドシートを開く](${spreadsheetUrl})`));
+    }
+
+    containerComponents.push(this.buildNoticeActionRow().toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>);
+
+    return [{
+      type: ComponentType.Container,
+      components: containerComponents
+    }];
+  }
+
+  private hasCustomId(components: unknown[], customId: string): boolean {
+    let found = false;
+    const visit = (value: unknown): void => {
+      if (found || !value || typeof value !== 'object') {
+        return;
+      }
+      const record = value as Record<string, unknown>;
+      const currentId = record.customId ?? record.custom_id;
+      if (currentId === customId) {
+        found = true;
+        return;
+      }
+      const nested = record.components;
+      if (Array.isArray(nested)) {
+        nested.forEach(visit);
+      }
+    };
+    components.forEach(visit);
+    return found;
+  }
+
+  private collectTextContents(components: unknown[]): string[] {
+    const texts: string[] = [];
+    const visit = (value: unknown): void => {
+      if (!value || typeof value !== 'object') {
+        return;
+      }
+      const record = value as Record<string, unknown>;
+      if (typeof record.content === 'string') {
+        texts.push(record.content);
+      }
+      const nested = record.components;
+      if (Array.isArray(nested)) {
+        nested.forEach(visit);
+      }
+    };
+    components.forEach(visit);
+    return texts;
+  }
+
+  private async resolveSheetUrl(channelId: string): Promise<string> {
+    if (process.env.NODE_ENV === 'test') {
+      return 'https://docs.google.com/spreadsheets/d/test-spreadsheet-id/edit#gid=0';
+    }
+
+    try {
+      const googleSheetsService = GoogleSheetsService.getInstance();
+      const spreadsheetId = (googleSheetsService as unknown as { config?: { spreadsheetId: string } }).config?.spreadsheetId;
+      if (!spreadsheetId) {
+        return '';
+      }
+
+      const sheetName = `remind_list_${channelId}`;
+      try {
+        const sheetMetadata = await googleSheetsService.getSheetMetadataByName(sheetName);
+        return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetMetadata.sheetId}`;
+      } catch {
+        return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Missing required environment variables')) {
+        return '';
+      }
+    }
+
+    return '';
   }
 
   private buildMessageComponents(task: RemindTask, now: Date): APIMessageTopLevelComponent[] {

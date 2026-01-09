@@ -5,14 +5,22 @@ export interface ListItem {
   category: CategoryType | null;
   until: Date | null;
   check: boolean;
+  lastNotifiedAt?: Date | null;
 }
 
-export function createListItem(name: string, category?: CategoryType | null, until?: Date | null, check?: boolean): ListItem {
+export function createListItem(
+  name: string,
+  category?: CategoryType | null,
+  until?: Date | null,
+  check?: boolean,
+  lastNotifiedAt?: Date | null
+): ListItem {
   return {
     name: name.trim(),
     category: category || null,
     until: until || null,
-    check: check ?? false
+    check: check ?? false,
+    lastNotifiedAt: lastNotifiedAt ?? null
   };
 }
 
@@ -31,5 +39,10 @@ export function validateListItem(item: ListItem): void {
   
   if (typeof item.check !== 'boolean') {
     throw new Error('完了状態が無効です');
+  }
+
+  if (item.lastNotifiedAt !== undefined && item.lastNotifiedAt !== null
+    && (!(item.lastNotifiedAt instanceof Date) || isNaN(item.lastNotifiedAt.getTime()))) {
+    throw new Error('最終通知日時が無効です');
   }
 }

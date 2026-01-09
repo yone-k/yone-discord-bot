@@ -5,17 +5,20 @@ describe('ListItem', () => {
   describe('interface validation', () => {
     it('should create a valid ListItem object', () => {
       const until = new Date(Date.now() + 86400000); // +1 day
+      const lastNotifiedAt = new Date();
       const listItem: ListItem = {
         name: 'テスト商品',
         category: '重要',
         until: until,
-        check: false
+        check: false,
+        lastNotifiedAt
       };
 
       expect(listItem.name).toBe('テスト商品');
       expect(listItem.category).toBe('重要');
       expect(listItem.until).toBe(until);
       expect(listItem.check).toBe(false);
+      expect(listItem.lastNotifiedAt).toBe(lastNotifiedAt);
     });
 
     it('should create a ListItem object with check=true', () => {
@@ -35,7 +38,8 @@ describe('ListItem', () => {
         name: 'テスト',
         category: null,
         until: null,
-        check: false
+        check: false,
+        lastNotifiedAt: null
       };
 
       expect(listItem).toHaveProperty('name');
@@ -45,6 +49,7 @@ describe('ListItem', () => {
       expect(listItem.category).toBeNull();
       expect(listItem.until).toBeNull();
       expect(listItem.check).toBe(false);
+      expect(listItem.lastNotifiedAt).toBeNull();
     });
   });
 
@@ -84,6 +89,13 @@ describe('ListItem', () => {
       expect(result.category).toBe('テスト');
       expect(result.until).toBeNull();
       expect(result.check).toBe(true);
+    });
+
+    it('should create ListItem with lastNotifiedAt', () => {
+      const notifiedAt = new Date('2026-01-09T00:00:00+09:00');
+      const result = createListItem('通知済み', 'テスト', null, false, notifiedAt);
+
+      expect(result.lastNotifiedAt).toBe(notifiedAt);
     });
 
     it('should create ListItem with check=false by default', () => {
@@ -130,7 +142,8 @@ describe('ListItem', () => {
         name: 'バナナ',
         category: null,
         until: null,
-        check: true
+        check: true,
+        lastNotifiedAt: null
       };
 
       expect(() => validateListItem(validItem)).not.toThrow();
@@ -152,10 +165,23 @@ describe('ListItem', () => {
         name: 'テスト商品',
         category: null,
         until: null,
-        check: true
+        check: true,
+        lastNotifiedAt: null
       };
 
       expect(() => validateListItem(validItem)).not.toThrow();
+    });
+
+    it('should throw error for invalid lastNotifiedAt', () => {
+      const invalidItem: ListItem = {
+        name: 'テスト商品',
+        category: null,
+        until: null,
+        check: false,
+        lastNotifiedAt: new Date('invalid')
+      };
+
+      expect(() => validateListItem(invalidItem)).toThrow('最終通知日時が無効です');
     });
 
     it('should throw error for invalid until when not null', () => {

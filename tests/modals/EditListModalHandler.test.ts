@@ -70,9 +70,9 @@ describe('EditListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         expect.arrayContaining([
-          ['name', 'category', 'until', 'check'],
-          expect.arrayContaining(['牛乳', '食品', '', 0]),
-          expect.arrayContaining(['パン', '食品', '', 0])
+          ['name', 'category', 'until', 'check', 'last_notified_at'],
+          expect.arrayContaining(['牛乳', '食品', '', 0, '']),
+          expect.arrayContaining(['パン', '食品', '', 0, ''])
         ])
       );
       expect(logger.info).toHaveBeenCalledWith(
@@ -113,7 +113,7 @@ describe('EditListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         expect.arrayContaining([
-          ['name', 'category', 'until', 'check'] // ヘッダーのみ
+          ['name', 'category', 'until', 'check', 'last_notified_at'] // ヘッダーのみ
         ])
       );
       expect(logger.info).toHaveBeenCalledWith(
@@ -159,9 +159,9 @@ describe('EditListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         expect.arrayContaining([
-          ['name', 'category', 'until', 'check'],
-          expect.arrayContaining(['牛乳', '食品', '2024-12-31', 1]),
-          expect.arrayContaining(['パン', '食品', '', 0])
+          ['name', 'category', 'until', 'check', 'last_notified_at'],
+          expect.arrayContaining(['牛乳', '食品', '2024-12-31', 1, '']),
+          expect.arrayContaining(['パン', '食品', '', 0, ''])
         ])
       );
     });
@@ -440,9 +440,9 @@ describe('EditListModalHandler', () => {
       const result = handler['convertItemsToSheetData'](items);
 
       expect(result).toEqual([
-        ['name', 'category', 'until', 'check'],
-        ['牛乳', '食品', '', 0],
-        ['パン', '食品', '2023-01-10', 0]
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['牛乳', '食品', '', 0, ''],
+        ['パン', '食品', '2023-01-10', 0, '']
       ]);
     });
 
@@ -459,8 +459,8 @@ describe('EditListModalHandler', () => {
       const result = handler['convertItemsToSheetData'](items);
 
       expect(result).toEqual([
-        ['name', 'category', 'until', 'check'],
-        ['ミニマルアイテム', '', '', 0]
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['ミニマルアイテム', '', '', 0, '']
       ]);
     });
 
@@ -489,10 +489,10 @@ describe('EditListModalHandler', () => {
       const result = handler['convertItemsToSheetData'](items);
 
       expect(result).toEqual([
-        ['name', 'category', 'until', 'check'],
-        ['牛乳', '食品', '', 1],
-        ['パン', '食品', '2023-01-10', 0],
-        ['卵', '食品', '', 0]
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['牛乳', '食品', '', 1, ''],
+        ['パン', '食品', '2023-01-10', 0, ''],
+        ['卵', '食品', '', 0, '']
       ]);
     });
 
@@ -509,8 +509,8 @@ describe('EditListModalHandler', () => {
       const result = handler['convertItemsToSheetData'](items);
 
       expect(result).toEqual([
-        ['name', 'category', 'until', 'check'],
-        ['テスト商品', '食品', '2025-07-24', 0] // 1日前にならないことを確認
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['テスト商品', '食品', '2025-07-24', 0, ''] // 1日前にならないことを確認
       ]);
     });
 
@@ -534,9 +534,9 @@ describe('EditListModalHandler', () => {
 
       // スプレッドシート書き込み時は数値1,0を期待
       expect(result).toEqual([
-        ['name', 'category', 'until', 'check'],
-        ['完了済みアイテム', '食品', '', 1],    // 数値1
-        ['未完了アイテム', '日用品', '', 0]     // 数値0
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['完了済みアイテム', '食品', '', 1, ''],    // 数値1
+        ['未完了アイテム', '日用品', '', 0, '']     // 数値0
       ]);
 
       // データ型の検証
@@ -566,9 +566,9 @@ describe('EditListModalHandler', () => {
       const result = handler['convertItemsToSheetData'](items, 'channel789', '食品');
 
       expect(result).toEqual([
-        ['name', 'category', 'until', 'check'],
-        ['牛乳', '', '', 0], // '食品'がdefaultCategoryと一致するので空文字列
-        ['パン', '日用品', '', 0] // '日用品'は異なるのでそのまま
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['牛乳', '', '', 0, ''], // '食品'がdefaultCategoryと一致するので空文字列
+        ['パン', '日用品', '', 0, ''] // '日用品'は異なるのでそのまま
       ]);
     });
 
@@ -591,9 +591,9 @@ describe('EditListModalHandler', () => {
       const result = handler['convertItemsToSheetData'](items, 'channel789', '生活用品');
 
       expect(result).toEqual([
-        ['name', 'category', 'until', 'check'],
-        ['牛乳', '食品', '', 0], // '食品'は異なるのでそのまま
-        ['パン', '日用品', '', 0] // '日用品'も異なるのでそのまま
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['牛乳', '食品', '', 0, ''], // '食品'は異なるのでそのまま
+        ['パン', '日用品', '', 0, ''] // '日用品'も異なるのでそのまま
       ]);
     });
 
@@ -610,8 +610,8 @@ describe('EditListModalHandler', () => {
       const result = handler['convertItemsToSheetData'](items, 'channel789', null);
 
       expect(result).toEqual([
-        ['name', 'category', 'until', 'check'],
-        ['牛乳', '食品', '', 0] // defaultCategoryがnullなので通常通り
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['牛乳', '食品', '', 0, ''] // defaultCategoryがnullなので通常通り
       ]);
     });
 
@@ -628,8 +628,8 @@ describe('EditListModalHandler', () => {
       const result = handler['convertItemsToSheetData'](items, 'channel789');
 
       expect(result).toEqual([
-        ['name', 'category', 'until', 'check'],
-        ['牛乳', '食品', '', 0] // defaultCategoryがundefinedなので通常通り
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['牛乳', '食品', '', 0, ''] // defaultCategoryがundefinedなので通常通り
       ]);
     });
 

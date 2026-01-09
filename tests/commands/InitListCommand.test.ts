@@ -380,10 +380,10 @@ describe('InitListCommand', () => {
 
       // 完了フラグ(check)を含むデータ
       const testData = [
-        ['name', 'category', 'until', 'check'],
-        ['完了済みアイテム', 'その他', '', '1'],
-        ['未完了アイテム', 'その他', '2024-12-31', '0'],
-        ['無効フラグアイテム', 'その他', '', 'invalid']
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['完了済みアイテム', 'その他', '', '1', ''],
+        ['未完了アイテム', 'その他', '2024-12-31', '0', ''],
+        ['無効フラグアイテム', 'その他', '', 'invalid', '']
       ];
 
       mockGoogleSheetsService.checkSpreadsheetExists.mockResolvedValue(true);

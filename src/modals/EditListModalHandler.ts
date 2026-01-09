@@ -242,12 +242,14 @@ export class EditListModalHandler extends BaseModalHandler {
           const category = row.length > 1 && row[1] && row[1].trim() !== '' ? normalizeCategory(row[1]) : null;
           const until = row.length > 2 && row[2] ? this.parseDate(row[2]) : null;
           const check = row.length > 3 && row[3] && row[3].trim() === '1' ? true : false;
+          const lastNotifiedAt = row.length > 4 && row[4] ? this.parseDate(row[4]) : null;
 
           const item: ListItem = {
             name,
             category,
             until,
-            check
+            check,
+            lastNotifiedAt
           };
 
           items.push(item);
@@ -268,7 +270,7 @@ export class EditListModalHandler extends BaseModalHandler {
    * ヘッダー行かどうかを判定する
    */
   private isHeaderRow(row: string[]): boolean {
-    const headers = ['name', 'category', 'until', '名前', 'カテゴリ'];
+    const headers = ['name', 'category', 'until', 'check', 'last_notified_at', '名前', 'カテゴリ', '完了'];
     return row.some(cell => 
       headers.some(header => 
         cell && cell.toLowerCase().includes(header.toLowerCase())
@@ -417,8 +419,20 @@ export class EditListModalHandler extends BaseModalHandler {
       });
     }
 
+    // 既存の通知日時を保持するために現在のシートを取得
+    const existingData = await this.googleSheetsService.getSheetData(channelId);
+    const existingItems = this.convertToListItems(existingData);
+    const notifiedMap = new Map<string, Date | null>(
+      existingItems.map(item => [item.name, item.lastNotifiedAt ?? null])
+    );
+
+    const mergedItems = items.map(item => ({
+      ...item,
+      lastNotifiedAt: item.lastNotifiedAt ?? notifiedMap.get(item.name) ?? null
+    }));
+
     // 現在のシートデータを完全に置き換える
-    const sheetData = this.convertItemsToSheetData(items, channelId, defaultCategory);
+    const sheetData = this.convertItemsToSheetData(mergedItems, channelId, defaultCategory);
     
     const result = await this.googleSheetsService.updateSheetData(channelId, sheetData);
     if (!result.success) {
@@ -430,7 +444,7 @@ export class EditListModalHandler extends BaseModalHandler {
     const data: (string | number)[][] = [];
     
     // ヘッダー行を追加
-    data.push(['name', 'category', 'until', 'check']);
+    data.push(['name', 'category', 'until', 'check', 'last_notified_at']);
     
     // データ行を追加
     for (const item of items) {
@@ -439,7 +453,8 @@ export class EditListModalHandler extends BaseModalHandler {
         item.name,
         category,
         item.until ? this.formatDateForSheet(item.until) : '',
-        item.check ? 1 : 0
+        item.check ? 1 : 0,
+        item.lastNotifiedAt ? item.lastNotifiedAt.toISOString() : ''
       ];
       data.push(row);
     }

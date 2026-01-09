@@ -323,11 +323,22 @@ export class ListInitializationService {
             check = checkValue === '1';
           }
 
+          // last_notified_atの処理：5列目がある場合は読み取り
+          let lastNotifiedAt: Date | null = null;
+          if (row.length > 4 && row[4]) {
+            const notifiedValue = typeof row[4] === 'string' ? row[4].trim() : String(row[4]);
+            if (notifiedValue !== '') {
+              const dateValue = new Date(notifiedValue);
+              lastNotifiedAt = !isNaN(dateValue.getTime()) ? dateValue : null;
+            }
+          }
+
           const item: ListItem = {
             name,
             category,
             until,
-            check
+            check,
+            lastNotifiedAt
           };
           
           items.push(item);
@@ -350,7 +361,7 @@ export class ListInitializationService {
    * @returns ヘッダー行の場合true
    */
   private isHeaderRow(row: (string | number)[]): boolean {
-    const headers = ['name', 'category', 'until'];
+    const headers = ['name', 'category', 'until', 'check', 'last_notified_at'];
     return headers.some(header => 
       row.some(cell => typeof cell === 'string' && cell.toLowerCase().includes(header))
     );

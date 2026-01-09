@@ -108,6 +108,39 @@ describe('OperationLogService', () => {
       expect(formattedMessage).toContain('2024/01/01 21:00:00'); // UTC 12:00 → JST 21:00
     });
 
+    it('期限の日付がYYYY/MM/DD形式になること', () => {
+      // Arrange
+      const operationInfo: OperationInfo = {
+        operationType: 'UPDATE_ITEM',
+        actionName: '項目更新'
+      };
+      const result: OperationResult = { success: true };
+      const userId = 'test-user-123';
+      const details: OperationDetails = {
+        changes: {
+          modified: [
+            {
+              name: 'テスト項目',
+              before: { until: new Date('2026-01-09T00:00:00+09:00') },
+              after: { until: new Date('2026-02-10T00:00:00+09:00') }
+            }
+          ]
+        }
+      };
+
+      // Act
+      const formattedMessage = operationLogService.formatLogMessage(
+        operationInfo,
+        result,
+        userId,
+        undefined,
+        details
+      );
+
+      // Assert
+      expect(formattedMessage).toContain('期限: 2026/01/09 → 2026/02/10');
+    });
+
     it('メンション形式（@ユーザー名）が正しいこと', () => {
       // Arrange
       const operationInfo: OperationInfo = {

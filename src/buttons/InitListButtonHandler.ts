@@ -157,7 +157,7 @@ export class InitListButtonHandler extends BaseButtonHandler {
    * @returns ヘッダー行の場合true
    */
   private isHeaderRow(row: (string | number)[]): boolean {
-    const headers = ['name', 'category', 'until'];
+    const headers = ['name', 'category', 'until', 'check', 'last_notified_at'];
     return headers.some(header => 
       row.some(cell => typeof cell === 'string' && cell.toLowerCase().includes(header))
     );

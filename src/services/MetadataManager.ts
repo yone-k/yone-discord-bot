@@ -327,6 +327,34 @@ export class MetadataManager {
   }
 
   /**
+   * すべてのチャンネルメタデータを取得
+   */
+  public async listChannelMetadata(): Promise<ChannelMetadata[]> {
+    try {
+      const sheetResult = await this.getOrCreateMetadataSheet();
+      if (!sheetResult.success) {
+        return [];
+      }
+
+      const data = await this.getCachedSheetData();
+      if (data.length <= 1) {
+        return [];
+      }
+
+      return data.slice(1).map(row => ({
+        channelId: row[0],
+        messageId: row[1] || '',
+        listTitle: row[2] || '',
+        lastSyncTime: this.parseDate(row[3]),
+        defaultCategory: row[4] || DEFAULT_CATEGORY,
+        operationLogThreadId: row[5] && row[5].trim() !== '' ? row[5] : undefined
+      })).filter(metadata => metadata.channelId && metadata.channelId.trim() !== '');
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * チャンネルメタデータを更新
    */
   public async updateChannelMetadata(

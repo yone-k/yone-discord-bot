@@ -133,12 +133,14 @@ export class EditListButtonHandler extends BaseButtonHandler {
           const category = row.length > 1 && row[1] && row[1].trim() !== '' ? normalizeCategory(row[1]) : '';
           const until = row.length > 2 && row[2] ? this.parseDate(row[2]) : null;
           const check = row.length > 3 && row[3] && row[3].trim() === '1' ? true : false;
+          const lastNotifiedAt = row.length > 4 && row[4] ? this.parseDate(row[4]) : null;
 
           const item: ListItem = {
             name,
             category,
             until,
-            check
+            check,
+            lastNotifiedAt
           };
 
           items.push(item);
@@ -157,7 +159,7 @@ export class EditListButtonHandler extends BaseButtonHandler {
   }
 
   private isHeaderRow(row: string[]): boolean {
-    const headers = ['name', 'category', 'until', '名前', 'カテゴリ'];
+    const headers = ['name', 'category', 'until', 'check', 'last_notified_at', '名前', 'カテゴリ', '完了'];
     return row.some(cell => 
       headers.some(header => 
         cell && cell.toLowerCase().includes(header.toLowerCase())

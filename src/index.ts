@@ -17,6 +17,7 @@ import { registerAllModals } from './registry/RegisterModals';
 import { OperationLogService } from './services/OperationLogService';
 import { MetadataManager } from './services/MetadataManager';
 import { RemindScheduler } from './services/RemindScheduler';
+import { ListDueReminderScheduler } from './services/ListDueReminderScheduler';
 
 class DiscordBot {
   private client: Client;
@@ -31,6 +32,7 @@ class DiscordBot {
   private operationLogService!: OperationLogService;
   private metadataManager!: MetadataManager;
   private remindScheduler!: RemindScheduler;
+  private listDueReminderScheduler!: ListDueReminderScheduler;
 
   constructor() {
     try {
@@ -206,6 +208,9 @@ class DiscordBot {
 
       this.remindScheduler = new RemindScheduler();
       this.remindScheduler.start(this.client);
+
+      this.listDueReminderScheduler = new ListDueReminderScheduler();
+      this.listDueReminderScheduler.start(this.client);
     });
 
     this.client.on(Events.InteractionCreate, async (interaction) => {

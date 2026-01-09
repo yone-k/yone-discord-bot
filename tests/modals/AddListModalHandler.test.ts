@@ -80,8 +80,8 @@ describe('AddListModalHandler', () => {
       
       // 既存データをモック
       const existingData = [
-        ['name', 'category', 'until'],
-        ['既存アイテム', 'その他', '']
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['既存アイテム', 'その他', '', '0', '']
       ];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
@@ -95,10 +95,10 @@ describe('AddListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         expect.arrayContaining([
-          ['name', 'category', 'until', 'check'],
-          ['既存アイテム', 'その他', '', 0],
-          ['牛乳', '食品', '2024-12-31', 0],
-          ['パン', '食品', '', 0]
+          ['name', 'category', 'until', 'check', 'last_notified_at'],
+          ['既存アイテム', 'その他', '', 0, ''],
+          ['牛乳', '食品', '2024-12-31', 0, ''],
+          ['パン', '食品', '', 0, '']
         ])
       );
       expect(logger.info).toHaveBeenCalledWith(
@@ -126,7 +126,7 @@ describe('AddListModalHandler', () => {
         .mockReturnValueOnce(category)
         .mockReturnValueOnce(items);
       
-      const existingData = [['name', 'category', 'until']];
+      const existingData = [['name', 'category', 'until', 'check', 'last_notified_at']];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
       mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({ success: true });
@@ -136,9 +136,9 @@ describe('AddListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         expect.arrayContaining([
-          ['name', 'category', 'until', 'check'],
-          ['牛乳', '', '2024-12-31', 0],
-          ['パン', '', '', 0]
+          ['name', 'category', 'until', 'check', 'last_notified_at'],
+          ['牛乳', '', '2024-12-31', 0, ''],
+          ['パン', '', '', 0, '']
         ])
       );
       
@@ -166,8 +166,8 @@ describe('AddListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         [
-          ['name', 'category', 'until', 'check'],
-          ['牛乳', '食品', '', 0]
+          ['name', 'category', 'until', 'check', 'last_notified_at'],
+          ['牛乳', '食品', '', 0, '']
         ]
       );
       
@@ -210,8 +210,8 @@ describe('AddListModalHandler', () => {
         .mockReturnValueOnce(items);
       
       const existingData = [
-        ['name', 'category', 'until'],
-        ['既存アイテム', 'その他', '']
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['既存アイテム', 'その他', '', '0', '']
       ];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
@@ -223,10 +223,10 @@ describe('AddListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         [
-          ['name', 'category', 'until', 'check'],
-          ['既存アイテム', 'その他', '', 0],
-          ['牛乳', '食品', '', 0],
-          ['パン', '食品', '', 0]
+          ['name', 'category', 'until', 'check', 'last_notified_at'],
+          ['既存アイテム', 'その他', '', 0, ''],
+          ['牛乳', '食品', '', 0, ''],
+          ['パン', '食品', '', 0, '']
         ]
       );
       expect(logger.warn).toHaveBeenCalledWith(
@@ -250,7 +250,7 @@ describe('AddListModalHandler', () => {
         .mockReturnValueOnce(category)
         .mockReturnValueOnce(longItemsList);
       
-      const existingData = [['name', 'category', 'until']];
+      const existingData = [['name', 'category', 'until', 'check', 'last_notified_at']];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
 
       const result = await handler['executeAction'](context);
@@ -269,7 +269,7 @@ describe('AddListModalHandler', () => {
         .mockReturnValueOnce(category)
         .mockReturnValueOnce(items);
       
-      const existingData = [['name', 'category', 'until']];
+      const existingData = [['name', 'category', 'until', 'check', 'last_notified_at']];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
       mockMessageManager.createOrUpdateMessageWithMetadataV2.mockResolvedValue({ success: true });
@@ -279,10 +279,10 @@ describe('AddListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         [
-          ['name', 'category', 'until', 'check'],
-          ['牛乳', '食品', '2024-12-31', 0],
-          ['パン', '食品', '', 0],
-          ['シャンプー', '食品', '2024-06-15', 0]
+          ['name', 'category', 'until', 'check', 'last_notified_at'],
+          ['牛乳', '食品', '2024-12-31', 0, ''],
+          ['パン', '食品', '', 0, ''],
+          ['シャンプー', '食品', '2024-06-15', 0, '']
         ]
       );
       
@@ -300,7 +300,7 @@ describe('AddListModalHandler', () => {
         .mockReturnValueOnce(category)
         .mockReturnValueOnce(items);
       
-      const existingData = [['name', 'category', 'until']];
+      const existingData = [['name', 'category', 'until', 'check', 'last_notified_at']];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ 
         success: false, 
@@ -325,9 +325,9 @@ describe('AddListModalHandler', () => {
       
       // 既存データに完了済み(check=1)のアイテムを含める
       const existingData = [
-        ['name', 'category', 'until', 'check'],
-        ['既存アイテム', 'その他', '', '1'],
-        ['未完了アイテム', 'その他', '', '0']
+        ['name', 'category', 'until', 'check', 'last_notified_at'],
+        ['既存アイテム', 'その他', '', '1', ''],
+        ['未完了アイテム', 'その他', '', '0', '']
       ];
       mockGoogleSheetsService.getSheetData.mockResolvedValue(existingData);
       mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
@@ -339,11 +339,11 @@ describe('AddListModalHandler', () => {
       expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
         'channel789',
         expect.arrayContaining([
-          ['name', 'category', 'until', 'check'],
-          ['既存アイテム', 'その他', '', 1],
-          ['未完了アイテム', 'その他', '', 0],
-          ['牛乳', '食品', '2024-12-31', 0],
-          ['パン', '食品', '', 0]
+          ['name', 'category', 'until', 'check', 'last_notified_at'],
+          ['既存アイテム', 'その他', '', 1, ''],
+          ['未完了アイテム', 'その他', '', 0, ''],
+          ['牛乳', '食品', '2024-12-31', 0, ''],
+          ['パン', '食品', '', 0, '']
         ])
       );
       

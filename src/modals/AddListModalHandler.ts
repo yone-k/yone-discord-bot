@@ -221,12 +221,14 @@ export class AddListModalHandler extends BaseModalHandler {
           const category = row.length > 1 && row[1] && row[1].trim() !== '' ? normalizeCategory(row[1]) : null;
           const until = row.length > 2 && row[2] ? this.parseDate(row[2]) : null;
           const check = row.length > 3 && row[3] && row[3].trim() === '1' ? true : false;
+          const lastNotifiedAt = row.length > 4 && row[4] ? this.parseDate(row[4]) : null;
 
           const item: ListItem = {
             name,
             category,
             until,
-            check
+            check,
+            lastNotifiedAt
           };
 
           items.push(item);
@@ -244,7 +246,7 @@ export class AddListModalHandler extends BaseModalHandler {
   }
 
   private isHeaderRow(row: string[]): boolean {
-    const headers = ['name', 'category', 'until', '名前', 'カテゴリ'];
+    const headers = ['name', 'category', 'until', 'check', 'last_notified_at', '名前', 'カテゴリ', '完了'];
     return row.some(cell => 
       headers.some(header => 
         cell && cell.toLowerCase().includes(header.toLowerCase())
@@ -273,7 +275,7 @@ export class AddListModalHandler extends BaseModalHandler {
     const data: (string | number)[][] = [];
     
     // ヘッダー行を追加
-    data.push(['name', 'category', 'until', 'check']);
+    data.push(['name', 'category', 'until', 'check', 'last_notified_at']);
     
     // データ行を追加
     for (const item of items) {
@@ -281,7 +283,8 @@ export class AddListModalHandler extends BaseModalHandler {
         item.name,
         item.category || '',
         item.until ? this.formatDateForSheet(item.until) : '',
-        item.check ? 1 : 0
+        item.check ? 1 : 0,
+        item.lastNotifiedAt ? item.lastNotifiedAt.toISOString() : ''
       ];
       data.push(row);
     }

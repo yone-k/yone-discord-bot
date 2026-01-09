@@ -59,4 +59,68 @@ describe('RemindTaskUpdateModalHandler', () => {
     expect(mockRepository.updateTask).toHaveBeenCalled();
     expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();
   });
+
+  it('keeps nextDueAt and notification fields on basic update', async () => {
+    const lastRemindDueAt = new Date('2026-01-01T09:00:00+09:00');
+    const lastOverdueNotifiedAt = new Date('2026-01-02T09:00:00+09:00');
+    const task = createRemindTask({
+      id: 'task-2',
+      messageId: 'msg-2',
+      title: '洗濯',
+      intervalDays: 7,
+      timeOfDay: '09:00',
+      remindBeforeMinutes: 60,
+      startAt: new Date('2025-12-29T09:00:00+09:00'),
+      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
+      lastRemindDueAt,
+      overdueNotifyCount: 2,
+      lastOverdueNotifiedAt,
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+
+    const mockRepository = {
+      findTaskByMessageId: vi.fn().mockResolvedValue(task),
+      updateTask: vi.fn().mockResolvedValue({ success: true })
+    };
+    const mockMessageManager = {
+      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
+    };
+
+    const handler = new RemindTaskUpdateModalHandler(
+      new Logger(),
+      undefined,
+      undefined,
+      mockRepository as any,
+      mockMessageManager as any
+    );
+
+    const interaction = {
+      customId: 'remind-task-update-modal:msg-2',
+      user: { id: 'user-2' },
+      channelId: 'channel-2',
+      client: {} as any,
+      fields: {
+        getTextInputValue: vi.fn((key: string) => {
+          if (key === 'title') return '洗濯';
+          if (key === 'description') return '';
+          if (key === 'interval-days') return '14';
+          if (key === 'time-of-day') return '11:00';
+          if (key === 'remind-before') return '0:30';
+          return '';
+        })
+      },
+      deferReply: vi.fn(),
+      editReply: vi.fn(),
+      deleteReply: vi.fn()
+    };
+
+    await handler.handle({ interaction } as any);
+
+    const updatedTask = mockRepository.updateTask.mock.calls[0][1];
+    expect(updatedTask.nextDueAt).toEqual(task.nextDueAt);
+    expect(updatedTask.lastRemindDueAt).toEqual(task.lastRemindDueAt);
+    expect(updatedTask.overdueNotifyCount).toBe(task.overdueNotifyCount);
+    expect(updatedTask.lastOverdueNotifiedAt).toEqual(task.lastOverdueNotifiedAt);
+  });
 });

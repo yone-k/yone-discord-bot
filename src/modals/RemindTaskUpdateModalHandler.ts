@@ -6,7 +6,7 @@ import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { parseRemindBeforeInput } from '../utils/RemindDuration';
-import { calculateNextDueAt, calculateStartAt, normalizeTimeOfDay } from '../utils/RemindSchedule';
+import { calculateStartAt, normalizeTimeOfDay } from '../utils/RemindSchedule';
 
 export class RemindTaskUpdateModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
@@ -80,15 +80,7 @@ export class RemindTaskUpdateModalHandler extends BaseModalHandler {
 
     const now = new Date();
     const startAt = calculateStartAt(task.createdAt, timeOfDay);
-    const nextDueAt = calculateNextDueAt(
-      {
-        intervalDays,
-        timeOfDay,
-        startAt,
-        lastDoneAt: task.lastDoneAt
-      },
-      now
-    );
+    const nextDueAt = task.nextDueAt;
 
     const updatedTask = {
       ...task,
@@ -99,9 +91,9 @@ export class RemindTaskUpdateModalHandler extends BaseModalHandler {
       remindBeforeMinutes,
       startAt,
       nextDueAt,
-      lastRemindDueAt: null,
-      overdueNotifyCount: 0,
-      lastOverdueNotifiedAt: null,
+      lastRemindDueAt: task.lastRemindDueAt,
+      overdueNotifyCount: task.overdueNotifyCount,
+      lastOverdueNotifiedAt: task.lastOverdueNotifiedAt,
       updatedAt: now
     };
 

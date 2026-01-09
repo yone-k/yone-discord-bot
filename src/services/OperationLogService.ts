@@ -42,6 +42,13 @@ export class OperationLogService {
     const minutes = String(jstDate.getUTCMinutes()).padStart(2, '0');
     const seconds = String(jstDate.getUTCSeconds()).padStart(2, '0');
     const formattedTimestamp = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+    const formatJstDate = (date: Date): string => {
+      const jstDateOnly = new Date(date.getTime() + (jstOffset * 60 * 1000));
+      const dateYear = jstDateOnly.getUTCFullYear();
+      const dateMonth = String(jstDateOnly.getUTCMonth() + 1).padStart(2, '0');
+      const dateDay = String(jstDateOnly.getUTCDate()).padStart(2, '0');
+      return `${dateYear}/${dateMonth}/${dateDay}`;
+    };
 
     // ユーザーを「<@userId>」形式でメンション
     const userMention = `<@${userId}>`;
@@ -71,7 +78,7 @@ export class OperationLogService {
           details.changes.added.forEach(item => {
             section += `  • ${item.name}`;
             if (item.category) section += ` (${item.category})`;
-            if (item.until) section += ` - ${item.until.toLocaleDateString()}まで`;
+            if (item.until) section += ` - ${formatJstDate(item.until)}まで`;
             section += '\n';
           });
           detailSections.push(section);
@@ -98,8 +105,8 @@ export class OperationLogService {
               section += `    カテゴリ: ${change.before.category || '未設定'} → ${change.after.category || '未設定'}\n`;
             }
             if (change.before.until !== undefined && change.after.until !== undefined) {
-              const beforeDate = change.before.until ? change.before.until.toLocaleDateString() : '未設定';
-              const afterDate = change.after.until ? change.after.until.toLocaleDateString() : '未設定';
+              const beforeDate = change.before.until ? formatJstDate(change.before.until) : '未設定';
+              const afterDate = change.after.until ? formatJstDate(change.after.until) : '未設定';
               section += `    期限: ${beforeDate} → ${afterDate}\n`;
             }
           });

@@ -17,6 +17,7 @@ export function getRemindSheetHeaders(): string[] {
     'last_done_at',
     'last_remind_due_at',
     'overdue_notify_count',
+    'overdue_notify_limit',
     'last_overdue_notified_at',
     'is_paused',
     'created_at',
@@ -38,6 +39,7 @@ export function toSheetRow(task: RemindTask): (string | number)[] {
     task.lastDoneAt ? formatDateTime(task.lastDoneAt) : '',
     task.lastRemindDueAt ? formatDateTime(task.lastRemindDueAt) : '',
     task.overdueNotifyCount,
+    task.overdueNotifyLimit ?? '',
     task.lastOverdueNotifiedAt ? formatDateTime(task.lastOverdueNotifiedAt) : '',
     task.isPaused ? '1' : '0',
     formatDateTime(task.createdAt),
@@ -46,6 +48,12 @@ export function toSheetRow(task: RemindTask): (string | number)[] {
 }
 
 export function fromSheetRow(row: string[]): RemindTask {
+  const hasLimitColumn = row.length >= 17;
+  const lastOverdueIndex = hasLimitColumn ? 13 : 12;
+  const isPausedIndex = hasLimitColumn ? 14 : 13;
+  const createdAtIndex = hasLimitColumn ? 15 : 14;
+  const updatedAtIndex = hasLimitColumn ? 16 : 15;
+
   return createRemindTask({
     id: row[0] || '',
     messageId: row[1] || undefined,
@@ -59,10 +67,11 @@ export function fromSheetRow(row: string[]): RemindTask {
     lastDoneAt: parseDate(row[9]),
     lastRemindDueAt: parseDate(row[10]),
     overdueNotifyCount: parseNumber(row[11], 0),
-    lastOverdueNotifiedAt: parseDate(row[12]),
-    isPaused: row[13] === '1',
-    createdAt: parseDate(row[14]) ?? new Date(),
-    updatedAt: parseDate(row[15]) ?? new Date()
+    overdueNotifyLimit: hasLimitColumn ? parseOptionalNumber(row[12]) : undefined,
+    lastOverdueNotifiedAt: parseDate(row[lastOverdueIndex]),
+    isPaused: row[isPausedIndex] === '1',
+    createdAt: parseDate(row[createdAtIndex]) ?? new Date(),
+    updatedAt: parseDate(row[updatedAtIndex]) ?? new Date()
   });
 }
 
@@ -73,6 +82,15 @@ function parseNumber(value: string | undefined, fallback: number): number {
 
   const parsed = Number(value);
   return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+function parseOptionalNumber(value: string | undefined): number | undefined {
+  if (!value || value.trim() === '') {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
 }
 
 function parseDate(value: string | undefined): Date | null {

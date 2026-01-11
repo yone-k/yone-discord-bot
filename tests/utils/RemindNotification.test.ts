@@ -50,7 +50,13 @@ describe('RemindNotification', () => {
 
   it('does not send overdue reminder when count reached', () => {
     const now = new Date('2026-01-06T10:00:00+09:00');
-    const task = { ...baseTask, overdueNotifyCount: 5 };
+    const task = { ...baseTask, overdueNotifyCount: 5, overdueNotifyLimit: 5 };
     expect(shouldSendOverdue(task, now)).toBe(false);
+  });
+
+  it('sends overdue reminder when limit is unset even if count is high', () => {
+    const now = new Date('2026-01-06T10:00:00+09:00');
+    const task = { ...baseTask, overdueNotifyCount: 99 };
+    expect(shouldSendOverdue(task, now)).toBe(true);
   });
 });

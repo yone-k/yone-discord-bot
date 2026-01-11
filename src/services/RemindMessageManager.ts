@@ -1,4 +1,14 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, ComponentType, MessageFlags, TextChannel } from 'discord.js';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  Client,
+  ComponentType,
+  MessageFlags,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  TextChannel
+} from 'discord.js';
 import type { Message } from 'discord.js';
 import type {
   APIActionRowComponent,
@@ -170,6 +180,25 @@ export class RemindMessageManager {
     return { success: true };
   }
 
+  public buildTaskMessageComponents(
+    task: RemindTask,
+    now: Date = new Date()
+  ): APIMessageTopLevelComponent[] {
+    return this.buildMessageComponents(task, now);
+  }
+
+  public buildUpdateSelectionComponents(
+    task: RemindTask,
+    messageId: string,
+    now: Date = new Date()
+  ): APIMessageTopLevelComponent[] {
+    return this.buildMessageComponentsWithActionRows(
+      task,
+      now,
+      this.buildUpdateSelectionActionRows(messageId)
+    );
+  }
+
   public async deleteTaskMessage(
     channelId: string,
     messageId: string,
@@ -333,6 +362,18 @@ export class RemindMessageManager {
   }
 
   private buildMessageComponents(task: RemindTask, now: Date): APIMessageTopLevelComponent[] {
+    return this.buildMessageComponentsWithActionRows(
+      task,
+      now,
+      [this.buildActionRow().toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>]
+    );
+  }
+
+  private buildMessageComponentsWithActionRows(
+    task: RemindTask,
+    now: Date,
+    actionRows: APIActionRowComponent<APIComponentInMessageActionRow>[]
+  ): APIMessageTopLevelComponent[] {
     const summary = RemindTaskFormatter.formatSummaryText(task, now);
     const progressBlock = `\`\`\`\n${summary.progressBar}\n\`\`\``;
     const containerComponents: APIComponentInContainer[] = [
@@ -344,12 +385,45 @@ export class RemindMessageManager {
       containerComponents.push(this.buildTextDisplay(summary.detailsText));
     }
 
-    containerComponents.push(this.buildActionRow().toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>);
+    containerComponents.push(...actionRows);
 
     return [{
       type: ComponentType.Container,
       components: containerComponents
     }];
+  }
+
+  private buildUpdateSelectionActionRows(
+    messageId: string
+  ): APIActionRowComponent<APIComponentInMessageActionRow>[] {
+    const selectionMenu = new StringSelectMenuBuilder()
+      .setCustomId(`remind-task-update-select:${messageId}`)
+      .setPlaceholder('更新内容を選択')
+      .addOptions(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('基本設定')
+          .setValue('basic'),
+        new StringSelectMenuOptionBuilder()
+          .setLabel('詳細設定')
+          .setValue('advanced')
+      );
+
+    const selectRow =
+      new ActionRowBuilder<StringSelectMenuBuilder>()
+        .addComponents(selectionMenu)
+        .toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>;
+
+    const cancelButton = new ButtonBuilder()
+      .setCustomId(`remind-task-update-cancel:${messageId}`)
+      .setLabel('キャンセル')
+      .setStyle(ButtonStyle.Secondary);
+
+    const cancelRow =
+      new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(cancelButton)
+        .toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>;
+
+    return [selectRow, cancelRow];
   }
 
   private buildTextDisplay(content: string): APITextDisplayComponent {

@@ -11,6 +11,7 @@ export interface RemindTaskInput {
   lastDoneAt?: Date | null;
   lastRemindDueAt?: Date | null;
   overdueNotifyCount?: number;
+  overdueNotifyLimit?: number;
   lastOverdueNotifiedAt?: Date | null;
   isPaused?: boolean;
   createdAt: Date;
@@ -30,6 +31,7 @@ export interface RemindTask {
   lastDoneAt: Date | null;
   lastRemindDueAt: Date | null;
   overdueNotifyCount: number;
+  overdueNotifyLimit?: number;
   lastOverdueNotifiedAt: Date | null;
   isPaused: boolean;
   createdAt: Date;
@@ -50,6 +52,7 @@ export function createRemindTask(input: RemindTaskInput): RemindTask {
     lastDoneAt: input.lastDoneAt ?? null,
     lastRemindDueAt: input.lastRemindDueAt ?? null,
     overdueNotifyCount: input.overdueNotifyCount ?? 0,
+    overdueNotifyLimit: input.overdueNotifyLimit,
     lastOverdueNotifiedAt: input.lastOverdueNotifiedAt ?? null,
     isPaused: input.isPaused ?? false,
     createdAt: input.createdAt,
@@ -100,6 +103,12 @@ export function validateRemindTask(task: RemindTask): void {
 
   if (task.overdueNotifyCount < 0) {
     throw new Error('overdue_notify_countが無効です');
+  }
+
+  if (task.overdueNotifyLimit !== undefined) {
+    if (!Number.isInteger(task.overdueNotifyLimit) || task.overdueNotifyLimit < 0) {
+      throw new Error('overdue_notify_limitが無効です');
+    }
   }
 
   if (typeof task.isPaused !== 'boolean') {

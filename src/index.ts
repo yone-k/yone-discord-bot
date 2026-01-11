@@ -14,6 +14,8 @@ import { ModalManager } from './services/ModalManager';
 import { ButtonManager } from './services/ButtonManager';
 import { registerAllButtons } from './registry/RegisterButtons';
 import { registerAllModals } from './registry/RegisterModals';
+import { SelectMenuManager } from './services/SelectMenuManager';
+import { registerAllSelectMenus } from './registry/RegisterSelectMenus';
 import { OperationLogService } from './services/OperationLogService';
 import { MetadataManager } from './services/MetadataManager';
 import { RemindScheduler } from './services/RemindScheduler';
@@ -27,6 +29,7 @@ class DiscordBot {
   private reactionManager!: ReactionManager;
   private modalManager!: ModalManager;
   private buttonManager!: ButtonManager;
+  private selectMenuManager!: SelectMenuManager;
   private httpServer!: express.Application;
   private server: Server | null = null;
   private operationLogService!: OperationLogService;
@@ -79,12 +82,14 @@ class DiscordBot {
       this.reactionManager = new ReactionManager(this.logger);
       this.modalManager = new ModalManager(this.logger);
       this.buttonManager = new ButtonManager(this.logger, this.operationLogService, this.metadataManager);
+      this.selectMenuManager = new SelectMenuManager(this.logger, this.operationLogService, this.metadataManager);
 
       // 新しいレジストリ関数を使用してハンドラーを登録
       registerAllButtons(this.buttonManager, this.logger, this.operationLogService, this.metadataManager);
       registerAllModals(this.modalManager, this.logger);
+      registerAllSelectMenus(this.selectMenuManager, this.logger, this.operationLogService, this.metadataManager);
 
-      this.logger.info('Button and modal handlers registered successfully');
+      this.logger.info('Button, select menu and modal handlers registered successfully');
     } catch (error) {
       this.logger.error('Failed to register button handlers', { error });
       throw error;
@@ -219,6 +224,8 @@ class DiscordBot {
           await this.handleChatInputCommand(interaction);
         } else if (interaction.isButton()) {
           await this.buttonManager.handleButtonInteraction(interaction);
+        } else if (interaction.isStringSelectMenu()) {
+          await this.selectMenuManager.handleSelectMenuInteraction(interaction);
         } else if (interaction.isModalSubmit()) {
           await this.modalManager.handleModalSubmit(interaction);
         }

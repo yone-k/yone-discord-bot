@@ -32,12 +32,12 @@ export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
   protected getOperationInfo(): OperationInfo {
     return {
       operationType: 'update',
-      actionName: 'リマインド期限上書き'
+      actionName: 'リマインド詳細設定'
     };
   }
 
   protected getSuccessMessage(): string {
-    return '✅ 期限を上書きしました。';
+    return '✅ 詳細設定を更新しました。';
   }
 
   protected async executeAction(context: ModalHandlerContext): Promise<OperationResult> {
@@ -54,6 +54,8 @@ export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
 
     let lastDoneAt: Date | undefined;
     let nextDueAt: Date | undefined;
+    const limitText = context.interaction.fields.getTextInputValue('overdue-notify-limit').trim();
+    let overdueNotifyLimit: number | undefined;
     try {
       lastDoneAt = this.parseOverrideDate(
         context.interaction.fields.getTextInputValue('last-done-at'),
@@ -69,10 +71,21 @@ export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
       return { success: false, message: error instanceof Error ? error.message : '日付の形式が無効です' };
     }
 
-    if (!lastDoneAt && !nextDueAt) {
-      return { success: false, message: '前回完了日または次回期限を入力してください' };
+    if (limitText === '') {
+      overdueNotifyLimit = undefined;
+    } else {
+      const parsedLimit = Number(limitText);
+      if (!Number.isInteger(parsedLimit) || parsedLimit < 0) {
+        return { success: false, message: '期限超過通知の上限回数が無効です' };
+      }
+      overdueNotifyLimit = parsedLimit;
     }
 
+    if (!lastDoneAt && !nextDueAt && limitText === '' && task.overdueNotifyLimit === undefined) {
+      return { success: false, message: '前回完了日、次回期限、上限回数のいずれかを入力してください' };
+    }
+
+    const shouldResetNotifications = !!lastDoneAt || !!nextDueAt;
     const resolvedLastDoneAt = lastDoneAt ?? task.lastDoneAt;
     const resolvedNextDueAt = nextDueAt ?? task.nextDueAt;
 
@@ -85,9 +98,10 @@ export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
       ...task,
       lastDoneAt: resolvedLastDoneAt,
       nextDueAt: resolvedNextDueAt,
-      lastRemindDueAt: null,
-      overdueNotifyCount: 0,
-      lastOverdueNotifiedAt: null,
+      overdueNotifyLimit,
+      lastRemindDueAt: shouldResetNotifications ? null : task.lastRemindDueAt,
+      overdueNotifyCount: shouldResetNotifications ? 0 : task.overdueNotifyCount,
+      lastOverdueNotifiedAt: shouldResetNotifications ? null : task.lastOverdueNotifiedAt,
       updatedAt: now
     };
 

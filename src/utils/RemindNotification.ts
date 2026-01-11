@@ -29,7 +29,7 @@ export function shouldSendOverdue(task: RemindTask, now: Date): boolean {
     return false;
   }
 
-  if (task.overdueNotifyCount >= 5) {
+  if (task.overdueNotifyLimit !== undefined && task.overdueNotifyCount >= task.overdueNotifyLimit) {
     return false;
   }
 

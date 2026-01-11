@@ -1,6 +1,6 @@
 import { GoogleSheetsService, OperationResult } from './GoogleSheetsService';
 import { RemindTask } from '../models/RemindTask';
-import { fromSheetRow, toSheetRow } from '../utils/RemindSheetMapper';
+import { fromSheetRow, getRemindSheetHeaders, toSheetRow } from '../utils/RemindSheetMapper';
 
 export class RemindTaskRepository {
   private googleSheetsService: GoogleSheetsService;
@@ -47,9 +47,22 @@ export class RemindTaskRepository {
       return { success: false, message: 'Task not found' };
     }
 
-    const updatedRows = [...data];
-    updatedRows[targetIndex] = toSheetRow(task).map(value => String(value));
-    const rawData = [headers, ...updatedRows.slice(1)];
+    const expectedHeaders = getRemindSheetHeaders();
+    const normalizedHeaders = headers.length < expectedHeaders.length ? expectedHeaders : headers;
+    const normalizedRows = data.slice(1).map((row) => {
+      if (row.length >= expectedHeaders.length) {
+        return row;
+      }
+      const padded = [...row];
+      while (padded.length < expectedHeaders.length) {
+        padded.push('');
+      }
+      return padded;
+    });
+
+    const updatedRows = [...normalizedRows];
+    updatedRows[targetIndex - 1] = toSheetRow(task).map(value => String(value));
+    const rawData = [normalizedHeaders, ...updatedRows];
     return this.googleSheetsService.updateSheetData(sheetName, rawData);
   }
 

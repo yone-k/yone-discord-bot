@@ -17,6 +17,7 @@ describe('RemindSheetMapper', () => {
       'last_done_at',
       'last_remind_due_at',
       'overdue_notify_count',
+      'overdue_notify_limit',
       'last_overdue_notified_at',
       'is_paused',
       'created_at',
@@ -38,6 +39,7 @@ describe('RemindSheetMapper', () => {
       lastDoneAt: null,
       lastRemindDueAt: null,
       overdueNotifyCount: 0,
+      overdueNotifyLimit: 3,
       lastOverdueNotifiedAt: null,
       isPaused: false,
       createdAt: new Date('2025-12-29T08:00:00+09:00'),
@@ -48,7 +50,8 @@ describe('RemindSheetMapper', () => {
     expect(row[0]).toBe('task-1');
     expect(row[4]).toBe(30);
     expect(row[7]).toBe('2025-12-29T09:00:00+09:00');
-    expect(row[14]).toBe('2025-12-29T08:00:00+09:00');
+    expect(row[12]).toBe(3);
+    expect(row[16]).toBe('2025-12-29T08:00:00+09:00');
   });
 
   it('converts sheet row to task', () => {
@@ -65,6 +68,7 @@ describe('RemindSheetMapper', () => {
       '',
       '',
       '0',
+      '2',
       '',
       '0',
       '2025-12-29T08:00:00+09:00',
@@ -76,6 +80,7 @@ describe('RemindSheetMapper', () => {
     expect(task.intervalDays).toBe(30);
     expect(task.lastDoneAt).toBeNull();
     expect(task.isPaused).toBe(false);
+    expect(task.overdueNotifyLimit).toBe(2);
     expect(task.nextDueAt.toISOString()).toBe('2026-01-28T00:00:00.000Z');
   });
 });

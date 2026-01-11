@@ -3,10 +3,10 @@ import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandl
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
 import { MetadataProvider } from '../services/MetadataProvider';
-import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
+import { RemindTaskRepository } from '../services/RemindTaskRepository';
 
-export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
+export class RemindTaskUpdateCancelButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
 
@@ -17,7 +17,7 @@ export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
     repository?: RemindTaskRepository,
     messageManager?: RemindMessageManager
   ) {
-    super('remind-task-update', logger, operationLogService, metadataManager);
+    super('remind-task-update-cancel', logger, operationLogService, metadataManager);
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
     this.ephemeral = true;
@@ -27,16 +27,24 @@ export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
     return true;
   }
 
+  public shouldHandle(context: ButtonHandlerContext): boolean {
+    if (context.interaction.user.bot) {
+      return false;
+    }
+
+    return context.interaction.customId.startsWith('remind-task-update-cancel:');
+  }
+
   protected getOperationInfo(): OperationInfo {
     return {
       operationType: 'update',
-      actionName: 'リマインド更新'
+      actionName: 'リマインド更新キャンセル'
     };
   }
 
   protected async executeAction(context: ButtonHandlerContext): Promise<OperationResult> {
     const channelId = context.interaction.channelId;
-    const messageId = context.interaction.message?.id;
+    const messageId = this.parseMessageId(context.interaction.customId);
     if (!channelId || !messageId) {
       return { success: false, message: 'チャンネル情報が取得できません' };
     }
@@ -46,9 +54,14 @@ export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
       return { success: false, message: 'タスクが見つかりません' };
     }
 
-    const components = this.messageManager.buildUpdateSelectionComponents(task, messageId);
+    const components = this.messageManager.buildTaskMessageComponents(task, new Date());
     await context.interaction.update({ components });
 
-    return { success: true, message: '更新選択を表示しました' };
+    return { success: true, message: '更新選択を取り消しました' };
+  }
+
+  private parseMessageId(customId: string): string | null {
+    const parts = customId.split(':');
+    return parts.length === 2 ? parts[1] : null;
   }
 }

@@ -401,11 +401,11 @@ export class RemindMessageManager {
       .setPlaceholder('更新内容を選択')
       .addOptions(
         new StringSelectMenuOptionBuilder()
-          .setLabel('基本編集')
+          .setLabel('基本設定')
           .setValue('basic'),
         new StringSelectMenuOptionBuilder()
-          .setLabel('期限上書き')
-          .setValue('override')
+          .setLabel('詳細設定')
+          .setValue('advanced')
       );
 
     const selectRow =

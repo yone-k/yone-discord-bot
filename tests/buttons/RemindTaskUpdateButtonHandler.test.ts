@@ -55,7 +55,7 @@ describe('RemindTaskUpdateButtonHandler', () => {
     expect(selectMenu.custom_id).toBe('remind-task-update-select:msg-1');
     const optionValues = selectMenu.options.map((option: any) => option.value);
     expect(optionValues).toContain('basic');
-    expect(optionValues).toContain('override');
+    expect(optionValues).toContain('advanced');
 
     const cancelRow = actionRows.find((row: any) =>
       row.components.some((component: any) => component.type === ComponentType.Button)

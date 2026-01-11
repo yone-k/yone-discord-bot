@@ -70,8 +70,8 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
     const modal =
       selection === 'basic'
         ? this.buildBasicModal(task, messageId)
-        : selection === 'override'
-          ? this.buildOverrideModal(task, messageId)
+        : selection === 'advanced'
+          ? this.buildAdvancedModal(task, messageId)
           : null;
 
     if (!modal) {
@@ -146,10 +146,10 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
     return modal;
   }
 
-  private buildOverrideModal(task: RemindTask, messageId: string): ModalBuilder {
+  private buildAdvancedModal(task: RemindTask, messageId: string): ModalBuilder {
     const modal = new ModalBuilder()
       .setCustomId(`remind-task-update-override-modal:${messageId}`)
-      .setTitle('期限上書き');
+      .setTitle('詳細設定');
 
     const lastDoneValue = task.lastDoneAt ? this.formatTokyoDateTime(task.lastDoneAt) : '';
     const nextDueValue = this.formatTokyoDateTime(task.nextDueAt);
@@ -173,9 +173,21 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
       .setMaxLength(16)
       .setValue(nextDueValue);
 
+    const limitInput = new TextInputBuilder()
+      .setCustomId('overdue-notify-limit')
+      .setLabel('期限超過通知の上限回数（空欄で無制限）')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(false)
+      .setMaxLength(5);
+
+    if (task.overdueNotifyLimit !== undefined) {
+      limitInput.setValue(String(task.overdueNotifyLimit));
+    }
+
     modal.addComponents(
       new ActionRowBuilder<TextInputBuilder>().addComponents(lastDoneInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(nextDueInput)
+      new ActionRowBuilder<TextInputBuilder>().addComponents(nextDueInput),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(limitInput)
     );
 
     return modal;

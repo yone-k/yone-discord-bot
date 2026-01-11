@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
+import { ComponentType } from 'discord.js';
 import { RemindTaskUpdateButtonHandler } from '../../src/buttons/RemindTaskUpdateButtonHandler';
 import { Logger } from '../../src/utils/logger';
 import { createRemindTask } from '../../src/models/RemindTask';
 
 describe('RemindTaskUpdateButtonHandler', () => {
-  it('replies with update options including message id', async () => {
+  it('updates message with selection options including message id', async () => {
     const mockRepository = {
       findTaskByMessageId: vi.fn().mockResolvedValue(createRemindTask({
         id: 'task-1',
@@ -32,17 +33,22 @@ describe('RemindTaskUpdateButtonHandler', () => {
       user: { id: 'user-1', bot: false },
       channelId: 'channel-1',
       message: { id: 'msg-1' },
-      reply: vi.fn()
+      update: vi.fn().mockResolvedValue(undefined)
     };
 
     await handler.handle({ interaction } as any);
 
-    expect(interaction.reply).toHaveBeenCalled();
-    const payload = interaction.reply.mock.calls[0][0];
+    expect(interaction.update).toHaveBeenCalled();
+    const payload = interaction.update.mock.calls[0][0];
     expect(payload.components).toHaveLength(1);
-    const row = payload.components[0];
-    const customIds = row.components.map((component: any) => component.data.custom_id);
+    const container = payload.components[0];
+    expect(container.type).toBe(ComponentType.Container);
+    const actionRow = container.components.find(
+      (component: any) => component.type === ComponentType.ActionRow
+    );
+    const customIds = actionRow.components.map((component: any) => component.custom_id);
     expect(customIds).toContain('remind-task-update-basic:msg-1');
     expect(customIds).toContain('remind-task-update-override:msg-1');
+    expect(customIds).toContain('remind-task-update-cancel:msg-1');
   });
 });

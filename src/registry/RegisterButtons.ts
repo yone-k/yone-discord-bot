@@ -5,6 +5,7 @@ import { AddListButtonHandler } from '../buttons/AddListButtonHandler';
 import { RemindTaskUpdateButtonHandler } from '../buttons/RemindTaskUpdateButtonHandler';
 import { RemindTaskUpdateBasicButtonHandler } from '../buttons/RemindTaskUpdateBasicButtonHandler';
 import { RemindTaskUpdateOverrideButtonHandler } from '../buttons/RemindTaskUpdateOverrideButtonHandler';
+import { RemindTaskUpdateCancelButtonHandler } from '../buttons/RemindTaskUpdateCancelButtonHandler';
 import { RemindTaskCompleteButtonHandler } from '../buttons/RemindTaskCompleteButtonHandler';
 import { RemindTaskDeleteButtonHandler } from '../buttons/RemindTaskDeleteButtonHandler';
 import { RemindTaskDetailButtonHandler } from '../buttons/RemindTaskDetailButtonHandler';
@@ -52,6 +53,13 @@ export function registerAllButtons(
     remindMetadataManager
   );
   buttonManager.registerHandler(remindUpdateOverrideButtonHandler);
+
+  const remindUpdateCancelButtonHandler = new RemindTaskUpdateCancelButtonHandler(
+    logger,
+    remindOperationLogService,
+    remindMetadataManager
+  );
+  buttonManager.registerHandler(remindUpdateCancelButtonHandler);
 
   const remindCompleteButtonHandler = new RemindTaskCompleteButtonHandler(logger, remindOperationLogService, remindMetadataManager);
   buttonManager.registerHandler(remindCompleteButtonHandler);

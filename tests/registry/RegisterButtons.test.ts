@@ -121,6 +121,14 @@ describe('RegisterButtons', () => {
       expect(handler?.constructor.name).toBe('RemindTaskUpdateOverrideButtonHandler');
     });
 
+    it('RemindTaskUpdateCancelButtonHandlerが正しく登録される', () => {
+      registerAllButtons(buttonManager, logger);
+
+      const handler = buttonManager.getHandlerByCustomId('remind-task-update-cancel');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('RemindTaskUpdateCancelButtonHandler');
+    });
+
     it('RemindTaskCompleteButtonHandlerが正しく登録される', () => {
       registerAllButtons(buttonManager, logger);
 
@@ -159,8 +167,9 @@ describe('RegisterButtons', () => {
       const registeredHandlers = buttonManager.getRegisteredHandlers();
       // 現在のボタンハンドラー数: InitListButtonHandler, EditListButtonHandler, AddListButtonHandler,
       // RemindTaskUpdateButtonHandler, RemindTaskUpdateBasicButtonHandler, RemindTaskUpdateOverrideButtonHandler,
-      // RemindTaskCompleteButtonHandler, RemindTaskDeleteButtonHandler, RemindTaskDetailButtonHandler, RemindTaskAddButtonHandler
-      expect(registeredHandlers).toHaveLength(10);
+      // RemindTaskUpdateCancelButtonHandler, RemindTaskCompleteButtonHandler, RemindTaskDeleteButtonHandler,
+      // RemindTaskDetailButtonHandler, RemindTaskAddButtonHandler
+      expect(registeredHandlers).toHaveLength(11);
     });
   });
 });

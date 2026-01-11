@@ -3,21 +3,25 @@ import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandl
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { OperationLogService } from '../services/OperationLogService';
+import { RemindMessageManager } from '../services/RemindMessageManager';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { formatRemindBeforeInput } from '../utils/RemindDuration';
 import { Logger } from '../utils/logger';
 
 export class RemindTaskUpdateBasicButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
+  private messageManager: RemindMessageManager;
 
   constructor(
     logger: Logger,
     operationLogService?: OperationLogService,
     metadataManager?: MetadataProvider,
-    repository?: RemindTaskRepository
+    repository?: RemindTaskRepository,
+    messageManager?: RemindMessageManager
   ) {
     super('remind-task-update-basic', logger, operationLogService, metadataManager);
     this.repository = repository || new RemindTaskRepository();
+    this.messageManager = messageManager || new RemindMessageManager();
     this.ephemeral = true;
   }
 
@@ -105,7 +109,13 @@ export class RemindTaskUpdateBasicButtonHandler extends BaseButtonHandler {
     );
 
     await context.interaction.showModal(modal);
-    await this.deletePromptMessage(context);
+    await this.messageManager.updateTaskMessage(
+      channelId,
+      messageId,
+      task,
+      context.interaction.client,
+      new Date()
+    );
 
     return { success: true, message: '更新モーダルを表示しました' };
   }
@@ -115,16 +125,4 @@ export class RemindTaskUpdateBasicButtonHandler extends BaseButtonHandler {
     return parts.length === 2 ? parts[1] : null;
   }
 
-  private async deletePromptMessage(context: ButtonHandlerContext): Promise<void> {
-    const promptMessage = context.interaction.message;
-    if (!promptMessage) {
-      return;
-    }
-
-    try {
-      await promptMessage.delete();
-    } catch {
-      // ephemeralメッセージなど削除できない場合は無視する
-    }
-  }
 }

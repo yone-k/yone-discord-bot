@@ -1,4 +1,14 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, ComponentType, MessageFlags, TextChannel } from 'discord.js';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  Client,
+  ComponentType,
+  MessageFlags,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  TextChannel
+} from 'discord.js';
 import type { Message } from 'discord.js';
 import type {
   APIActionRowComponent,
@@ -182,10 +192,10 @@ export class RemindMessageManager {
     messageId: string,
     now: Date = new Date()
   ): APIMessageTopLevelComponent[] {
-    return this.buildMessageComponentsWithActionRow(
+    return this.buildMessageComponentsWithActionRows(
       task,
       now,
-      this.buildUpdateSelectionActionRow(messageId)
+      this.buildUpdateSelectionActionRows(messageId)
     );
   }
 
@@ -352,17 +362,17 @@ export class RemindMessageManager {
   }
 
   private buildMessageComponents(task: RemindTask, now: Date): APIMessageTopLevelComponent[] {
-    return this.buildMessageComponentsWithActionRow(
+    return this.buildMessageComponentsWithActionRows(
       task,
       now,
-      this.buildActionRow().toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>
+      [this.buildActionRow().toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>]
     );
   }
 
-  private buildMessageComponentsWithActionRow(
+  private buildMessageComponentsWithActionRows(
     task: RemindTask,
     now: Date,
-    actionRow: APIActionRowComponent<APIComponentInMessageActionRow>
+    actionRows: APIActionRowComponent<APIComponentInMessageActionRow>[]
   ): APIMessageTopLevelComponent[] {
     const summary = RemindTaskFormatter.formatSummaryText(task, now);
     const progressBlock = `\`\`\`\n${summary.progressBar}\n\`\`\``;
@@ -375,7 +385,7 @@ export class RemindMessageManager {
       containerComponents.push(this.buildTextDisplay(summary.detailsText));
     }
 
-    containerComponents.push(actionRow);
+    containerComponents.push(...actionRows);
 
     return [{
       type: ComponentType.Container,
@@ -383,27 +393,37 @@ export class RemindMessageManager {
     }];
   }
 
-  private buildUpdateSelectionActionRow(
+  private buildUpdateSelectionActionRows(
     messageId: string
-  ): APIActionRowComponent<APIComponentInMessageActionRow> {
-    const basicButton = new ButtonBuilder()
-      .setCustomId(`remind-task-update-basic:${messageId}`)
-      .setLabel('基本編集')
-      .setStyle(ButtonStyle.Primary);
+  ): APIActionRowComponent<APIComponentInMessageActionRow>[] {
+    const selectionMenu = new StringSelectMenuBuilder()
+      .setCustomId(`remind-task-update-select:${messageId}`)
+      .setPlaceholder('更新内容を選択')
+      .addOptions(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('基本編集')
+          .setValue('basic'),
+        new StringSelectMenuOptionBuilder()
+          .setLabel('期限上書き')
+          .setValue('override')
+      );
 
-    const overrideButton = new ButtonBuilder()
-      .setCustomId(`remind-task-update-override:${messageId}`)
-      .setLabel('期限上書き')
-      .setStyle(ButtonStyle.Secondary);
+    const selectRow =
+      new ActionRowBuilder<StringSelectMenuBuilder>()
+        .addComponents(selectionMenu)
+        .toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>;
 
     const cancelButton = new ButtonBuilder()
       .setCustomId(`remind-task-update-cancel:${messageId}`)
       .setLabel('キャンセル')
       .setStyle(ButtonStyle.Secondary);
 
-    return new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(basicButton, overrideButton, cancelButton)
-      .toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>;
+    const cancelRow =
+      new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(cancelButton)
+        .toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>;
+
+    return [selectRow, cancelRow];
   }
 
   private buildTextDisplay(content: string): APITextDisplayComponent {

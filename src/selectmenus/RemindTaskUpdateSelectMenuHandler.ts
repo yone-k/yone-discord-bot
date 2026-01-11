@@ -1,14 +1,20 @@
-import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
-import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
-import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { MetadataProvider } from '../services/MetadataProvider';
-import { OperationLogService } from '../services/OperationLogService';
-import { RemindMessageManager } from '../services/RemindMessageManager';
-import { RemindTaskRepository } from '../services/RemindTaskRepository';
-import { formatRemindBeforeInput } from '../utils/RemindDuration';
+import {
+  ActionRowBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
+} from 'discord.js';
+import { BaseSelectMenuHandler, SelectMenuHandlerContext } from '../base/BaseSelectMenuHandler';
 import { Logger } from '../utils/logger';
+import { OperationInfo, OperationResult } from '../models/types/OperationLog';
+import { OperationLogService } from '../services/OperationLogService';
+import { MetadataProvider } from '../services/MetadataProvider';
+import { RemindTaskRepository } from '../services/RemindTaskRepository';
+import { RemindMessageManager } from '../services/RemindMessageManager';
+import { formatRemindBeforeInput } from '../utils/RemindDuration';
+import { RemindTask } from '../models/RemindTask';
 
-export class RemindTaskUpdateBasicButtonHandler extends BaseButtonHandler {
+export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
 
@@ -19,7 +25,7 @@ export class RemindTaskUpdateBasicButtonHandler extends BaseButtonHandler {
     repository?: RemindTaskRepository,
     messageManager?: RemindMessageManager
   ) {
-    super('remind-task-update-basic', logger, operationLogService, metadataManager);
+    super('remind-task-update-select', logger, operationLogService, metadataManager);
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
     this.ephemeral = true;
@@ -29,12 +35,12 @@ export class RemindTaskUpdateBasicButtonHandler extends BaseButtonHandler {
     return true;
   }
 
-  public shouldHandle(context: ButtonHandlerContext): boolean {
+  public shouldHandle(context: SelectMenuHandlerContext): boolean {
     if (context.interaction.user.bot) {
       return false;
     }
 
-    return context.interaction.customId.startsWith('remind-task-update-basic:');
+    return context.interaction.customId.startsWith('remind-task-update-select:');
   }
 
   protected getOperationInfo(): OperationInfo {
@@ -44,11 +50,16 @@ export class RemindTaskUpdateBasicButtonHandler extends BaseButtonHandler {
     };
   }
 
-  protected async executeAction(context: ButtonHandlerContext): Promise<OperationResult> {
+  protected async executeAction(context: SelectMenuHandlerContext): Promise<OperationResult> {
     const channelId = context.interaction.channelId;
     const messageId = this.parseMessageId(context.interaction.customId);
     if (!channelId || !messageId) {
       return { success: false, message: 'チャンネル情報が取得できません' };
+    }
+
+    const selection = context.interaction.values?.[0];
+    if (!selection) {
+      return { success: false, message: '更新内容が選択されていません' };
     }
 
     const task = await this.repository.findTaskByMessageId(channelId, messageId);
@@ -56,6 +67,30 @@ export class RemindTaskUpdateBasicButtonHandler extends BaseButtonHandler {
       return { success: false, message: 'タスクが見つかりません' };
     }
 
+    const modal =
+      selection === 'basic'
+        ? this.buildBasicModal(task, messageId)
+        : selection === 'override'
+          ? this.buildOverrideModal(task, messageId)
+          : null;
+
+    if (!modal) {
+      return { success: false, message: '更新内容が不正です' };
+    }
+
+    await this.messageManager.updateTaskMessage(
+      channelId,
+      messageId,
+      task,
+      context.interaction.client,
+      new Date()
+    );
+    await context.interaction.showModal(modal);
+
+    return { success: true, message: '更新モーダルを表示しました' };
+  }
+
+  private buildBasicModal(task: RemindTask, messageId: string): ModalBuilder {
     const modal = new ModalBuilder()
       .setCustomId(`remind-task-update-modal:${messageId}`)
       .setTitle('リマインド更新');
@@ -108,16 +143,42 @@ export class RemindTaskUpdateBasicButtonHandler extends BaseButtonHandler {
       new ActionRowBuilder<TextInputBuilder>().addComponents(descriptionInput)
     );
 
-    await context.interaction.showModal(modal);
-    await this.messageManager.updateTaskMessage(
-      channelId,
-      messageId,
-      task,
-      context.interaction.client,
-      new Date()
+    return modal;
+  }
+
+  private buildOverrideModal(task: RemindTask, messageId: string): ModalBuilder {
+    const modal = new ModalBuilder()
+      .setCustomId(`remind-task-update-override-modal:${messageId}`)
+      .setTitle('期限上書き');
+
+    const lastDoneValue = task.lastDoneAt ? this.formatTokyoDateTime(task.lastDoneAt) : '';
+    const nextDueValue = this.formatTokyoDateTime(task.nextDueAt);
+
+    const lastDoneInput = new TextInputBuilder()
+      .setCustomId('last-done-at')
+      .setLabel('前回完了日（YYYY/MM/DD もしくは YYYY/MM/DD HH:MM）')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(false)
+      .setMaxLength(16);
+
+    if (lastDoneValue) {
+      lastDoneInput.setValue(lastDoneValue);
+    }
+
+    const nextDueInput = new TextInputBuilder()
+      .setCustomId('next-due-at')
+      .setLabel('次回期限（YYYY/MM/DD もしくは YYYY/MM/DD HH:MM）')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(false)
+      .setMaxLength(16)
+      .setValue(nextDueValue);
+
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(lastDoneInput),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(nextDueInput)
     );
 
-    return { success: true, message: '更新モーダルを表示しました' };
+    return modal;
   }
 
   private parseMessageId(customId: string): string | null {
@@ -125,4 +186,14 @@ export class RemindTaskUpdateBasicButtonHandler extends BaseButtonHandler {
     return parts.length === 2 ? parts[1] : null;
   }
 
+  private formatTokyoDateTime(date: Date): string {
+    const tokyoOffset = 9 * 60;
+    const tokyoDate = new Date(date.getTime() + tokyoOffset * 60 * 1000);
+    const year = tokyoDate.getUTCFullYear();
+    const month = String(tokyoDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(tokyoDate.getUTCDate()).padStart(2, '0');
+    const hours = String(tokyoDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(tokyoDate.getUTCMinutes()).padStart(2, '0');
+    return `${year}/${month}/${day} ${hours}:${minutes}`;
+  }
 }

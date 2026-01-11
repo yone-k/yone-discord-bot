@@ -1,10 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
-import { RemindTaskUpdateOverrideButtonHandler } from '../../src/buttons/RemindTaskUpdateOverrideButtonHandler';
 import { Logger } from '../../src/utils/logger';
 import { createRemindTask } from '../../src/models/RemindTask';
+import { RemindTaskUpdateSelectMenuHandler } from '../../src/selectmenus/RemindTaskUpdateSelectMenuHandler';
 
-describe('RemindTaskUpdateOverrideButtonHandler', () => {
-  it('shows override modal using message id from customId', async () => {
+describe('RemindTaskUpdateSelectMenuHandler', () => {
+  it.each([
+    { value: 'basic', expectedCustomId: 'remind-task-update-modal:msg-1' },
+    { value: 'override', expectedCustomId: 'remind-task-update-override-modal:msg-1' }
+  ])('restores task message before showing modal for %s selection', async ({ value, expectedCustomId }) => {
     const task = createRemindTask({
       id: 'task-1',
       messageId: 'msg-1',
@@ -22,10 +25,10 @@ describe('RemindTaskUpdateOverrideButtonHandler', () => {
       findTaskByMessageId: vi.fn().mockResolvedValue(task)
     };
     const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
+      updateTaskMessage: vi.fn().mockResolvedValue(undefined)
     };
 
-    const handler = new RemindTaskUpdateOverrideButtonHandler(
+    const handler = new RemindTaskUpdateSelectMenuHandler(
       new Logger(),
       undefined,
       undefined,
@@ -34,17 +37,16 @@ describe('RemindTaskUpdateOverrideButtonHandler', () => {
     );
 
     const interaction = {
-      customId: 'remind-task-update-override:msg-1',
+      customId: 'remind-task-update-select:msg-1',
       user: { id: 'user-1', bot: false },
       channelId: 'channel-1',
-      message: { id: 'msg-1' },
+      values: [value],
       client: {} as any,
-      showModal: vi.fn()
+      showModal: vi.fn().mockResolvedValue(undefined)
     };
 
     await handler.handle({ interaction } as any);
 
-    expect(interaction.showModal).toHaveBeenCalled();
     expect(mockMessageManager.updateTaskMessage).toHaveBeenCalledWith(
       'channel-1',
       'msg-1',
@@ -52,7 +54,11 @@ describe('RemindTaskUpdateOverrideButtonHandler', () => {
       interaction.client,
       expect.any(Date)
     );
-    const modalCall = interaction.showModal.mock.calls[0][0];
-    expect(modalCall.data.custom_id).toBe('remind-task-update-override-modal:msg-1');
+    expect(interaction.showModal).toHaveBeenCalled();
+    const modal = interaction.showModal.mock.calls[0][0];
+    expect(modal.toJSON().custom_id).toBe(expectedCustomId);
+    const updateOrder = mockMessageManager.updateTaskMessage.mock.invocationCallOrder[0];
+    const modalOrder = interaction.showModal.mock.invocationCallOrder[0];
+    expect(updateOrder).toBeLessThan(modalOrder);
   });
 });

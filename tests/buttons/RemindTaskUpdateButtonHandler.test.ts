@@ -43,12 +43,26 @@ describe('RemindTaskUpdateButtonHandler', () => {
     expect(payload.components).toHaveLength(1);
     const container = payload.components[0];
     expect(container.type).toBe(ComponentType.Container);
-    const actionRow = container.components.find(
+    const actionRows = container.components.filter(
       (component: any) => component.type === ComponentType.ActionRow
     );
-    const customIds = actionRow.components.map((component: any) => component.custom_id);
-    expect(customIds).toContain('remind-task-update-basic:msg-1');
-    expect(customIds).toContain('remind-task-update-override:msg-1');
-    expect(customIds).toContain('remind-task-update-cancel:msg-1');
+    expect(actionRows).toHaveLength(2);
+
+    const selectRow = actionRows.find((row: any) =>
+      row.components.some((component: any) => component.type === ComponentType.StringSelect)
+    );
+    const selectMenu = selectRow.components[0];
+    expect(selectMenu.custom_id).toBe('remind-task-update-select:msg-1');
+    const optionValues = selectMenu.options.map((option: any) => option.value);
+    expect(optionValues).toContain('basic');
+    expect(optionValues).toContain('override');
+
+    const cancelRow = actionRows.find((row: any) =>
+      row.components.some((component: any) => component.type === ComponentType.Button)
+    );
+    const cancelButton = cancelRow.components.find(
+      (component: any) => component.custom_id === 'remind-task-update-cancel:msg-1'
+    );
+    expect(cancelButton).toBeDefined();
   });
 });

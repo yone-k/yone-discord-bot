@@ -40,7 +40,7 @@ describe('RemindTaskInventoryModalHandler', () => {
       channelId: 'channel-1',
       client: {} as any,
       fields: {
-        getTextInputValue: vi.fn().mockReturnValue('牛乳,在庫3,消費1')
+        getTextInputValue: vi.fn().mockReturnValue('フィルター,1,3')
       },
       deferReply: vi.fn(),
       editReply: vi.fn(),
@@ -52,7 +52,7 @@ describe('RemindTaskInventoryModalHandler', () => {
     expect(mockRepository.updateTask).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        inventoryItems: [{ name: '牛乳', stock: 3, consume: 1 }]
+        inventoryItems: [{ name: 'フィルター', stock: 3, consume: 1 }]
       })
     );
     expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();

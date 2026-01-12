@@ -45,7 +45,7 @@ export class AddRemindListCommand extends BaseCommand {
       )
       .addStringOption(option =>
         option.setName('inventory-items')
-          .setDescription('在庫設定（例: 牛乳,在庫3,消費1 を改行 or ; で複数指定）')
+          .setDescription('在庫設定（例: フィルター,1,3 を改行 or ; で複数指定）')
           .setRequired(false)
       ) as SlashCommandBuilder;
   }

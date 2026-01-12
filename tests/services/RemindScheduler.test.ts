@@ -156,6 +156,7 @@ describe('RemindScheduler', () => {
 
     const contents = mockMessageManager.sendReminderToThread.mock.calls.map((call: any[]) => call[3]);
     expect(contents.some((content: string) => content.includes('期限まであと1時間'))).toBe(true);
-    expect(contents.some((content: string) => content.includes('牛乳の在庫が1個不足しています'))).toBe(true);
+    expect(contents.some((content: string) => content.includes('不足している在庫の詳細は以下の通りです'))).toBe(true);
+    expect(contents.some((content: string) => content.includes('牛乳 1個'))).toBe(true);
   });
 });

@@ -105,7 +105,10 @@ describe('RemindTaskCompleteModalHandler', () => {
     expect(mockRepository.updateTask).not.toHaveBeenCalled();
     expect(mockMessageManager.updateTaskMessage).not.toHaveBeenCalled();
     expect(interaction.editReply).toHaveBeenCalledWith(expect.objectContaining({
-      content: expect.stringContaining('牛乳の在庫が1個不足しています')
+      content: expect.stringContaining('不足している在庫の詳細は以下の通りです')
+    }));
+    expect(interaction.editReply).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('牛乳 1個')
     }));
     expect(mockMessageManager.sendReminderToThread).not.toHaveBeenCalled();
   });
@@ -165,7 +168,7 @@ describe('RemindTaskCompleteModalHandler', () => {
       'channel-1',
       'thread-1',
       'notice-msg-1',
-      '@everyone 補充チェックの次回分に必要な在庫が不足しています。\n牛乳の在庫が2個不足しています。',
+      '@everyone 補充チェックの次回分に必要な在庫が不足しています。\n不足している在庫の詳細は以下の通りです\n牛乳 2個',
       interaction.client
     );
   });

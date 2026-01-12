@@ -9,21 +9,21 @@ import {
 
 describe('RemindInventory', () => {
   it('parses inventory input lines', () => {
-    const text = '牛乳,在庫3,消費1\n卵,在庫2,消費1';
+    const text = 'フィルター,1,3\n替えブラシ,2,5';
     const items = parseInventoryInput(text);
 
     expect(items).toEqual([
-      { name: '牛乳', stock: 3, consume: 1 },
-      { name: '卵', stock: 2, consume: 1 }
+      { name: 'フィルター', stock: 3, consume: 1 },
+      { name: '替えブラシ', stock: 5, consume: 2 }
     ]);
   });
 
   it('rejects invalid inventory format', () => {
-    expect(() => parseInventoryInput('牛乳,在庫3')).toThrow('消費が不足しています');
+    expect(() => parseInventoryInput('フィルター,1')).toThrow('在庫が不足しています');
   });
 
   it('rejects duplicate item names', () => {
-    expect(() => parseInventoryInput('牛乳,在庫3,消費1\n牛乳,在庫2,消費1')).toThrow('アイテム名が重複しています');
+    expect(() => parseInventoryInput('フィルター,1,3\nフィルター,2,5')).toThrow('アイテム名が重複しています');
   });
 
   it('returns insufficient items when stock is below consume', () => {
@@ -64,7 +64,7 @@ describe('RemindInventory', () => {
     ];
 
     expect(formatInventoryShortageNotice(items)).toBe(
-      '牛乳の在庫が1個不足しています / 卵の在庫が3個不足しています。'
+      '不足している在庫の詳細は以下の通りです\n牛乳 1個\n卵 3個'
     );
   });
 });

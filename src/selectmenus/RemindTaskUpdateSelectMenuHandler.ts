@@ -203,10 +203,11 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
 
     const inventoryInput = new TextInputBuilder()
       .setCustomId('inventory-items')
-      .setLabel('在庫（例: 牛乳,在庫3,消費1 を1行1件）')
+      .setLabel('在庫（例: フィルター,1,3 を1行1件）')
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(false)
       .setMaxLength(1000)
+      .setPlaceholder('フィルター,1,3')
       .setValue(formatInventoryInput(task.inventoryItems));
 
     modal.addComponents(

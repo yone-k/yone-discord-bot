@@ -35,7 +35,7 @@ describe('AddRemindListCommand', () => {
             if (name === 'time-of-day') return '09:00';
             if (name === 'description') return '週次';
             if (name === 'remind-before') return '1:00';
-            if (name === 'inventory-items') return '牛乳,在庫3,消費1';
+            if (name === 'inventory-items') return 'フィルター,1,3';
             return null;
           }),
           getInteger: vi.fn((name: string) => {
@@ -57,7 +57,7 @@ describe('AddRemindListCommand', () => {
     expect(mockService.addTask).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        inventoryItems: [{ name: '牛乳', stock: 3, consume: 1 }]
+        inventoryItems: [{ name: 'フィルター', stock: 3, consume: 1 }]
       }),
       expect.anything()
     );

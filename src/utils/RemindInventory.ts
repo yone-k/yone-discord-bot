@@ -60,6 +60,17 @@ export const parseInventoryInput = (input: string): RemindInventoryItem[] => {
       }
     }
 
+    const numericTokens = tokens
+      .slice(1)
+      .filter((token) => /^\d+$/.test(token));
+
+    if (consume === null && numericTokens.length > 0) {
+      consume = Number(numericTokens[0]);
+    }
+    if (stock === null && numericTokens.length > 1) {
+      stock = Number(numericTokens[1]);
+    }
+
     if (stock === null) {
       throw new Error('在庫が不足しています');
     }
@@ -92,7 +103,7 @@ export const formatInventoryInput = (items: RemindInventoryItem[]): string => {
   if (!items || items.length === 0) {
     return '';
   }
-  return items.map(item => `${item.name},在庫${item.stock},消費${item.consume}`).join('\n');
+  return items.map(item => `${item.name},${item.consume},${item.stock}`).join('\n');
 };
 
 export const getInsufficientInventoryItems = (
@@ -149,9 +160,9 @@ export const formatInventoryShortage = (items: RemindInventoryItem[]): string =>
 export const formatInventoryShortageNotice = (items: RemindInventoryItem[]): string => {
   const parts = items.map((item) => {
     const shortage = Math.max(0, item.consume - item.stock);
-    return `${item.name}の在庫が${shortage}個不足しています`;
+    return `${item.name} ${shortage}個`;
   });
-  return `${parts.join(' / ')}。`;
+  return `不足している在庫の詳細は以下の通りです\n${parts.join('\n')}`;
 };
 
 export const formatInventoryDepleted = (items: RemindInventoryItem[]): string => {

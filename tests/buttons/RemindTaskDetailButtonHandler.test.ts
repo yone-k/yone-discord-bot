@@ -13,6 +13,10 @@ describe('RemindTaskDetailButtonHandler', () => {
       intervalDays: 7,
       timeOfDay: '09:00',
       remindBeforeMinutes: 1440,
+      inventoryItems: [
+        { name: '牛乳', stock: 3, consume: 1 },
+        { name: '卵', stock: 2, consume: 1 }
+      ],
       startAt: new Date('2025-12-29T09:00:00+09:00'),
       nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
       createdAt: new Date('2025-12-29T09:00:00+09:00'),
@@ -53,6 +57,7 @@ describe('RemindTaskDetailButtonHandler', () => {
       .map((component: any) => component.content);
     expect(textContents.some((content: string) => content.includes('掃除'))).toBe(true);
     expect(textContents.some((content: string) => content.includes('事前通知: 1日前'))).toBe(true);
+    expect(textContents.some((content: string) => content.includes('在庫: 牛乳 在庫3/消費1, 卵 在庫2/消費1'))).toBe(true);
     expect(textContents.some((content: string) => content.includes('```'))).toBe(true);
   });
 });

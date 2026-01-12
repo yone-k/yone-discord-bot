@@ -19,6 +19,7 @@ describe('RemindTask', () => {
     expect(task.lastDoneAt).toBeNull();
     expect(task.overdueNotifyCount).toBe(0);
     expect(task.isPaused).toBe(false);
+    expect(task.inventoryItems).toEqual([]);
   });
 
   it('validates required fields', () => {

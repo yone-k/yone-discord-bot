@@ -6,6 +6,7 @@ export interface RemindTaskInput {
   intervalDays: number;
   timeOfDay: string;
   remindBeforeMinutes: number;
+  inventoryItems?: RemindInventoryItem[];
   startAt: Date;
   nextDueAt: Date;
   lastDoneAt?: Date | null;
@@ -18,6 +19,12 @@ export interface RemindTaskInput {
   updatedAt: Date;
 }
 
+export interface RemindInventoryItem {
+  name: string;
+  stock: number;
+  consume: number;
+}
+
 export interface RemindTask {
   id: string;
   messageId?: string;
@@ -26,6 +33,7 @@ export interface RemindTask {
   intervalDays: number;
   timeOfDay: string;
   remindBeforeMinutes: number;
+  inventoryItems: RemindInventoryItem[];
   startAt: Date;
   nextDueAt: Date;
   lastDoneAt: Date | null;
@@ -47,6 +55,7 @@ export function createRemindTask(input: RemindTaskInput): RemindTask {
     intervalDays: input.intervalDays,
     timeOfDay: input.timeOfDay,
     remindBeforeMinutes: input.remindBeforeMinutes,
+    inventoryItems: input.inventoryItems ?? [],
     startAt: input.startAt,
     nextDueAt: input.nextDueAt,
     lastDoneAt: input.lastDoneAt ?? null,
@@ -79,6 +88,22 @@ export function validateRemindTask(task: RemindTask): void {
 
   if (task.remindBeforeMinutes < 0 || task.remindBeforeMinutes > 10080) {
     throw new Error('remind_before_minutesの範囲が無効です');
+  }
+
+  if (!Array.isArray(task.inventoryItems)) {
+    throw new Error('inventory_itemsが無効です');
+  }
+
+  for (const item of task.inventoryItems) {
+    if (!item.name || item.name.trim() === '') {
+      throw new Error('inventory_itemsの名称が無効です');
+    }
+    if (!Number.isInteger(item.stock) || item.stock < 0) {
+      throw new Error('inventory_itemsの在庫数が無効です');
+    }
+    if (!Number.isInteger(item.consume) || item.consume < 1) {
+      throw new Error('inventory_itemsの消費数が無効です');
+    }
   }
 
   if (!(task.startAt instanceof Date) || isNaN(task.startAt.getTime())) {

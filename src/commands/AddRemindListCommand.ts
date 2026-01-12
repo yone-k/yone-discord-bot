@@ -2,8 +2,9 @@ import { BaseCommand, CommandExecutionContext } from '../base/BaseCommand';
 import { Logger } from '../utils/logger';
 import { CommandError, CommandErrorType } from '../utils/CommandError';
 import { SlashCommandBuilder } from 'discord.js';
-import { RemindTaskService } from '../services/RemindTaskService';
+import { RemindTaskService, type RemindTaskInputData } from '../services/RemindTaskService';
 import { parseRemindBeforeInput } from '../utils/RemindDuration';
+import { parseInventoryInput } from '../utils/RemindInventory';
 
 export class AddRemindListCommand extends BaseCommand {
   static getCommandName(): string {
@@ -40,6 +41,11 @@ export class AddRemindListCommand extends BaseCommand {
       .addStringOption(option =>
         option.setName('remind-before')
           .setDescription('事前通知（日:時:分 もしくは 時:分）')
+          .setRequired(false)
+      )
+      .addStringOption(option =>
+        option.setName('inventory-items')
+          .setDescription('在庫設定（例: フィルター,1,3 を改行 or ; で複数指定）')
           .setRequired(false)
       ) as SlashCommandBuilder;
   }
@@ -79,12 +85,28 @@ export class AddRemindListCommand extends BaseCommand {
     const intervalDays = context.interaction.options.getInteger('interval-days', true);
     const timeOfDay = context.interaction.options.getString('time-of-day') || undefined;
     const remindBeforeText = context.interaction.options.getString('remind-before') ?? undefined;
+    const inventoryText = context.interaction.options.getString('inventory-items') ?? undefined;
     let remindBeforeMinutes: number | undefined;
     if (remindBeforeText !== undefined) {
       try {
         remindBeforeMinutes = parseRemindBeforeInput(remindBeforeText);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Invalid remind-before input';
+        throw new CommandError(
+          CommandErrorType.INVALID_PARAMETERS,
+          'add-remind-list',
+          message,
+          message
+        );
+      }
+    }
+
+    let inventoryItems: RemindTaskInputData['inventoryItems'];
+    if (inventoryText) {
+      try {
+        inventoryItems = parseInventoryInput(inventoryText);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Invalid inventory input';
         throw new CommandError(
           CommandErrorType.INVALID_PARAMETERS,
           'add-remind-list',
@@ -101,7 +123,8 @@ export class AddRemindListCommand extends BaseCommand {
         description,
         intervalDays,
         timeOfDay,
-        remindBeforeMinutes
+        remindBeforeMinutes,
+        inventoryItems
       },
       context.interaction.client
     );

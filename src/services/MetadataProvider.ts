@@ -3,6 +3,8 @@ export interface OperationLogMetadata {
   listTitle?: string;
   defaultCategory?: string;
   operationLogThreadId?: string | null;
+  remindNoticeThreadId?: string;
+  remindNoticeMessageId?: string;
 }
 
 export interface MetadataProviderResult {

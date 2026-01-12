@@ -6,7 +6,8 @@ import { RemindTaskUpdateSelectMenuHandler } from '../../src/selectmenus/RemindT
 describe('RemindTaskUpdateSelectMenuHandler', () => {
   it.each([
     { value: 'basic', expectedCustomId: 'remind-task-update-modal:msg-1' },
-    { value: 'advanced', expectedCustomId: 'remind-task-update-override-modal:msg-1' }
+    { value: 'advanced', expectedCustomId: 'remind-task-update-override-modal:msg-1' },
+    { value: 'inventory', expectedCustomId: 'remind-task-inventory-modal:msg-1' }
   ])('restores task message before showing modal for %s selection', async ({ value, expectedCustomId }) => {
     const task = createRemindTask({
       id: 'task-1',

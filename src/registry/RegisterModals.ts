@@ -7,6 +7,7 @@ import { RemindTaskUpdateOverrideModalHandler } from '../modals/RemindTaskUpdate
 import { RemindTaskCompleteModalHandler } from '../modals/RemindTaskCompleteModalHandler';
 import { RemindTaskDeleteModalHandler } from '../modals/RemindTaskDeleteModalHandler';
 import { RemindTaskAddModalHandler } from '../modals/RemindTaskAddModalHandler';
+import { RemindTaskInventoryModalHandler } from '../modals/RemindTaskInventoryModalHandler';
 import { DeleteAllMessageLogic } from '../services/DeleteAllMessageLogic';
 import { Logger } from '../utils/logger';
 import { TextChannel } from 'discord.js';
@@ -83,6 +84,13 @@ export function registerAllModals(modalManager: ModalManager, logger: Logger): v
 
   const remindAddModalHandler = new RemindTaskAddModalHandler(logger, remindOperationLogService, remindMetadataManager);
   modalManager.registerHandler(remindAddModalHandler);
+
+  const remindInventoryModalHandler = new RemindTaskInventoryModalHandler(
+    logger,
+    remindOperationLogService,
+    remindMetadataManager
+  );
+  modalManager.registerHandler(remindInventoryModalHandler);
 
   logger.info('All modal handlers registered successfully');
 }

@@ -108,4 +108,55 @@ describe('RemindScheduler', () => {
     );
     expect(mockMessageManager.sendReminderToThread).not.toHaveBeenCalled();
   });
+
+  it('includes inventory shortage notice on pre-reminder when insufficient', async () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      messageId: 'msg-1',
+      title: '補充チェック',
+      intervalDays: 7,
+      timeOfDay: '09:00',
+      remindBeforeMinutes: 60,
+      inventoryItems: [{ name: '牛乳', stock: 0, consume: 1 }],
+      startAt: new Date('2025-12-29T09:00:00+09:00'),
+      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+
+    const mockMetadataManager = {
+      listChannelMetadata: vi.fn().mockResolvedValue([{
+        channelId: 'channel-1',
+        messageId: '',
+        listTitle: '',
+        lastSyncTime: new Date(),
+        remindNoticeThreadId: 'thread-1',
+        remindNoticeMessageId: 'notice-msg-1'
+      }]),
+      updateChannelMetadata: vi.fn().mockResolvedValue({ success: true })
+    };
+    const mockRepository = {
+      fetchTasks: vi.fn().mockResolvedValue([task]),
+      updateTask: vi.fn().mockResolvedValue({ success: true })
+    };
+    const mockMessageManager = {
+      updateTaskMessage: vi.fn().mockResolvedValue({ success: true }),
+      sendReminderToThread: vi.fn().mockResolvedValue({ success: true })
+    };
+
+    const mockClient = { channels: { fetch: vi.fn() } };
+
+    const scheduler = new RemindScheduler(
+      mockMetadataManager as any,
+      mockRepository as any,
+      mockMessageManager as any
+    );
+
+    await scheduler.runOnce(mockClient as any, new Date('2026-01-05T08:30:00+09:00'));
+
+    const contents = mockMessageManager.sendReminderToThread.mock.calls.map((call: any[]) => call[3]);
+    expect(contents.some((content: string) => content.includes('期限まであと1時間'))).toBe(true);
+    expect(contents.some((content: string) => content.includes('不足している在庫の詳細は以下の通りです'))).toBe(true);
+    expect(contents.some((content: string) => content.includes('牛乳 1個'))).toBe(true);
+  });
 });

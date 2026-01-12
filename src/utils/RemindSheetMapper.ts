@@ -12,6 +12,7 @@ export function getRemindSheetHeaders(): string[] {
     'interval_days',
     'time_of_day',
     'remind_before_minutes',
+    'inventory_items',
     'start_at',
     'next_due_at',
     'last_done_at',
@@ -34,6 +35,7 @@ export function toSheetRow(task: RemindTask): (string | number)[] {
     task.intervalDays,
     task.timeOfDay,
     task.remindBeforeMinutes,
+    formatInventoryItems(task.inventoryItems),
     formatDateTime(task.startAt),
     formatDateTime(task.nextDueAt),
     task.lastDoneAt ? formatDateTime(task.lastDoneAt) : '',
@@ -48,11 +50,19 @@ export function toSheetRow(task: RemindTask): (string | number)[] {
 }
 
 export function fromSheetRow(row: string[]): RemindTask {
-  const hasLimitColumn = row.length >= 17;
-  const lastOverdueIndex = hasLimitColumn ? 13 : 12;
-  const isPausedIndex = hasLimitColumn ? 14 : 13;
-  const createdAtIndex = hasLimitColumn ? 15 : 14;
-  const updatedAtIndex = hasLimitColumn ? 16 : 15;
+  const hasInventoryColumn = row.length >= 18;
+  const hasLimitColumn = hasInventoryColumn ? row.length >= 18 : row.length >= 17;
+  const indexOffset = hasInventoryColumn ? 1 : 0;
+  const startAtIndex = 7 + indexOffset;
+  const nextDueAtIndex = 8 + indexOffset;
+  const lastDoneAtIndex = 9 + indexOffset;
+  const lastRemindDueAtIndex = 10 + indexOffset;
+  const overdueNotifyCountIndex = 11 + indexOffset;
+  const overdueNotifyLimitIndex = hasLimitColumn ? 12 + indexOffset : undefined;
+  const lastOverdueIndex = hasLimitColumn ? 13 + indexOffset : 12 + indexOffset;
+  const isPausedIndex = hasLimitColumn ? 14 + indexOffset : 13 + indexOffset;
+  const createdAtIndex = hasLimitColumn ? 15 + indexOffset : 14 + indexOffset;
+  const updatedAtIndex = hasLimitColumn ? 16 + indexOffset : 15 + indexOffset;
 
   return createRemindTask({
     id: row[0] || '',
@@ -62,12 +72,15 @@ export function fromSheetRow(row: string[]): RemindTask {
     intervalDays: parseNumber(row[4], 1),
     timeOfDay: row[5] || '00:00',
     remindBeforeMinutes: parseNumber(row[6], DEFAULT_REMIND_BEFORE_MINUTES),
-    startAt: parseDate(row[7]) ?? new Date(),
-    nextDueAt: parseDate(row[8]) ?? new Date(),
-    lastDoneAt: parseDate(row[9]),
-    lastRemindDueAt: parseDate(row[10]),
-    overdueNotifyCount: parseNumber(row[11], 0),
-    overdueNotifyLimit: hasLimitColumn ? parseOptionalNumber(row[12]) : undefined,
+    inventoryItems: hasInventoryColumn ? parseInventoryItems(row[7]) : [],
+    startAt: parseDate(row[startAtIndex]) ?? new Date(),
+    nextDueAt: parseDate(row[nextDueAtIndex]) ?? new Date(),
+    lastDoneAt: parseDate(row[lastDoneAtIndex]),
+    lastRemindDueAt: parseDate(row[lastRemindDueAtIndex]),
+    overdueNotifyCount: parseNumber(row[overdueNotifyCountIndex], 0),
+    overdueNotifyLimit: overdueNotifyLimitIndex !== undefined
+      ? parseOptionalNumber(row[overdueNotifyLimitIndex])
+      : undefined,
     lastOverdueNotifiedAt: parseDate(row[lastOverdueIndex]),
     isPaused: row[isPausedIndex] === '1',
     createdAt: parseDate(row[createdAtIndex]) ?? new Date(),
@@ -112,4 +125,38 @@ function formatDateTime(date: Date): string {
   const seconds = String(tokyoDate.getUTCSeconds()).padStart(2, '0');
 
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+09:00`;
+}
+
+function parseInventoryItems(value: string | undefined): RemindTask['inventoryItems'] {
+  if (!value || value.trim() === '') {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .filter(item => item && typeof item.name === 'string')
+      .map(item => ({
+        name: item.name,
+        stock: Number(item.stock),
+        consume: Number(item.consume)
+      }))
+      .filter(item =>
+        item.name.trim() !== ''
+        && Number.isFinite(item.stock)
+        && Number.isFinite(item.consume)
+      );
+  } catch {
+    return [];
+  }
+}
+
+function formatInventoryItems(items: RemindTask['inventoryItems']): string {
+  if (!items || items.length === 0) {
+    return '';
+  }
+  return JSON.stringify(items);
 }

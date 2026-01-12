@@ -6,6 +6,11 @@ import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { calculateNextDueAt } from '../utils/RemindSchedule';
+import {
+  consumeInventory,
+  formatInventoryShortageNotice,
+  getInsufficientInventoryItems
+} from '../utils/RemindInventory';
 
 export class RemindTaskCompleteModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
@@ -52,6 +57,18 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
       return { success: false, message: 'タスクが見つかりません' };
     }
 
+    const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
+    if (insufficientItems.length > 0) {
+      const shortageNotice = formatInventoryShortageNotice(insufficientItems);
+      return {
+        success: false,
+        message: `${task.title}の完了に必要な在庫が不足しています。\n${shortageNotice}`
+      };
+    }
+
+    const consumedInventory = consumeInventory(task.inventoryItems);
+    const nextInsufficientItems = getInsufficientInventoryItems(consumedInventory);
+
     const now = new Date();
     const nextDueAt = calculateNextDueAt(
       {
@@ -65,6 +82,7 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
 
     const updatedTask = {
       ...task,
+      inventoryItems: consumedInventory,
       lastDoneAt: now,
       nextDueAt,
       lastRemindDueAt: null,
@@ -80,7 +98,36 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
 
     await this.messageManager.updateTaskMessage(channelId, messageId, updatedTask, context.interaction.client, now);
 
+    if (nextInsufficientItems.length > 0) {
+      const shortageNotice = formatInventoryShortageNotice(nextInsufficientItems);
+      await this.notifyInventory(
+        channelId,
+        `@everyone ${task.title}の次回分に必要な在庫が不足しています。\n${shortageNotice}`,
+        context.interaction.client
+      );
+    }
+
     return { success: true };
+  }
+
+  private async notifyInventory(channelId: string, message: string, client: ModalHandlerContext['interaction']['client']): Promise<void> {
+    if (!this.metadataManager) {
+      return;
+    }
+
+    const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+    if (!metadataResult.success || !metadataResult.metadata) {
+      return;
+    }
+
+    const { remindNoticeThreadId, remindNoticeMessageId } = metadataResult.metadata;
+    await this.messageManager.sendReminderToThread(
+      channelId,
+      remindNoticeThreadId,
+      remindNoticeMessageId,
+      message,
+      client
+    );
   }
 
   private parseMessageId(customId: string): string | null {

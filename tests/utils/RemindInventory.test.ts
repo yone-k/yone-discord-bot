@@ -3,6 +3,7 @@ import {
   parseInventoryInput,
   consumeInventory,
   getInsufficientInventoryItems,
+  formatInventoryShortageNotice,
   formatInventorySummary
 } from '../../src/utils/RemindInventory';
 
@@ -54,5 +55,16 @@ describe('RemindInventory', () => {
     ];
 
     expect(formatInventorySummary(items)).toBe('在庫: 牛乳 3, 卵 2');
+  });
+
+  it('formats inventory shortage notice with counts', () => {
+    const items = [
+      { name: '牛乳', stock: 1, consume: 2 },
+      { name: '卵', stock: 0, consume: 3 }
+    ];
+
+    expect(formatInventoryShortageNotice(items)).toBe(
+      '牛乳の在庫が1個不足しています / 卵の在庫が3個不足しています。'
+    );
   });
 });

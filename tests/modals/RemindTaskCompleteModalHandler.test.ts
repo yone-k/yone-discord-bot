@@ -59,7 +59,7 @@ describe('RemindTaskCompleteModalHandler', () => {
       intervalDays: 7,
       timeOfDay: '09:00',
       remindBeforeMinutes: 1440,
-      inventoryItems: [{ name: '牛乳', stock: 0, consume: 1 }],
+      inventoryItems: [{ name: '牛乳', stock: 1, consume: 2 }],
       startAt: new Date('2025-12-29T09:00:00+09:00'),
       nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
       createdAt: new Date('2025-12-29T09:00:00+09:00'),
@@ -105,11 +105,12 @@ describe('RemindTaskCompleteModalHandler', () => {
     expect(mockRepository.updateTask).not.toHaveBeenCalled();
     expect(mockMessageManager.updateTaskMessage).not.toHaveBeenCalled();
     expect(interaction.editReply).toHaveBeenCalledWith(expect.objectContaining({
-      content: expect.stringContaining('在庫が不足しています')
+      content: expect.stringContaining('牛乳の在庫が1個不足しています')
     }));
+    expect(mockMessageManager.sendReminderToThread).not.toHaveBeenCalled();
   });
 
-  it('notifies when inventory is insufficient before completion', async () => {
+  it('notifies thread when inventory becomes insufficient after completion', async () => {
     const task = createRemindTask({
       id: 'task-1',
       messageId: 'msg-1',
@@ -117,7 +118,7 @@ describe('RemindTaskCompleteModalHandler', () => {
       intervalDays: 7,
       timeOfDay: '09:00',
       remindBeforeMinutes: 1440,
-      inventoryItems: [{ name: '牛乳', stock: 0, consume: 1 }],
+      inventoryItems: [{ name: '牛乳', stock: 2, consume: 2 }],
       startAt: new Date('2025-12-29T09:00:00+09:00'),
       nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
       createdAt: new Date('2025-12-29T09:00:00+09:00'),
@@ -164,7 +165,7 @@ describe('RemindTaskCompleteModalHandler', () => {
       'channel-1',
       'thread-1',
       'notice-msg-1',
-      '@everyone 補充チェックに使用する在庫品の在庫が切れました',
+      '@everyone 補充チェックの次回分に必要な在庫が不足しています。\n牛乳の在庫が2個不足しています。',
       interaction.client
     );
   });

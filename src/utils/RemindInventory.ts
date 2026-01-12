@@ -142,8 +142,16 @@ export const formatInventoryDetail = (
 };
 
 export const formatInventoryShortage = (items: RemindInventoryItem[]): string => {
-  const parts = items.map(item => `${item.name}(在庫${item.stock}/消費${item.consume})`);
-  return parts.join(', ');
+  const parts = items.map(item => item.name);
+  return parts.join('、');
+};
+
+export const formatInventoryShortageNotice = (items: RemindInventoryItem[]): string => {
+  const parts = items.map((item) => {
+    const shortage = Math.max(0, item.consume - item.stock);
+    return `${item.name}の在庫が${shortage}個不足しています`;
+  });
+  return `${parts.join(' / ')}。`;
 };
 
 export const formatInventoryDepleted = (items: RemindInventoryItem[]): string => {

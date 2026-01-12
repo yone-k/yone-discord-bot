@@ -8,7 +8,7 @@ import { RemindMessageManager } from '../services/RemindMessageManager';
 import { calculateNextDueAt } from '../utils/RemindSchedule';
 import {
   consumeInventory,
-  formatInventoryShortage,
+  formatInventoryShortageNotice,
   getInsufficientInventoryItems
 } from '../utils/RemindInventory';
 
@@ -70,15 +70,12 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
 
       const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
       if (insufficientItems.length > 0) {
-        await this.notifyInventory(
-          channelId,
-          `@everyone ${task.title}に使用する在庫品の在庫が切れました`,
-          interaction.client
-        );
-        return await replyError(`在庫が不足しています: ${formatInventoryShortage(insufficientItems)}`);
+        const shortageNotice = formatInventoryShortageNotice(insufficientItems);
+        return await replyError(`${task.title}の完了に必要な在庫が不足しています。\n${shortageNotice}`);
       }
 
       const consumedInventory = consumeInventory(task.inventoryItems);
+      const nextInsufficientItems = getInsufficientInventoryItems(consumedInventory);
 
       const now = new Date();
       const nextDueAt = calculateNextDueAt(
@@ -109,6 +106,14 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
 
       await this.messageManager.updateTaskMessage(channelId, messageId, updatedTask, interaction.client, now);
 
+      if (nextInsufficientItems.length > 0) {
+        const shortageNotice = formatInventoryShortageNotice(nextInsufficientItems);
+        await this.notifyInventory(
+          channelId,
+          `@everyone ${task.title}の次回分に必要な在庫が不足しています。\n${shortageNotice}`,
+          interaction.client
+        );
+      }
 
       try {
         await interaction.deleteReply();

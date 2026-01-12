@@ -1,6 +1,7 @@
 import { Client } from 'discord.js';
 import { shouldSendOverdue, shouldSendPreReminder } from '../utils/RemindNotification';
 import { formatRemainingDuration } from '../utils/RemindDuration';
+import { formatInventoryShortageNotice, getInsufficientInventoryItems } from '../utils/RemindInventory';
 import { RemindMetadataManager } from './RemindMetadataManager';
 import { RemindMessageManager } from './RemindMessageManager';
 import { RemindTaskRepository } from './RemindTaskRepository';
@@ -58,12 +59,16 @@ export class RemindScheduler {
         }
 
         const remainingText = formatRemainingDuration(task.remindBeforeMinutes);
+        const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
+        const inventoryNotice = insufficientItems.length > 0
+          ? `\n${formatInventoryShortageNotice(insufficientItems)}`
+          : '';
 
         const sendResult = await this.messageManager.sendReminderToThread(
           channelId,
           currentThreadId,
           currentMessageId,
-          `@everyone ${task.title}の期限まであと${remainingText}になりました。`,
+          `@everyone ${task.title}の期限まであと${remainingText}になりました。${inventoryNotice}`,
           client
         );
         if (sendResult.threadId && sendResult.parentMessageId) {

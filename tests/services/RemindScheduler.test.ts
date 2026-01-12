@@ -109,7 +109,7 @@ describe('RemindScheduler', () => {
     expect(mockMessageManager.sendReminderToThread).not.toHaveBeenCalled();
   });
 
-  it('does not send inventory shortage message on pre-reminder', async () => {
+  it('includes inventory shortage notice on pre-reminder when insufficient', async () => {
     const task = createRemindTask({
       id: 'task-1',
       messageId: 'msg-1',
@@ -156,6 +156,6 @@ describe('RemindScheduler', () => {
 
     const contents = mockMessageManager.sendReminderToThread.mock.calls.map((call: any[]) => call[3]);
     expect(contents.some((content: string) => content.includes('期限まであと1時間'))).toBe(true);
-    expect(contents.some((content: string) => content.includes('在庫が不足しています'))).toBe(false);
+    expect(contents.some((content: string) => content.includes('牛乳の在庫が1個不足しています'))).toBe(true);
   });
 });

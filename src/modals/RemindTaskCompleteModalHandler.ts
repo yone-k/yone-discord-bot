@@ -8,7 +8,6 @@ import { RemindMessageManager } from '../services/RemindMessageManager';
 import { calculateNextDueAt } from '../utils/RemindSchedule';
 import {
   consumeInventory,
-  formatInventoryDepleted,
   formatInventoryShortage,
   getInsufficientInventoryItems
 } from '../utils/RemindInventory';
@@ -62,14 +61,13 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
     if (insufficientItems.length > 0) {
       await this.notifyInventory(
         channelId,
-        `@everyone ${task.title}の在庫が不足しています: ${formatInventoryShortage(insufficientItems)}`,
+        `@everyone ${task.title}に使用する在庫品の在庫が切れました`,
         context.interaction.client
       );
       return { success: false, message: `在庫が不足しています: ${formatInventoryShortage(insufficientItems)}` };
     }
 
     const consumedInventory = consumeInventory(task.inventoryItems);
-    const depletedItems = consumedInventory.filter(item => item.stock <= 0);
 
     const now = new Date();
     const nextDueAt = calculateNextDueAt(
@@ -100,13 +98,6 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
 
     await this.messageManager.updateTaskMessage(channelId, messageId, updatedTask, context.interaction.client, now);
 
-    if (depletedItems.length > 0) {
-      await this.notifyInventory(
-        channelId,
-        `@everyone ${task.title}の在庫が切れました: ${formatInventoryDepleted(depletedItems)}`,
-        context.interaction.client
-      );
-    }
 
     return { success: true };
   }

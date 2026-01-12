@@ -108,4 +108,64 @@ describe('RemindTaskCompleteModalHandler', () => {
       content: expect.stringContaining('在庫が不足しています')
     }));
   });
+
+  it('notifies when inventory is insufficient before completion', async () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      messageId: 'msg-1',
+      title: '補充チェック',
+      intervalDays: 7,
+      timeOfDay: '09:00',
+      remindBeforeMinutes: 1440,
+      inventoryItems: [{ name: '牛乳', stock: 0, consume: 1 }],
+      startAt: new Date('2025-12-29T09:00:00+09:00'),
+      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+
+    const mockRepository = {
+      findTaskByMessageId: vi.fn().mockResolvedValue(task),
+      updateTask: vi.fn().mockResolvedValue({ success: true })
+    };
+    const mockMessageManager = {
+      updateTaskMessage: vi.fn().mockResolvedValue({ success: true }),
+      sendReminderToThread: vi.fn().mockResolvedValue({ success: true })
+    };
+    const mockMetadataManager = {
+      getChannelMetadata: vi.fn().mockResolvedValue({
+        success: true,
+        metadata: { remindNoticeThreadId: 'thread-1', remindNoticeMessageId: 'notice-msg-1' }
+      })
+    };
+
+    const handler = new RemindTaskCompleteModalHandler(
+      new Logger(),
+      undefined,
+      mockMetadataManager as any,
+      mockRepository as any,
+      mockMessageManager as any
+    );
+
+    const interaction = {
+      customId: 'remind-task-complete-modal:msg-1',
+      user: { id: 'user-1' },
+      channelId: 'channel-1',
+      client: {} as any,
+      fields: { getTextInputValue: vi.fn() },
+      deferReply: vi.fn(),
+      editReply: vi.fn(),
+      deleteReply: vi.fn()
+    };
+
+    await handler.handle({ interaction } as any);
+
+    expect(mockMessageManager.sendReminderToThread).toHaveBeenCalledWith(
+      'channel-1',
+      'thread-1',
+      'notice-msg-1',
+      '@everyone 補充チェックに使用する在庫品の在庫が切れました',
+      interaction.client
+    );
+  });
 });

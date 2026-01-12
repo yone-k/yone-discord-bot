@@ -8,7 +8,6 @@ import { RemindMessageManager } from '../services/RemindMessageManager';
 import { calculateNextDueAt } from '../utils/RemindSchedule';
 import {
   consumeInventory,
-  formatInventoryDepleted,
   formatInventoryShortage,
   getInsufficientInventoryItems
 } from '../utils/RemindInventory';
@@ -73,14 +72,13 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
       if (insufficientItems.length > 0) {
         await this.notifyInventory(
           channelId,
-          `@everyone ${task.title}の在庫が不足しています: ${formatInventoryShortage(insufficientItems)}`,
+          `@everyone ${task.title}に使用する在庫品の在庫が切れました`,
           interaction.client
         );
         return await replyError(`在庫が不足しています: ${formatInventoryShortage(insufficientItems)}`);
       }
 
       const consumedInventory = consumeInventory(task.inventoryItems);
-      const depletedItems = consumedInventory.filter(item => item.stock <= 0);
 
       const now = new Date();
       const nextDueAt = calculateNextDueAt(
@@ -111,13 +109,6 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
 
       await this.messageManager.updateTaskMessage(channelId, messageId, updatedTask, interaction.client, now);
 
-      if (depletedItems.length > 0) {
-        await this.notifyInventory(
-          channelId,
-          `@everyone ${task.title}の在庫が切れました: ${formatInventoryDepleted(depletedItems)}`,
-          interaction.client
-        );
-      }
 
       try {
         await interaction.deleteReply();

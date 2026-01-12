@@ -1,6 +1,7 @@
 import { Client } from 'discord.js';
 import { shouldSendOverdue, shouldSendPreReminder } from '../utils/RemindNotification';
 import { formatRemainingDuration } from '../utils/RemindDuration';
+import { formatInventoryShortage, getInsufficientInventoryItems } from '../utils/RemindInventory';
 import { RemindMetadataManager } from './RemindMetadataManager';
 import { RemindMessageManager } from './RemindMessageManager';
 import { RemindTaskRepository } from './RemindTaskRepository';
@@ -58,6 +59,27 @@ export class RemindScheduler {
         }
 
         const remainingText = formatRemainingDuration(task.remindBeforeMinutes);
+        const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
+
+        if (insufficientItems.length > 0) {
+          const shortageResult = await this.messageManager.sendReminderToThread(
+            channelId,
+            currentThreadId,
+            currentMessageId,
+            `@everyone ${task.title}の在庫が不足しています: ${formatInventoryShortage(insufficientItems)}`,
+            client
+          );
+          if (shortageResult.threadId && shortageResult.parentMessageId) {
+            if (shortageResult.threadId !== currentThreadId || shortageResult.parentMessageId !== currentMessageId) {
+              currentThreadId = shortageResult.threadId;
+              currentMessageId = shortageResult.parentMessageId;
+              await this.metadataManager.updateChannelMetadata(channelId, {
+                remindNoticeThreadId: currentThreadId,
+                remindNoticeMessageId: currentMessageId
+              });
+            }
+          }
+        }
 
         const sendResult = await this.messageManager.sendReminderToThread(
           channelId,

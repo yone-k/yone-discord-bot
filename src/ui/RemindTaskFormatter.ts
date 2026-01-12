@@ -1,6 +1,8 @@
 import { EmbedBuilder } from 'discord.js';
 import { RemindTask } from '../models/RemindTask';
 import { formatRemainingDuration } from '../utils/RemindDuration';
+import { formatInventoryDetail } from '../utils/RemindInventory';
+import { formatInventorySummary } from '../utils/RemindInventory';
 
 export class RemindTaskFormatter {
   private static readonly EMBED_COLOR = 0xFFA726;
@@ -30,11 +32,13 @@ export class RemindTaskFormatter {
   public static formatDetailText(task: RemindTask, _now: Date = new Date()): string {
     const nextDueText = this.formatTokyoDateTime(task.nextDueAt);
     const remindBeforeText = formatRemainingDuration(task.remindBeforeMinutes);
+    const inventoryDetail = formatInventoryDetail(task.inventoryItems);
 
     return [
       `期限: ${nextDueText}`,
       `周期: ${task.intervalDays}日`,
-      `事前通知: ${remindBeforeText}前`
+      `事前通知: ${remindBeforeText}前`,
+      inventoryDetail
     ].filter(Boolean).join('\n');
   }
 
@@ -50,13 +54,18 @@ export class RemindTaskFormatter {
     const isUnderOneDay = remainingMillis > 0 && remainingMillis < 24 * 60 * 60 * 1000;
     const remainingTimeText = isUnderOneDay ? this.formatRemainingHoursMinutes(remainingMillis) : null;
 
-    const detailsText = isOverdue
+    const baseDetail = isOverdue
       ? '**期限切れ**'
       : (remainingTimeText
         ? `-# 残り: ${remainingTimeText}`
         : (remainingDays !== null
           ? `-# 残り: ${remainingDays}日`
           : `-# 期限: ${nextDueText}`));
+
+    const inventorySummary = formatInventorySummary(task.inventoryItems);
+    const detailsText = inventorySummary
+      ? `${baseDetail}\n-# ${inventorySummary}`
+      : baseDetail;
 
     return { progressBar, detailsText };
   }

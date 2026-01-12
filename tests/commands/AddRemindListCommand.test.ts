@@ -35,6 +35,7 @@ describe('AddRemindListCommand', () => {
             if (name === 'time-of-day') return '09:00';
             if (name === 'description') return '週次';
             if (name === 'remind-before') return '1:00';
+            if (name === 'inventory-items') return '牛乳,在庫3,消費1';
             return null;
           }),
           getInteger: vi.fn((name: string) => {
@@ -44,7 +45,8 @@ describe('AddRemindListCommand', () => {
         },
         reply: vi.fn(),
         deferReply: vi.fn(),
-        deleteReply: vi.fn()
+        deleteReply: vi.fn(),
+        client: {} as any
       } as any
     };
   });
@@ -52,7 +54,13 @@ describe('AddRemindListCommand', () => {
   it('executes add task flow', async () => {
     await command.execute(mockContext);
 
-    expect(mockService.addTask).toHaveBeenCalled();
+    expect(mockService.addTask).toHaveBeenCalledWith(
+      'channel-1',
+      expect.objectContaining({
+        inventoryItems: [{ name: '牛乳', stock: 3, consume: 1 }]
+      }),
+      expect.anything()
+    );
     expect(mockContext.interaction?.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(mockContext.interaction?.deleteReply).toHaveBeenCalled();
     expect(mockContext.interaction?.reply).not.toHaveBeenCalled();

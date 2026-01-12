@@ -128,4 +128,25 @@ describe('RemindTaskFormatter', () => {
     expect(embed.data.description).toContain('残り: 30分');
     expect(embed.data.description).not.toContain('0時間');
   });
+
+  it('includes inventory summary in formatSummaryText', () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      title: '補充チェック',
+      intervalDays: 7,
+      timeOfDay: '09:00',
+      remindBeforeMinutes: 60,
+      inventoryItems: [
+        { name: '牛乳', stock: 3, consume: 1 },
+        { name: '卵', stock: 2, consume: 1 }
+      ],
+      startAt: new Date('2025-12-29T09:00:00+09:00'),
+      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+
+    const summary = RemindTaskFormatter.formatSummaryText(task, new Date('2026-01-04T09:00:00+09:00'));
+    expect(summary.detailsText).toContain('在庫: 牛乳 3, 卵 2');
+  });
 });

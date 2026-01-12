@@ -12,6 +12,7 @@ import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { formatRemindBeforeInput } from '../utils/RemindDuration';
+import { formatInventoryInput } from '../utils/RemindInventory';
 import { RemindTask } from '../models/RemindTask';
 
 export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
@@ -67,12 +68,14 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
       return { success: false, message: 'タスクが見つかりません' };
     }
 
-    const modal =
-      selection === 'basic'
-        ? this.buildBasicModal(task, messageId)
-        : selection === 'advanced'
-          ? this.buildAdvancedModal(task, messageId)
-          : null;
+    let modal: ModalBuilder | null = null;
+    if (selection === 'basic') {
+      modal = this.buildBasicModal(task, messageId);
+    } else if (selection === 'advanced') {
+      modal = this.buildAdvancedModal(task, messageId);
+    } else if (selection === 'inventory') {
+      modal = this.buildInventoryModal(task, messageId);
+    }
 
     if (!modal) {
       return { success: false, message: '更新内容が不正です' };
@@ -188,6 +191,26 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
       new ActionRowBuilder<TextInputBuilder>().addComponents(lastDoneInput),
       new ActionRowBuilder<TextInputBuilder>().addComponents(nextDueInput),
       new ActionRowBuilder<TextInputBuilder>().addComponents(limitInput)
+    );
+
+    return modal;
+  }
+
+  private buildInventoryModal(task: RemindTask, messageId: string): ModalBuilder {
+    const modal = new ModalBuilder()
+      .setCustomId(`remind-task-inventory-modal:${messageId}`)
+      .setTitle('在庫設定');
+
+    const inventoryInput = new TextInputBuilder()
+      .setCustomId('inventory-items')
+      .setLabel('在庫（例: 牛乳,在庫3,消費1 を1行1件）')
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(false)
+      .setMaxLength(1000)
+      .setValue(formatInventoryInput(task.inventoryItems));
+
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(inventoryInput)
     );
 
     return modal;

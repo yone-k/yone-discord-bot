@@ -12,6 +12,7 @@ export interface RemindTaskInputData {
   intervalDays: number;
   timeOfDay?: string;
   remindBeforeMinutes?: number;
+  inventoryItems?: RemindTask['inventoryItems'];
 }
 
 export interface RemindTaskServiceResult {
@@ -58,6 +59,7 @@ export class RemindTaskService {
       intervalDays: input.intervalDays,
       timeOfDay: normalizedTimeOfDay,
       remindBeforeMinutes: input.remindBeforeMinutes ?? 1440,
+      inventoryItems: input.inventoryItems ?? [],
       startAt,
       nextDueAt,
       createdAt,

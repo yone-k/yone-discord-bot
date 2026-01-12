@@ -12,6 +12,7 @@ describe('RemindSheetMapper', () => {
       'interval_days',
       'time_of_day',
       'remind_before_minutes',
+      'inventory_items',
       'start_at',
       'next_due_at',
       'last_done_at',
@@ -34,6 +35,7 @@ describe('RemindSheetMapper', () => {
       intervalDays: 30,
       timeOfDay: '09:00',
       remindBeforeMinutes: 1440,
+      inventoryItems: [{ name: '牛乳', stock: 3, consume: 1 }],
       startAt: new Date('2025-12-29T09:00:00+09:00'),
       nextDueAt: new Date('2026-01-28T09:00:00+09:00'),
       lastDoneAt: null,
@@ -49,9 +51,10 @@ describe('RemindSheetMapper', () => {
     const row = toSheetRow(task);
     expect(row[0]).toBe('task-1');
     expect(row[4]).toBe(30);
-    expect(row[7]).toBe('2025-12-29T09:00:00+09:00');
-    expect(row[12]).toBe(3);
-    expect(row[16]).toBe('2025-12-29T08:00:00+09:00');
+    expect(row[7]).toBe('[{"name":"牛乳","stock":3,"consume":1}]');
+    expect(row[8]).toBe('2025-12-29T09:00:00+09:00');
+    expect(row[13]).toBe(3);
+    expect(row[17]).toBe('2025-12-29T08:00:00+09:00');
   });
 
   it('converts sheet row to task', () => {
@@ -63,6 +66,7 @@ describe('RemindSheetMapper', () => {
       '30',
       '09:00',
       '1440',
+      '[{"name":"牛乳","stock":2,"consume":1}]',
       '2025-12-29T09:00:00+09:00',
       '2026-01-28T09:00:00+09:00',
       '',
@@ -81,6 +85,7 @@ describe('RemindSheetMapper', () => {
     expect(task.lastDoneAt).toBeNull();
     expect(task.isPaused).toBe(false);
     expect(task.overdueNotifyLimit).toBe(2);
+    expect(task.inventoryItems).toEqual([{ name: '牛乳', stock: 2, consume: 1 }]);
     expect(task.nextDueAt.toISOString()).toBe('2026-01-28T00:00:00.000Z');
   });
 });

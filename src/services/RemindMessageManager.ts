@@ -405,7 +405,10 @@ export class RemindMessageManager {
           .setValue('basic'),
         new StringSelectMenuOptionBuilder()
           .setLabel('詳細設定')
-          .setValue('advanced')
+          .setValue('advanced'),
+        new StringSelectMenuOptionBuilder()
+          .setLabel('在庫設定')
+          .setValue('inventory')
       );
 
     const selectRow =

@@ -6,6 +6,12 @@ import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { calculateNextDueAt } from '../utils/RemindSchedule';
+import {
+  consumeInventory,
+  formatInventoryDepleted,
+  formatInventoryShortage,
+  getInsufficientInventoryItems
+} from '../utils/RemindInventory';
 
 export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
@@ -63,6 +69,19 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
         return await replyError('タスクが見つかりません');
       }
 
+      const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
+      if (insufficientItems.length > 0) {
+        await this.notifyInventory(
+          channelId,
+          `@everyone ${task.title}の在庫が不足しています: ${formatInventoryShortage(insufficientItems)}`,
+          interaction.client
+        );
+        return await replyError(`在庫が不足しています: ${formatInventoryShortage(insufficientItems)}`);
+      }
+
+      const consumedInventory = consumeInventory(task.inventoryItems);
+      const depletedItems = consumedInventory.filter(item => item.stock <= 0);
+
       const now = new Date();
       const nextDueAt = calculateNextDueAt(
         {
@@ -76,6 +95,7 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
 
       const updatedTask = {
         ...task,
+        inventoryItems: consumedInventory,
         lastDoneAt: now,
         nextDueAt,
         lastRemindDueAt: null,
@@ -91,6 +111,14 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
 
       await this.messageManager.updateTaskMessage(channelId, messageId, updatedTask, interaction.client, now);
 
+      if (depletedItems.length > 0) {
+        await this.notifyInventory(
+          channelId,
+          `@everyone ${task.title}の在庫が切れました: ${formatInventoryDepleted(depletedItems)}`,
+          interaction.client
+        );
+      }
+
       try {
         await interaction.deleteReply();
       } catch {
@@ -101,5 +129,25 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
     } catch {
       return await replyError('処理中にエラーが発生しました');
     }
+  }
+
+  private async notifyInventory(channelId: string, message: string, client: ButtonHandlerContext['interaction']['client']): Promise<void> {
+    if (!this.metadataManager) {
+      return;
+    }
+
+    const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+    if (!metadataResult.success || !metadataResult.metadata) {
+      return;
+    }
+
+    const { remindNoticeThreadId, remindNoticeMessageId } = metadataResult.metadata;
+    await this.messageManager.sendReminderToThread(
+      channelId,
+      remindNoticeThreadId,
+      remindNoticeMessageId,
+      message,
+      client
+    );
   }
 }

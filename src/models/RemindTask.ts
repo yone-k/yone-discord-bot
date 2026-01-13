@@ -98,10 +98,10 @@ export function validateRemindTask(task: RemindTask): void {
     if (!item.name || item.name.trim() === '') {
       throw new Error('inventory_itemsの名称が無効です');
     }
-    if (!Number.isInteger(item.stock) || item.stock < 0) {
+    if (!Number.isFinite(item.stock) || item.stock < 0) {
       throw new Error('inventory_itemsの在庫数が無効です');
     }
-    if (!Number.isInteger(item.consume) || item.consume < 1) {
+    if (!Number.isFinite(item.consume) || item.consume <= 0) {
       throw new Error('inventory_itemsの消費数が無効です');
     }
   }

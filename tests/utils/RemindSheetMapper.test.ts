@@ -57,6 +57,32 @@ describe('RemindSheetMapper', () => {
     expect(row[17]).toBe('2025-12-29T08:00:00+09:00');
   });
 
+  it('converts task to sheet row with decimals', () => {
+    const task = createRemindTask({
+      id: 'task-2',
+      messageId: 'msg-2',
+      title: '洗剤補充',
+      description: '隔週',
+      intervalDays: 14,
+      timeOfDay: '08:30',
+      remindBeforeMinutes: 60,
+      inventoryItems: [{ name: '洗剤', stock: 1.5, consume: 0.5 }],
+      startAt: new Date('2025-12-29T08:30:00+09:00'),
+      nextDueAt: new Date('2026-01-12T08:30:00+09:00'),
+      lastDoneAt: null,
+      lastRemindDueAt: null,
+      overdueNotifyCount: 0,
+      overdueNotifyLimit: 3,
+      lastOverdueNotifiedAt: null,
+      isPaused: false,
+      createdAt: new Date('2025-12-29T08:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T08:00:00+09:00')
+    });
+
+    const row = toSheetRow(task);
+    expect(row[7]).toBe('[{"name":"洗剤","stock":1.5,"consume":0.5}]');
+  });
+
   it('converts sheet row to task', () => {
     const row = [
       'task-1',
@@ -87,5 +113,31 @@ describe('RemindSheetMapper', () => {
     expect(task.overdueNotifyLimit).toBe(2);
     expect(task.inventoryItems).toEqual([{ name: '牛乳', stock: 2, consume: 1 }]);
     expect(task.nextDueAt.toISOString()).toBe('2026-01-28T00:00:00.000Z');
+  });
+
+  it('rounds decimals when converting sheet row to task', () => {
+    const row = [
+      'task-3',
+      'msg-3',
+      '洗剤補充',
+      '隔週',
+      '14',
+      '08:30',
+      '60',
+      '[{"name":"洗剤","stock":1.05,"consume":0.55}]',
+      '2025-12-29T08:30:00+09:00',
+      '2026-01-12T08:30:00+09:00',
+      '',
+      '',
+      '0',
+      '2',
+      '',
+      '0',
+      '2025-12-29T08:00:00+09:00',
+      '2025-12-29T08:00:00+09:00'
+    ];
+
+    const task = fromSheetRow(row);
+    expect(task.inventoryItems).toEqual([{ name: '洗剤', stock: 1.1, consume: 0.6 }]);
   });
 });

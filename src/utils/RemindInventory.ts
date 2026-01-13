@@ -1,12 +1,28 @@
 import type { RemindInventoryItem } from '../models/RemindTask';
 
 const parseInventoryNumber = (token: string, label: string): number | null => {
-  const pattern = new RegExp(`^${label}\\s*[:=]?\\s*(\\d+)$`);
+  const pattern = new RegExp(`^${label}\\s*[:=]?\\s*(\\d+(?:\\.\\d+)?)$`);
   const match = token.match(pattern);
   if (!match) {
     return null;
   }
   return Number(match[1]);
+};
+
+const parseNumericToken = (token: string): number | null => {
+  if (!/^\d+(?:\.\d+)?$/.test(token)) {
+    return null;
+  }
+  return Number(token);
+};
+
+const roundInventoryValue = (value: number): number =>
+  Math.round(value * 10) / 10;
+
+const formatInventoryValue = (value: number): string => {
+  const rounded = roundInventoryValue(value);
+  const fixed = rounded.toFixed(1);
+  return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed;
 };
 
 const normalizeLineTokens = (line: string): string[] =>
@@ -62,13 +78,14 @@ export const parseInventoryInput = (input: string): RemindInventoryItem[] => {
 
     const numericTokens = tokens
       .slice(1)
-      .filter((token) => /^\d+$/.test(token));
+      .map(parseNumericToken)
+      .filter((token): token is number => token !== null);
 
     if (consume === null && numericTokens.length > 0) {
-      consume = Number(numericTokens[0]);
+      consume = numericTokens[0];
     }
     if (stock === null && numericTokens.length > 1) {
-      stock = Number(numericTokens[1]);
+      stock = numericTokens[1];
     }
 
     if (stock === null) {
@@ -77,14 +94,16 @@ export const parseInventoryInput = (input: string): RemindInventoryItem[] => {
     if (consume === null) {
       throw new Error('消費が不足しています');
     }
-    if (!Number.isInteger(stock) || stock < 0) {
-      throw new Error('在庫は0以上の整数で入力してください');
+    const roundedStock = roundInventoryValue(stock);
+    const roundedConsume = roundInventoryValue(consume);
+    if (!Number.isFinite(roundedStock) || roundedStock < 0) {
+      throw new Error('在庫は0以上の数値で入力してください');
     }
-    if (!Number.isInteger(consume) || consume < 1) {
-      throw new Error('消費は1以上の整数で入力してください');
+    if (!Number.isFinite(roundedConsume) || roundedConsume <= 0) {
+      throw new Error('消費は0より大きい数値で入力してください');
     }
 
-    return { name, stock, consume };
+    return { name, stock: roundedStock, consume: roundedConsume };
   });
 
   const seen = new Set<string>();
@@ -103,7 +122,9 @@ export const formatInventoryInput = (items: RemindInventoryItem[]): string => {
   if (!items || items.length === 0) {
     return '';
   }
-  return items.map(item => `${item.name},${item.consume},${item.stock}`).join('\n');
+  return items
+    .map(item => `${item.name},${formatInventoryValue(item.consume)},${formatInventoryValue(item.stock)}`)
+    .join('\n');
 };
 
 export const getInsufficientInventoryItems = (
@@ -132,7 +153,10 @@ export const formatInventorySummary = (
   if (!items || items.length === 0) {
     return null;
   }
-  const display = items.slice(0, maxItems).map(item => `${item.name} ${item.stock}`).join(', ');
+  const display = items
+    .slice(0, maxItems)
+    .map(item => `${item.name} ${formatInventoryValue(item.stock)}`)
+    .join(', ');
   const suffix = items.length > maxItems ? '...' : '';
   return `在庫: ${display}${suffix}`;
 };
@@ -146,7 +170,7 @@ export const formatInventoryDetail = (
   }
   const display = items
     .slice(0, maxItems)
-    .map(item => `${item.name} 在庫${item.stock}/消費${item.consume}`)
+    .map(item => `${item.name} 在庫${formatInventoryValue(item.stock)}/消費${formatInventoryValue(item.consume)}`)
     .join(', ');
   const suffix = items.length > maxItems ? '...' : '';
   return `在庫: ${display}${suffix}`;
@@ -160,7 +184,7 @@ export const formatInventoryShortage = (items: RemindInventoryItem[]): string =>
 export const formatInventoryShortageNotice = (items: RemindInventoryItem[]): string => {
   const parts = items.map((item) => {
     const shortage = Math.max(0, item.consume - item.stock);
-    return `${item.name} ${shortage}個`;
+    return `${item.name} ${formatInventoryValue(shortage)}個`;
   });
   return `不足している在庫の詳細は以下の通りです\n${parts.join('\n')}`;
 };

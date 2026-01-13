@@ -149,4 +149,21 @@ describe('RemindTaskFormatter', () => {
     const summary = RemindTaskFormatter.formatSummaryText(task, new Date('2026-01-04T09:00:00+09:00'));
     expect(summary.detailsText).toContain('在庫: 牛乳 3, 卵 2');
   });
+
+  it('shows remaining days with floor rounding', () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      title: '期限チェック',
+      intervalDays: 7,
+      timeOfDay: '00:00',
+      remindBeforeMinutes: 60,
+      startAt: new Date('2026-01-10T00:00:00+09:00'),
+      nextDueAt: new Date('2026-01-16T00:00:00+09:00'),
+      createdAt: new Date('2026-01-10T00:00:00+09:00'),
+      updatedAt: new Date('2026-01-10T00:00:00+09:00')
+    });
+
+    const summary = RemindTaskFormatter.formatSummaryText(task, new Date('2026-01-13T19:54:00+09:00'));
+    expect(summary.detailsText).toContain('-# 残り: 2日');
+  });
 });

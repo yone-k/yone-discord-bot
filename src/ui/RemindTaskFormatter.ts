@@ -83,7 +83,7 @@ export class RemindTaskFormatter {
 
   private static calculateRemainingDays(task: RemindTask, now: Date): number | null {
     const remainingMillis = task.nextDueAt.getTime() - now.getTime();
-    const remainingDays = Math.ceil(remainingMillis / (24 * 60 * 60 * 1000));
+    const remainingDays = Math.floor(remainingMillis / (24 * 60 * 60 * 1000));
     if (remainingDays < 0 || remainingDays >= 30) {
       return null;
     }

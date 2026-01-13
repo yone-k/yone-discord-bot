@@ -38,6 +38,40 @@ describe('RemindTask', () => {
     expect(() => validateRemindTask(task)).not.toThrow();
   });
 
+  it('accepts decimal inventory values', () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      title: '棚卸し',
+      intervalDays: 1,
+      timeOfDay: '10:00',
+      remindBeforeMinutes: 0,
+      inventoryItems: [{ name: '洗剤', stock: 1.5, consume: 0.5 }],
+      startAt: new Date('2025-12-29T10:00:00+09:00'),
+      nextDueAt: new Date('2025-12-30T10:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+
+    expect(() => validateRemindTask(task)).not.toThrow();
+  });
+
+  it('rejects inventory consume value less than or equal to zero', () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      title: '棚卸し',
+      intervalDays: 1,
+      timeOfDay: '10:00',
+      remindBeforeMinutes: 0,
+      inventoryItems: [{ name: '洗剤', stock: 1, consume: 0 }],
+      startAt: new Date('2025-12-29T10:00:00+09:00'),
+      nextDueAt: new Date('2025-12-30T10:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+
+    expect(() => validateRemindTask(task)).toThrow('inventory_itemsの消費数が無効です');
+  });
+
   it('throws when intervalDays is invalid', () => {
     const task = createRemindTask({
       id: 'task-1',

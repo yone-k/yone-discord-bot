@@ -2,6 +2,7 @@ import { createRemindTask, RemindTask } from '../models/RemindTask';
 
 const TOKYO_OFFSET_MINUTES = 9 * 60;
 const DEFAULT_REMIND_BEFORE_MINUTES = 1440;
+const roundInventoryValue = (value: number): number => Math.round(value * 10) / 10;
 
 export function getRemindSheetHeaders(): string[] {
   return [
@@ -141,8 +142,8 @@ function parseInventoryItems(value: string | undefined): RemindTask['inventoryIt
       .filter(item => item && typeof item.name === 'string')
       .map(item => ({
         name: item.name,
-        stock: Number(item.stock),
-        consume: Number(item.consume)
+        stock: roundInventoryValue(Number(item.stock)),
+        consume: roundInventoryValue(Number(item.consume))
       }))
       .filter(item =>
         item.name.trim() !== ''

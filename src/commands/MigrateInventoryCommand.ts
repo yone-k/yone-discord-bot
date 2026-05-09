@@ -1,10 +1,27 @@
+import type { Client } from 'discord.js';
 import { BaseCommand, CommandExecutionContext } from '../base/BaseCommand';
+import type { InventoryItem } from '../models/InventoryItem';
+import { InventoryMessageManager } from '../services/InventoryMessageManager';
 import { InventoryMigrationService, type MigrationReport } from '../services/InventoryMigrationService';
+import { InventoryRepository } from '../services/InventoryRepository';
 import { CommandError, CommandErrorType } from '../utils/CommandError';
 import { Logger } from '../utils/logger';
 
 interface InventoryMigrationRunner {
   migrate(inventoryChannelId: string): Promise<MigrationReport>;
+}
+
+interface InventoryRepositoryPort {
+  fetchAll(channelId: string): Promise<InventoryItem[]>;
+}
+
+interface InventoryMessageManagerPort {
+  createOrUpdateMessage(
+    channelId: string,
+    items: InventoryItem[],
+    listTitle: string,
+    client: Client
+  ): Promise<{ success: boolean; errorMessage?: string }>;
 }
 
 export class MigrateInventoryCommand extends BaseCommand {
@@ -18,7 +35,9 @@ export class MigrateInventoryCommand extends BaseCommand {
 
   constructor(
     logger: Logger,
-    private readonly migrationService: InventoryMigrationRunner = new InventoryMigrationService()
+    private readonly migrationService: InventoryMigrationRunner = new InventoryMigrationService(),
+    private readonly repository: InventoryRepositoryPort = new InventoryRepository(),
+    private readonly messageManager: InventoryMessageManagerPort = InventoryMessageManager.getInstance()
   ) {
     super('migrate-inventory', '既存タスク在庫を在庫専用シートに移行する', logger);
     this.useThread = false;
@@ -50,6 +69,20 @@ export class MigrateInventoryCommand extends BaseCommand {
     if (!report.success) {
       await context.interaction.editReply({
         content: `在庫移行に失敗しました。${report.message ?? ''}`.trim()
+      });
+      return;
+    }
+
+    const items = await this.repository.fetchAll(context.channelId);
+    const messageResult = await this.messageManager.createOrUpdateMessage(
+      context.channelId,
+      items,
+      '在庫リスト',
+      context.interaction.client
+    );
+    if (!messageResult.success) {
+      await context.interaction.editReply({
+        content: messageResult.errorMessage || '在庫メッセージの更新に失敗しました'
       });
       return;
     }

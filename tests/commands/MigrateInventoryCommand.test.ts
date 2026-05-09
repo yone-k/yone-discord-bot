@@ -16,9 +16,16 @@ describe('MigrateInventoryCommand', () => {
   let migrationService: {
     migrate: ReturnType<typeof vi.fn>;
   };
+  let repository: {
+    fetchAll: ReturnType<typeof vi.fn>;
+  };
+  let messageManager: {
+    createOrUpdateMessage: ReturnType<typeof vi.fn>;
+  };
   let interaction: {
     deferReply: ReturnType<typeof vi.fn>;
     editReply: ReturnType<typeof vi.fn>;
+    client: unknown;
   };
   let context: CommandExecutionContext;
 
@@ -36,9 +43,23 @@ describe('MigrateInventoryCommand', () => {
         skippedTasks: []
       })
     };
+    repository = {
+      fetchAll: vi.fn().mockResolvedValue([
+        {
+          id: 'inventory-1',
+          name: '洗剤',
+          stock: 5,
+          category: '日用品'
+        }
+      ])
+    };
+    messageManager = {
+      createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true })
+    };
     interaction = {
       deferReply: vi.fn(),
-      editReply: vi.fn()
+      editReply: vi.fn(),
+      client: { user: { id: 'bot-user-1' } }
     };
     context = {
       channelId: 'inventory-channel-1',
@@ -47,7 +68,9 @@ describe('MigrateInventoryCommand', () => {
 
     command = new MigrateInventoryCommand(
       mockLogger as unknown as Logger,
-      migrationService
+      migrationService,
+      repository,
+      messageManager
     );
   });
 
@@ -74,6 +97,20 @@ describe('MigrateInventoryCommand', () => {
     expect(command.getEphemeral()).toBe(true);
     expect(interaction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(migrationService.migrate).toHaveBeenCalledWith('inventory-channel-1');
+    expect(repository.fetchAll).toHaveBeenCalledWith('inventory-channel-1');
+    expect(messageManager.createOrUpdateMessage).toHaveBeenCalledWith(
+      'inventory-channel-1',
+      [
+        {
+          id: 'inventory-1',
+          name: '洗剤',
+          stock: 5,
+          category: '日用品'
+        }
+      ],
+      '在庫リスト',
+      interaction.client
+    );
     expect(interaction.editReply).toHaveBeenCalledWith({
       content: expect.stringContaining('在庫移行が完了しました')
     });
@@ -109,6 +146,8 @@ describe('MigrateInventoryCommand', () => {
     // Then
     expect(interaction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(migrationService.migrate).toHaveBeenCalledWith('inventory-channel-1');
+    expect(repository.fetchAll).not.toHaveBeenCalled();
+    expect(messageManager.createOrUpdateMessage).not.toHaveBeenCalled();
     expect(interaction.editReply).toHaveBeenCalledWith({
       content: expect.stringContaining('在庫移行に失敗しました')
     });

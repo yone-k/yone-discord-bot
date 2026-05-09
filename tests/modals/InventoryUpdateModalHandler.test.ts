@@ -20,6 +20,9 @@ describe('InventoryUpdateModalHandler', () => {
   let repository: {
     fetchAll: ReturnType<typeof vi.fn>;
   };
+  let refreshService: {
+    refreshTasksUsingInventory: ReturnType<typeof vi.fn>;
+  };
   let interaction: {
     customId: string;
     user: { id: string };
@@ -45,6 +48,9 @@ describe('InventoryUpdateModalHandler', () => {
     repository = {
       fetchAll: vi.fn().mockResolvedValue([])
     };
+    refreshService = {
+      refreshTasksUsingInventory: vi.fn().mockResolvedValue(undefined)
+    };
     interaction = {
       customId: 'inventory_update_modal_inventory-1',
       user: { id: 'user-1' },
@@ -66,7 +72,8 @@ describe('InventoryUpdateModalHandler', () => {
       logger as unknown as Logger,
       inventoryService as any,
       inventoryMessageManager as any,
-      repository as any
+      repository as any,
+      refreshService as any
     );
   });
 
@@ -112,6 +119,30 @@ describe('InventoryUpdateModalHandler', () => {
     expect(interaction.deleteReply).toHaveBeenCalled();
   });
 
+  it('update成功時、その在庫を参照するタスクのメッセージ再描画を依頼する', async () => {
+    // Given
+    inventoryService.update.mockResolvedValue({ success: true });
+    inventoryMessageManager.createOrUpdateMessage.mockResolvedValue({ success: true });
+    repository.fetchAll.mockResolvedValue([
+      {
+        id: 'inventory-1',
+        name: '洗剤',
+        stock: 5,
+        category: '日用品'
+      }
+    ]);
+
+    // When
+    await handler.handle({ interaction: interaction as any });
+
+    // Then
+    expect(refreshService.refreshTasksUsingInventory).toHaveBeenCalledWith(
+      'inventory-channel-1',
+      interaction.client,
+      { inventoryId: 'inventory-1' }
+    );
+  });
+
   it('別 id の同 name 重複エラーではエラー応答し、在庫メッセージを更新しない', async () => {
     // Given
     inventoryService.update.mockResolvedValue({
@@ -130,8 +161,23 @@ describe('InventoryUpdateModalHandler', () => {
       category: '日用品'
     });
     expect(inventoryMessageManager.createOrUpdateMessage).not.toHaveBeenCalled();
+    expect(refreshService.refreshTasksUsingInventory).not.toHaveBeenCalled();
     expect(interaction.editReply).toHaveBeenCalledWith({
       content: expect.stringContaining('同名のアイテムが既に存在します')
     });
+  });
+
+  it('update失敗時は参照タスクのメッセージ再描画を依頼しない', async () => {
+    // Given
+    inventoryService.update.mockResolvedValue({
+      success: false,
+      message: '更新に失敗しました'
+    });
+
+    // When
+    await handler.handle({ interaction: interaction as any });
+
+    // Then
+    expect(refreshService.refreshTasksUsingInventory).not.toHaveBeenCalled();
   });
 });

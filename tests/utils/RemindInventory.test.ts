@@ -13,8 +13,36 @@ describe('RemindInventory', () => {
     const items = parseInventoryInput(text);
 
     expect(items).toEqual([
-      { name: 'フィルター', consume: 1 },
-      { name: '替えブラシ', consume: 2 }
+      { name: 'フィルター', stock: undefined, consume: 1 },
+      { name: '替えブラシ', stock: undefined, consume: 2 }
+    ]);
+  });
+
+  it('parses inventory input with stock and consume columns', () => {
+    expect(parseInventoryInput('米,5,1')).toEqual([
+      { name: '米', stock: 5, consume: 1 }
+    ]);
+  });
+
+  it('keeps two-column inventory input backward compatible', () => {
+    expect(parseInventoryInput('米,1')).toEqual([
+      { name: '米', stock: undefined, consume: 1 }
+    ]);
+  });
+
+  it('parses labeled stock and consume input', () => {
+    expect(parseInventoryInput('米,在庫:5,消費:1')).toEqual([
+      { name: '米', stock: 5, consume: 1 }
+    ]);
+  });
+
+  it('rejects inventory input with too many tokens', () => {
+    expect(() => parseInventoryInput('米,5,1,2')).toThrow('在庫の形式が不正です');
+  });
+
+  it('parses decimal stock and consume values', () => {
+    expect(parseInventoryInput('米,5.5,1.5')).toEqual([
+      { name: '米', stock: 5.5, consume: 1.5 }
     ]);
   });
 
@@ -23,8 +51,8 @@ describe('RemindInventory', () => {
     const items = parseInventoryInput(text);
 
     expect(items).toEqual([
-      { name: 'フィルター', consume: 1.4 },
-      { name: '替えブラシ', consume: 0.6 }
+      { name: 'フィルター', stock: undefined, consume: 1.4 },
+      { name: '替えブラシ', stock: undefined, consume: 0.6 }
     ]);
   });
 

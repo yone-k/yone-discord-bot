@@ -14,7 +14,9 @@ vi.mock('googleapis', () => ({
         batchUpdate: vi.fn(),
         values: {
           get: vi.fn(),
-          append: vi.fn()
+          append: vi.fn(),
+          update: vi.fn(),
+          clear: vi.fn()
         }
       }
     })
@@ -100,6 +102,14 @@ describe('GoogleSheetsService', () => {
     mockSheets.values.append.mockResolvedValue({
       data: {}
     });
+
+    mockSheets.values.update.mockResolvedValue({
+      data: {}
+    });
+
+    mockSheets.values.clear.mockResolvedValue({
+      data: {}
+    });
   });
 
   afterEach(() => {
@@ -107,6 +117,7 @@ describe('GoogleSheetsService', () => {
     ;(Config as any).instance = undefined
     ;(GoogleSheetsService as any).instance = undefined;
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   describe('インスタンス生成', () => {
@@ -199,6 +210,130 @@ describe('GoogleSheetsService', () => {
       const testData = [['テスト項目', '説明', '2025-01-01']];
       const result = await service.appendSheetData(channelId, testData);
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('シートデータキャッシュ', () => {
+    it('5秒以内に同じシートを取得した場合はSheets APIを1回だけ呼ぶ', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(1000));
+      const service = GoogleSheetsService.getInstance();
+
+      const first = await service.getSheetDataByName('inventory_x');
+      vi.advanceTimersByTime(4000);
+      const second = await service.getSheetDataByName('inventory_x');
+
+      expect(first).toEqual([['テスト項目', '説明', '2025-01-01']]);
+      expect(second).toEqual([['テスト項目', '説明', '2025-01-01']]);
+      expect(mockSheets.values.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('同じシートでも5秒経過後はSheets APIを再度呼ぶ', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(1000));
+      const service = GoogleSheetsService.getInstance();
+
+      await service.getSheetDataByName('inventory_x');
+      vi.advanceTimersByTime(5000);
+      await service.getSheetDataByName('inventory_x');
+
+      expect(mockSheets.values.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('異なるシート名のキャッシュは独立する', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(1000));
+      const service = GoogleSheetsService.getInstance();
+
+      await service.getSheetDataByName('A');
+      await service.getSheetDataByName('B');
+
+      expect(mockSheets.values.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('appendSheetData後は対象シートのキャッシュを無効化する', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(1000));
+      const service = GoogleSheetsService.getInstance();
+
+      await service.getSheetDataByName('inventory_x');
+      await service.appendSheetData('inventory_x', [['追加項目']]);
+      await service.getSheetDataByName('inventory_x');
+
+      expect(mockSheets.values.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('updateSheetData後は対象シートのキャッシュを無効化する', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(1000));
+      const service = GoogleSheetsService.getInstance();
+
+      await service.getSheetDataByName('inventory_x');
+      await service.updateSheetData('inventory_x', [['更新項目']]);
+      await service.getSheetDataByName('inventory_x');
+
+      expect(mockSheets.values.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('createSheetByName後は対象シートのキャッシュを無効化する', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(1000));
+      const service = GoogleSheetsService.getInstance();
+
+      await service.getSheetDataByName('inventory_x');
+      await service.createSheetByName('inventory_x');
+      await service.getSheetDataByName('inventory_x');
+
+      expect(mockSheets.values.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('deleteSheetByName後は対象シートのキャッシュを無効化する', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(1000));
+      const service = GoogleSheetsService.getInstance();
+
+      await service.getSheetDataByName('list_123456789');
+      await service.deleteSheetByName('list_123456789');
+      await service.getSheetDataByName('list_123456789');
+
+      expect(mockSheets.values.get).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      {
+        methodName: 'appendSheetData',
+        sheetName: 'inventory_x',
+        write: (service: GoogleSheetsService): Promise<unknown> => service.appendSheetData('inventory_x', [['追加項目']])
+      },
+      {
+        methodName: 'updateSheetData',
+        sheetName: 'inventory_x',
+        write: (service: GoogleSheetsService): Promise<unknown> => service.updateSheetData('inventory_x', [['更新項目']])
+      },
+      {
+        methodName: 'createSheetByName',
+        sheetName: 'inventory_x',
+        write: (service: GoogleSheetsService): Promise<unknown> => service.createSheetByName('inventory_x')
+      },
+      {
+        methodName: 'deleteSheetByName',
+        sheetName: 'list_123456789',
+        write: (service: GoogleSheetsService): Promise<unknown> => service.deleteSheetByName('list_123456789')
+      }
+    ])('$methodName後、1秒経過後に対象シートのキャッシュが再度無効化される', async ({ sheetName, write }) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(1000));
+      const service = GoogleSheetsService.getInstance();
+
+      await write(service);
+
+      await service.getSheetDataByName(sheetName);
+      expect(mockSheets.values.get).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      await service.getSheetDataByName(sheetName);
+      expect(mockSheets.values.get).toHaveBeenCalledTimes(2);
     });
   });
 

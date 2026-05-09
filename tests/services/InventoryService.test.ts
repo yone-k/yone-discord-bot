@@ -402,15 +402,15 @@ describe('InventoryService', () => {
       const result = await consumeForTask(task);
 
       // Then
-      expect(result).toEqual({ kind: 'success' });
+      expect(result).toEqual({ kind: 'success', linkedInventoryChannelId });
       expect(inventoryRepository.update).toHaveBeenCalledWith(linkedInventoryChannelId, {
         ...coffeeBeans,
         stock: 2
-      });
+      }, { useLock: false });
       expect(inventoryRepository.update).toHaveBeenCalledWith(linkedInventoryChannelId, {
         ...detergent,
         stock: 1
-      });
+      }, { useLock: false });
     });
 
     it('runs inventory consumption under the linked inventory channel lock', async () => {
@@ -430,7 +430,7 @@ describe('InventoryService', () => {
 
       // Then
       expect(googleSheetsService.runWithLock).toHaveBeenCalledWith(
-        `inventory_consume_${linkedInventoryChannelId}`,
+        `inventory_${linkedInventoryChannelId}`,
         expect.any(Function)
       );
     });

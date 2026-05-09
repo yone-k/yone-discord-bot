@@ -28,7 +28,8 @@ describe('InventoryRepository', () => {
     mockGoogleSheetsService = {
       getSheetDataByName: vi.fn(),
       updateSheetData: vi.fn(),
-      appendSheetData: vi.fn()
+      appendSheetData: vi.fn(),
+      runWithLock: vi.fn().mockImplementation(async (_key: string, fn: () => Promise<unknown>) => fn())
     };
 
     vi.mocked(GoogleSheetsService.getInstance).mockReturnValue(mockGoogleSheetsService);
@@ -157,6 +158,24 @@ describe('InventoryRepository', () => {
     );
   });
 
+  it('appends inventory item under the inventory channel lock', async () => {
+    // Given
+    mockGoogleSheetsService.appendSheetData.mockResolvedValue({ success: true });
+
+    // When
+    await repository.append('channel-1', coffeeBeans);
+
+    // Then
+    expect(mockGoogleSheetsService.runWithLock).toHaveBeenCalledWith(
+      'inventory_channel-1',
+      expect.any(Function)
+    );
+    expect(mockGoogleSheetsService.appendSheetData).toHaveBeenCalledWith(
+      'inventory_channel-1',
+      [toSheetRow(coffeeBeans)]
+    );
+  });
+
   it('updates inventory item by id and rewrites all rows', async () => {
     // Given
     const updatedCoffeeBeans: InventoryItem = {
@@ -182,6 +201,54 @@ describe('InventoryRepository', () => {
         getInventorySheetHeaders(),
         toSheetRow(updatedCoffeeBeans),
         ['item-2', 'Detergent', '1.5', 'daily']
+      ]
+    );
+  });
+
+  it('updates inventory item under the inventory channel lock', async () => {
+    // Given
+    mockGoogleSheetsService.getSheetDataByName.mockResolvedValue([
+      getInventorySheetHeaders(),
+      ['item-1', 'Coffee beans', '2', 'food']
+    ]);
+    mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
+
+    // When
+    await repository.update('channel-1', coffeeBeans);
+
+    // Then
+    expect(mockGoogleSheetsService.runWithLock).toHaveBeenCalledWith(
+      'inventory_channel-1',
+      expect.any(Function)
+    );
+    expect(mockGoogleSheetsService.getSheetDataByName).toHaveBeenCalledWith('inventory_channel-1');
+    expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
+      'inventory_channel-1',
+      [
+        getInventorySheetHeaders(),
+        toSheetRow(coffeeBeans)
+      ]
+    );
+  });
+
+  it('updates inventory item without acquiring a lock when useLock is false', async () => {
+    // Given
+    mockGoogleSheetsService.getSheetDataByName.mockResolvedValue([
+      getInventorySheetHeaders(),
+      ['item-1', 'Coffee beans', '2', 'food']
+    ]);
+    mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
+
+    // When
+    await repository.update('channel-1', coffeeBeans, { useLock: false });
+
+    // Then
+    expect(mockGoogleSheetsService.runWithLock).not.toHaveBeenCalled();
+    expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
+      'inventory_channel-1',
+      [
+        getInventorySheetHeaders(),
+        toSheetRow(coffeeBeans)
       ]
     );
   });
@@ -222,6 +289,29 @@ describe('InventoryRepository', () => {
         getInventorySheetHeaders(),
         ['item-2', 'Detergent', '1.5', 'daily']
       ]
+    );
+  });
+
+  it('deletes inventory item under the inventory channel lock', async () => {
+    // Given
+    mockGoogleSheetsService.getSheetDataByName.mockResolvedValue([
+      getInventorySheetHeaders(),
+      ['item-1', 'Coffee beans', '2', 'food']
+    ]);
+    mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
+
+    // When
+    await repository.delete('channel-1', 'item-1');
+
+    // Then
+    expect(mockGoogleSheetsService.runWithLock).toHaveBeenCalledWith(
+      'inventory_channel-1',
+      expect.any(Function)
+    );
+    expect(mockGoogleSheetsService.getSheetDataByName).toHaveBeenCalledWith('inventory_channel-1');
+    expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
+      'inventory_channel-1',
+      [getInventorySheetHeaders()]
     );
   });
 });

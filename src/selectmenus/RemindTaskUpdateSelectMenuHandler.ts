@@ -207,11 +207,11 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
 
     const inventoryInput = new TextInputBuilder()
       .setCustomId('inventory-items')
-      .setLabel('在庫詳細(名前,消費数 の形式。小数は1.5)')
+      .setLabel('在庫詳細(名前,在庫数,消費数 の形式。小数は1.5)')
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(false)
       .setMaxLength(1000)
-      .setPlaceholder('例: フィルター,1.5')
+      .setPlaceholder('例: フィルター,5,1.5')
       .setValue(await this.formatInventoryInputForModal(channelId, task));
 
     modal.addComponents(
@@ -241,7 +241,10 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
       }
       const inventoryItem = await this.inventoryService?.getById(linkedInventoryChannelId, item.inventoryId);
       const name = inventoryItem?.name ?? `[不明な在庫:${item.inventoryId.slice(0, 8)}]`;
-      return `${name},${item.consume}`;
+      if (!inventoryItem) {
+        return `${name},${item.consume}`;
+      }
+      return `${name},${inventoryItem.stock},${item.consume}`;
     }));
     return lines.join('\n');
   }

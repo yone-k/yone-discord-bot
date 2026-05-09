@@ -7,6 +7,7 @@ import type { ShortageItem } from '../services/InventoryService';
 
 export interface InventoryInputItem {
   name: string;
+  stock?: number;
   consume: number;
 }
 
@@ -60,7 +61,7 @@ export const parseInventoryInput = (input: string): InventoryInputItem[] => {
 
   const items = lines.map((line) => {
     const tokens = normalizeLineTokens(line);
-    if (tokens.length !== 2) {
+    if (tokens.length < 2 || tokens.length > 3) {
       throw new Error('在庫の形式が不正です');
     }
 
@@ -69,9 +70,17 @@ export const parseInventoryInput = (input: string): InventoryInputItem[] => {
       throw new Error('アイテム名が空です');
     }
 
+    let stock: number | null = null;
     let consume: number | null = null;
 
     for (const token of tokens.slice(1)) {
+      if (stock === null) {
+        const parsed = parseInventoryNumber(token, '在庫');
+        if (parsed !== null) {
+          stock = parsed;
+          continue;
+        }
+      }
       if (consume === null) {
         const parsed = parseInventoryNumber(token, '消費');
         if (parsed !== null) {
@@ -86,7 +95,20 @@ export const parseInventoryInput = (input: string): InventoryInputItem[] => {
       .map(parseNumericToken)
       .filter((token): token is number => token !== null);
 
+    if (tokens.length === 3 && stock === null && numericTokens.length > 0) {
+      stock = numericTokens[0];
+    }
+
     if (consume === null && numericTokens.length > 0) {
+      const consumeIndex = tokens.length === 3 && stock === numericTokens[0] ? 1 : 0;
+      consume = numericTokens[consumeIndex] ?? null;
+    }
+
+    if (tokens.length === 3 && consume === null && stock !== null && numericTokens.length > 1) {
+      consume = numericTokens[1];
+    }
+
+    if (tokens.length === 2 && consume === null && numericTokens.length > 0) {
       consume = numericTokens[0];
     }
 
@@ -97,8 +119,12 @@ export const parseInventoryInput = (input: string): InventoryInputItem[] => {
     if (!Number.isFinite(roundedConsume) || roundedConsume <= 0) {
       throw new Error('消費は0より大きい数値で入力してください');
     }
+    const roundedStock = stock === null ? undefined : roundInventoryValue(stock);
+    if (roundedStock !== undefined && (!Number.isFinite(roundedStock) || roundedStock < 0)) {
+      throw new Error('在庫は0以上の数値で入力してください');
+    }
 
-    return { name, consume: roundedConsume };
+    return { name, stock: roundedStock, consume: roundedConsume };
   });
 
   const seen = new Set<string>();
@@ -119,7 +145,9 @@ export const formatInventoryInput = (items: RemindInventoryItem[]): string => {
   }
   return items
     .filter(isLegacyInventoryItem)
-    .map(item => `${item.name},${formatInventoryValue(item.consume)},${formatInventoryValue(item.stock)}`)
+    .map(item => item.stock === undefined
+      ? `${item.name},${formatInventoryValue(item.consume)}`
+      : `${item.name},${formatInventoryValue(item.stock)},${formatInventoryValue(item.consume)}`)
     .join('\n');
 };
 

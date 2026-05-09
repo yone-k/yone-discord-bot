@@ -45,8 +45,8 @@ export class RemindMessageManager {
 
   constructor(options: RemindMessageManagerOptions = {}) {
     this.sheetUrlResolver = options.sheetUrlResolver ?? this.resolveSheetUrl.bind(this);
-    this.inventoryService = options.inventoryService;
-    this.metadataManager = options.metadataManager;
+    this.inventoryService = options.inventoryService ?? (process.env.NODE_ENV === 'test' ? undefined : InventoryService.getInstance());
+    this.metadataManager = options.metadataManager ?? (process.env.NODE_ENV === 'test' ? undefined : RemindMetadataManager.getInstance());
   }
 
   public async sendReminderToThread(
@@ -188,26 +188,30 @@ export class RemindMessageManager {
     return { success: true };
   }
 
-  public buildTaskMessageComponents(
+  public async buildTaskMessageComponents(
     task: RemindTask,
-    now: Date = new Date()
-  ): APIMessageTopLevelComponent[] {
-    return this.buildMessageComponentsWithActionRowsSync(
+    now: Date = new Date(),
+    channelId?: string
+  ): Promise<APIMessageTopLevelComponent[]> {
+    return this.buildMessageComponentsWithActionRows(
       task,
       now,
-      [this.buildActionRow().toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>]
+      [this.buildActionRow().toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>],
+      channelId
     );
   }
 
-  public buildUpdateSelectionComponents(
+  public async buildUpdateSelectionComponents(
     task: RemindTask,
     messageId: string,
-    now: Date = new Date()
-  ): APIMessageTopLevelComponent[] {
-    return this.buildMessageComponentsWithActionRowsSync(
+    now: Date = new Date(),
+    channelId?: string
+  ): Promise<APIMessageTopLevelComponent[]> {
+    return this.buildMessageComponentsWithActionRows(
       task,
       now,
-      this.buildUpdateSelectionActionRows(messageId)
+      this.buildUpdateSelectionActionRows(messageId),
+      channelId
     );
   }
 
@@ -431,30 +435,6 @@ export class RemindMessageManager {
       const item = await this.inventoryService?.getById(linkedInventoryChannelId, inventoryId);
       return item ? { name: item.name, stock: item.stock } : null;
     };
-  }
-
-  private buildMessageComponentsWithActionRowsSync(
-    task: RemindTask,
-    now: Date,
-    actionRows: APIActionRowComponent<APIComponentInMessageActionRow>[]
-  ): APIMessageTopLevelComponent[] {
-    const summary = RemindTaskFormatter.formatSummaryText(task, now) as { progressBar: string; detailsText: string };
-    const progressBlock = `\`\`\`\n${summary.progressBar}\n\`\`\``;
-    const containerComponents: APIComponentInContainer[] = [
-      this.buildTextDisplay(`## ${task.title}`),
-      this.buildTextDisplay(progressBlock)
-    ];
-
-    if (summary.detailsText) {
-      containerComponents.push(this.buildTextDisplay(summary.detailsText));
-    }
-
-    containerComponents.push(...actionRows);
-
-    return [{
-      type: ComponentType.Container,
-      components: containerComponents
-    }];
   }
 
   private buildUpdateSelectionActionRows(

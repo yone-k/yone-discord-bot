@@ -120,6 +120,8 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
     expect(mockInventoryService.getById).toHaveBeenCalledWith('inventory-channel-1', 'inventory-1');
     const modal = interaction.showModal.mock.calls[0][0];
     const modalJson = modal.toJSON();
-    expect(modalJson.components[0].components[0].value).toBe('牛乳,2');
+    expect(modalJson.components[0].components[0].label).toBe('在庫詳細(名前,在庫数,消費数 の形式。小数は1.5)');
+    expect(modalJson.components[0].components[0].placeholder).toBe('例: フィルター,5,1.5');
+    expect(modalJson.components[0].components[0].value).toBe('牛乳,5,2');
   });
 });

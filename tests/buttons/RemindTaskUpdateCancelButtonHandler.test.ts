@@ -22,7 +22,7 @@ describe('RemindTaskUpdateCancelButtonHandler', () => {
       findTaskByMessageId: vi.fn().mockResolvedValue(task)
     };
     const mockMessageManager = {
-      buildTaskMessageComponents: vi.fn().mockReturnValue([{ type: 0 }])
+      buildTaskMessageComponents: vi.fn().mockResolvedValue([{ type: 0 }])
     };
 
     const handler = new RemindTaskUpdateCancelButtonHandler(
@@ -44,7 +44,7 @@ describe('RemindTaskUpdateCancelButtonHandler', () => {
 
     await handler.handle({ interaction } as any);
 
-    expect(mockMessageManager.buildTaskMessageComponents).toHaveBeenCalledWith(task, expect.any(Date));
+    expect(mockMessageManager.buildTaskMessageComponents).toHaveBeenCalledWith(task, expect.any(Date), 'channel-1');
     expect(interaction.update).toHaveBeenCalledWith({ components: [{ type: 0 }] });
   });
 });

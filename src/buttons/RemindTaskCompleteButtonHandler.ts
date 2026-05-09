@@ -1,4 +1,5 @@
 import { Logger } from '../utils/logger';
+import type { InventoryItem } from '../models/InventoryItem';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
@@ -12,11 +13,38 @@ import {
   getInsufficientInventoryItems
 } from '../utils/RemindInventory';
 import { InventoryService, type ConsumeForTaskResult } from '../services/InventoryService';
+import { InventoryRepository } from '../services/InventoryRepository';
+import { InventoryMessageManager } from '../services/InventoryMessageManager';
+import { RemindTaskRefreshService } from '../services/RemindTaskRefreshService';
+
+interface InventoryRepositoryPort {
+  fetchAll(channelId: string): Promise<InventoryItem[]>;
+}
+
+interface InventoryMessageManagerPort {
+  createOrUpdateMessage(
+    channelId: string,
+    items: InventoryItem[],
+    listTitle: string,
+    client: ButtonHandlerContext['interaction']['client']
+  ): Promise<{ success: boolean; errorMessage?: string }>;
+}
+
+interface RefreshServicePort {
+  refreshTasksUsingInventory(
+    linkedInventoryChannelId: string,
+    client: ButtonHandlerContext['interaction']['client'],
+    options: { excludeMessageId?: string }
+  ): Promise<void>;
+}
 
 export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
   private inventoryService?: Pick<InventoryService, 'consumeForTask'>;
+  private inventoryRepository?: InventoryRepositoryPort;
+  private inventoryMessageManager?: InventoryMessageManagerPort;
+  private refreshService?: RefreshServicePort;
 
   constructor(
     logger: Logger,
@@ -24,13 +52,19 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
     messageManager?: RemindMessageManager,
-    inventoryService?: Pick<InventoryService, 'consumeForTask'>
+    inventoryService?: Pick<InventoryService, 'consumeForTask'>,
+    inventoryRepository?: InventoryRepositoryPort,
+    inventoryMessageManager?: InventoryMessageManagerPort,
+    refreshService?: RefreshServicePort
   ) {
     super('remind-task-complete', logger, operationLogService, metadataManager);
     this.ephemeral = true;
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
     this.inventoryService = inventoryService ?? (process.env.NODE_ENV === 'test' ? undefined : InventoryService.getInstance());
+    this.inventoryRepository = inventoryRepository;
+    this.inventoryMessageManager = inventoryMessageManager;
+    this.refreshService = refreshService;
   }
 
   protected shouldSkipLogging(): boolean {
@@ -80,6 +114,7 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
         if (blockedMessage) {
           return await replyError(blockedMessage);
         }
+        await this.refreshInventoryMessage(inventoryResult, interaction.client, messageId);
         nextInsufficientItems = [];
       } else {
         const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
@@ -160,6 +195,50 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
       message,
       client
     );
+  }
+
+  private async refreshInventoryMessage(
+    inventoryResult: ConsumeForTaskResult,
+    client: ButtonHandlerContext['interaction']['client'],
+    messageId: string
+  ): Promise<void> {
+    if (inventoryResult.kind !== 'success' || !inventoryResult.linkedInventoryChannelId) {
+      return;
+    }
+
+    const channelId = inventoryResult.linkedInventoryChannelId;
+    try {
+      const inventoryRepository = this.inventoryRepository ?? new InventoryRepository();
+      const inventoryMessageManager = this.inventoryMessageManager ?? InventoryMessageManager.getInstance();
+      const items = await inventoryRepository.fetchAll(channelId);
+      const result = await inventoryMessageManager.createOrUpdateMessage(channelId, items, '在庫リスト', client);
+      if (!result.success) {
+        this.logger.warn('Failed to refresh inventory message after task completion', {
+          channelId,
+          error: result.errorMessage
+        });
+      }
+      try {
+        await this.getRefreshService().refreshTasksUsingInventory(channelId, client, { excludeMessageId: messageId });
+      } catch (error) {
+        this.logger.warn('Failed to refresh task messages after inventory consumption', {
+          channelId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    } catch (error) {
+      this.logger.warn('Failed to refresh inventory message after task completion', {
+        channelId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private getRefreshService(): RefreshServicePort {
+    if (!this.refreshService) {
+      this.refreshService = new RemindTaskRefreshService();
+    }
+    return this.refreshService;
   }
 
   private toBlockedMessage(title: string, result: ConsumeForTaskResult): string | null {

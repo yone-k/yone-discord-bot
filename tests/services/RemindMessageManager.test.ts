@@ -122,6 +122,98 @@ describe('RemindMessageManager', () => {
     expect(textContents.some((content: string) => content.includes('在庫: 牛乳 3'))).toBe(true);
   });
 
+  it('builds task message components with resolved inventory names for new inventory items', async () => {
+    const mockInventoryService = {
+      getById: vi.fn().mockResolvedValue({
+        id: 'inventory-1',
+        name: '洗剤',
+        stock: 5,
+        category: ''
+      })
+    };
+    const mockMetadataManager = {
+      getChannelMetadata: vi.fn().mockResolvedValue({
+        success: true,
+        metadata: { linkedInventoryChannelId: 'inv-ch-1' }
+      })
+    };
+    const manager = new RemindMessageManager({
+      inventoryService: mockInventoryService,
+      metadataManager: mockMetadataManager
+    } as any);
+    const { now } = createTask();
+    const task = createRemindTask({
+      id: 'task-1',
+      title: '補充チェック',
+      description: '説明',
+      intervalDays: 1,
+      timeOfDay: '00:00',
+      remindBeforeMinutes: 0,
+      inventoryItems: [{ inventoryId: 'inventory-1', consume: 2 }],
+      startAt: new Date('2025-01-01T00:00:00.000Z'),
+      nextDueAt: new Date('2025-01-02T00:00:00.000Z'),
+      createdAt: now,
+      updatedAt: now
+    });
+
+    const components = await manager.buildTaskMessageComponents(task, now, 'channel-1');
+
+    expect(mockMetadataManager.getChannelMetadata).toHaveBeenCalledWith('channel-1');
+    expect(mockInventoryService.getById).toHaveBeenCalledWith('inv-ch-1', 'inventory-1');
+    const container = components[0];
+    expect(container.type).toBe(ComponentType.Container);
+    const textContents = (container as any).components
+      .filter((component: any) => component.type === ComponentType.TextDisplay)
+      .map((component: any) => component.content);
+    expect(textContents.some((content: string) => content.includes('在庫: 洗剤 5'))).toBe(true);
+  });
+
+  it('builds update selection components with resolved inventory names for new inventory items', async () => {
+    const mockInventoryService = {
+      getById: vi.fn().mockResolvedValue({
+        id: 'inventory-1',
+        name: '洗剤',
+        stock: 5,
+        category: ''
+      })
+    };
+    const mockMetadataManager = {
+      getChannelMetadata: vi.fn().mockResolvedValue({
+        success: true,
+        metadata: { linkedInventoryChannelId: 'inv-ch-1' }
+      })
+    };
+    const manager = new RemindMessageManager({
+      inventoryService: mockInventoryService,
+      metadataManager: mockMetadataManager
+    } as any);
+    const { now } = createTask();
+    const task = createRemindTask({
+      id: 'task-1',
+      title: '補充チェック',
+      description: '説明',
+      intervalDays: 1,
+      timeOfDay: '00:00',
+      remindBeforeMinutes: 0,
+      inventoryItems: [{ inventoryId: 'inventory-1', consume: 2 }],
+      startAt: new Date('2025-01-01T00:00:00.000Z'),
+      nextDueAt: new Date('2025-01-02T00:00:00.000Z'),
+      createdAt: now,
+      updatedAt: now
+    });
+
+    const components = await manager.buildUpdateSelectionComponents(task, 'msg-1', now, 'channel-1');
+
+    expect(mockMetadataManager.getChannelMetadata).toHaveBeenCalledWith('channel-1');
+    expect(mockInventoryService.getById).toHaveBeenCalledWith('inv-ch-1', 'inventory-1');
+    const container = components[0];
+    expect(container.type).toBe(ComponentType.Container);
+    const textContents = (container as any).components
+      .filter((component: any) => component.type === ComponentType.TextDisplay)
+      .map((component: any) => component.content);
+    expect(textContents.some((content: string) => content.includes('在庫: 洗剤 5'))).toBe(true);
+  });
+
   it('updates task message with V2 components', async () => {
     const manager = new RemindMessageManager();
     const { task, now } = createTask();

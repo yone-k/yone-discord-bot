@@ -20,7 +20,7 @@ export interface ShortageItem {
 }
 
 export type ConsumeForTaskResult =
-  | { kind: 'success' }
+  | { kind: 'success'; linkedInventoryChannelId?: string }
   | { kind: 'shortage'; items: ShortageItem[] }
   | { kind: 'migration_required' };
 
@@ -144,7 +144,7 @@ export class InventoryService {
 
     const inventoryItems = task.inventoryItems as NewRemindInventoryItem[];
     return this.googleSheetsService.runWithLock(
-      `inventory_consume_${linkedInventoryChannelId}`,
+      `inventory_${linkedInventoryChannelId}`,
       async () => this.consumeInventoryItems(linkedInventoryChannelId, inventoryItems)
     );
   }
@@ -172,10 +172,10 @@ export class InventoryService {
       await this.inventoryRepository.update(linkedInventoryChannelId, {
         ...stockedItem.item,
         stock: stockedItem.item.stock - stockedItem.request.consume
-      });
+      }, { useLock: false });
     }
 
-    return { kind: 'success' };
+    return { kind: 'success', linkedInventoryChannelId };
   }
 
   private async collectShortages(

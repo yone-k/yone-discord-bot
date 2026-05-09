@@ -78,6 +78,10 @@ export class GoogleSheetsService {
   private config!: GoogleSheetsConfig;
   private readonly maxRetries = 3;
   private readonly retryDelay = 1000;
+  private readonly CACHE_TTL_MS = 5000;
+  private readonly DELAYED_INVALIDATE_MS = 1000;
+  private readonly sheetDataCache = new Map<string, { value: string[][]; expiresAt: number }>();
+  private readonly pendingInvalidateTimers = new Map<string, NodeJS.Timeout>();
   private readonly logger = LoggerManager.getLogger('GoogleSheetsService');
   
   // Atomic操作用のロックメカニズム
@@ -276,7 +280,42 @@ export class GoogleSheetsService {
       });
 
       const sheetId = response.data.replies[0].addSheet.properties.sheetId;
+      this.invalidateSheetDataCache(sheetName);
       return { success: true, sheetId };
+    } catch (error) {
+      return { success: false, message: (error as Error).message };
+    }
+  }
+
+  public async deleteSheetByName(sheetName: string): Promise<OperationResult> {
+    try {
+      await this.getAuthClient();
+
+      const spreadsheetResponse = await this.sheets.spreadsheets.get({
+        spreadsheetId: this.config.spreadsheetId
+      });
+
+      const sheet = spreadsheetResponse.data.sheets?.find(
+        (s: sheets_v4.Schema$Sheet) => s.properties?.title === sheetName
+      );
+
+      if (!sheet?.properties?.sheetId) {
+        return { success: false, message: `Sheet not found: ${sheetName}` };
+      }
+
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: this.config.spreadsheetId,
+        requestBody: {
+          requests: [{
+            deleteSheet: {
+              sheetId: sheet.properties.sheetId
+            }
+          }]
+        }
+      });
+
+      this.invalidateSheetDataCache(sheetName);
+      return { success: true, sheetId: sheet.properties.sheetId };
     } catch (error) {
       return { success: false, message: (error as Error).message };
     }
@@ -299,6 +338,11 @@ export class GoogleSheetsService {
   }
 
   public async getSheetDataByName(sheetName: string): Promise<string[][]> {
+    const cached = this.sheetDataCache.get(sheetName);
+    if (cached && Date.now() < cached.expiresAt) {
+      return cached.value;
+    }
+
     return this.executeWithRetry(async () => {
       await this.getAuthClient();
 
@@ -314,7 +358,12 @@ export class GoogleSheetsService {
             dataLength: response.data.values?.length || 0
           }));
 
-        return response.data.values || [];
+        const values = response.data.values || [];
+        this.sheetDataCache.set(sheetName, {
+          value: values,
+          expiresAt: Date.now() + this.CACHE_TTL_MS
+        });
+        return values;
       } catch (error) {
         const gaxiosError = error as { code?: number; status?: number; message: string };
         this.logger.error('Failed to get sheet data', 
@@ -362,6 +411,7 @@ export class GoogleSheetsService {
         await this.applyHeaderFormatting(sheetNameOrChannelId, data[0].length);
       }
 
+      this.invalidateSheetDataCache(sheetName);
       return { success: true };
     } catch (error) {
       return { success: false, message: (error as Error).message };
@@ -416,6 +466,7 @@ export class GoogleSheetsService {
         });
       }
 
+      this.invalidateSheetDataCache(sheetName);
       return { success: true };
     } catch (error) {
       return { success: false, message: (error as Error).message };
@@ -987,6 +1038,22 @@ export class GoogleSheetsService {
       || sheetName.startsWith('remind_list_')
       || sheetName.startsWith('inventory_')
     );
+  }
+
+  private invalidateSheetDataCache(sheetName: string): void {
+    this.sheetDataCache.delete(sheetName);
+
+    const existing = this.pendingInvalidateTimers.get(sheetName);
+    if (existing) {
+      clearTimeout(existing);
+    }
+
+    const timer = setTimeout(() => {
+      this.sheetDataCache.delete(sheetName);
+      this.pendingInvalidateTimers.delete(sheetName);
+    }, this.DELAYED_INVALIDATE_MS);
+
+    this.pendingInvalidateTimers.set(sheetName, timer);
   }
 
   private async executeWithRetry<T>(operation: () => Promise<T>): Promise<T> {

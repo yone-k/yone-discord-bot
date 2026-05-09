@@ -5,6 +5,7 @@ import type { OperationInfo, OperationResult } from '../models/types/OperationLo
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryService } from '../services/InventoryService';
+import { RemindTaskRefreshService, type RefreshOptions } from '../services/RemindTaskRefreshService';
 import { Logger } from '../utils/logger';
 
 interface InventoryServicePort {
@@ -24,6 +25,14 @@ interface InventoryMessageManagerPort {
   ): Promise<{ success: boolean; errorMessage?: string }>;
 }
 
+interface RefreshServicePort {
+  refreshTasksUsingInventory(
+    linkedInventoryChannelId: string,
+    client: Client,
+    options?: RefreshOptions
+  ): Promise<void>;
+}
+
 export class InventoryUpdateModalHandler extends BaseModalHandler {
   private static readonly customId = 'inventory_update_modal';
   private static readonly customIdPrefix = `${InventoryUpdateModalHandler.customId}_`;
@@ -31,17 +40,20 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
   private readonly inventoryService: InventoryServicePort;
   private readonly messageManager: InventoryMessageManagerPort;
   private readonly repository: InventoryRepositoryPort;
+  private readonly refreshService: RefreshServicePort;
 
   constructor(
     logger: Logger,
     inventoryService: InventoryServicePort = InventoryService.getInstance(),
     messageManager: InventoryMessageManagerPort = InventoryMessageManager.getInstance(),
-    repository: InventoryRepositoryPort = new InventoryRepository()
+    repository: InventoryRepositoryPort = new InventoryRepository(),
+    refreshService: RefreshServicePort = new RemindTaskRefreshService()
   ) {
     super(InventoryUpdateModalHandler.customId, logger);
     this.inventoryService = inventoryService;
     this.messageManager = messageManager;
     this.repository = repository;
+    this.refreshService = refreshService;
     this.deleteOnSuccess = true;
   }
 
@@ -92,6 +104,16 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
     );
     if (!messageResult.success) {
       return { success: false, message: messageResult.errorMessage || '在庫メッセージの更新に失敗しました' };
+    }
+
+    try {
+      await this.refreshService.refreshTasksUsingInventory(channelId, context.interaction.client, { inventoryId: item.id });
+    } catch (error) {
+      this.logger.warn('Failed to refresh task messages using inventory', {
+        channelId,
+        inventoryId: item.id,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
 
     return { success: true };

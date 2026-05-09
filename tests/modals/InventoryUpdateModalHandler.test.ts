@@ -27,6 +27,7 @@ describe('InventoryUpdateModalHandler', () => {
     };
     deferReply: ReturnType<typeof vi.fn>;
     editReply: ReturnType<typeof vi.fn>;
+    deleteReply: ReturnType<typeof vi.fn>;
   };
   let handler: InventoryUpdateModalHandler;
 
@@ -52,7 +53,8 @@ describe('InventoryUpdateModalHandler', () => {
         })
       },
       deferReply: vi.fn().mockResolvedValue(undefined),
-      editReply: vi.fn().mockResolvedValue(undefined)
+      editReply: vi.fn().mockResolvedValue(undefined),
+      deleteReply: vi.fn().mockResolvedValue(undefined)
     };
     handler = new InventoryUpdateModalHandler(
       logger as unknown as Logger,
@@ -78,9 +80,8 @@ describe('InventoryUpdateModalHandler', () => {
     });
     expect(inventoryMessageManager.createOrUpdateMessage).toHaveBeenCalled();
     expect(interaction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
-    expect(interaction.editReply).toHaveBeenCalledWith({
-      content: expect.stringContaining('更新')
-    });
+    expect(interaction.editReply).toHaveBeenCalledWith({ content: '処理が完了しました。' });
+    expect(interaction.deleteReply).toHaveBeenCalled();
   });
 
   it('別 id の同 name 重複エラーではエラー応答し、在庫メッセージを更新しない', async () => {

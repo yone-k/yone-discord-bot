@@ -169,6 +169,14 @@ describe('RegisterButtons', () => {
       expect(handler?.constructor.name).toBe('InventoryDeleteButtonHandler');
     });
 
+    it('InventorySelectionCancelButtonHandlerが正しく登録される', () => {
+      registerAllButtons(buttonManager, logger);
+
+      const handler = buttonManager.getHandlerByCustomId('inventory_selection_cancel');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('InventorySelectionCancelButtonHandler');
+    });
+
     it('登録されるハンドラー数が期待する値と一致する', () => {
       registerAllButtons(buttonManager, logger);
       
@@ -176,8 +184,9 @@ describe('RegisterButtons', () => {
       // 現在のボタンハンドラー数: InitListButtonHandler, EditListButtonHandler, AddListButtonHandler,
       // RemindTaskUpdateButtonHandler, RemindTaskUpdateCancelButtonHandler, RemindTaskCompleteButtonHandler,
       // RemindTaskDeleteButtonHandler, RemindTaskDetailButtonHandler, RemindTaskAddButtonHandler,
-      // InventoryAddButtonHandler, InventoryUpdateButtonHandler, InventoryDeleteButtonHandler
-      expect(registeredHandlers).toHaveLength(12);
+      // InventoryAddButtonHandler, InventoryUpdateButtonHandler, InventoryDeleteButtonHandler,
+      // InventorySelectionCancelButtonHandler
+      expect(registeredHandlers).toHaveLength(13);
     });
   });
 });

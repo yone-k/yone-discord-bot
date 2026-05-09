@@ -1,5 +1,5 @@
-import { Client, TextChannel } from 'discord.js';
-import type { Message } from 'discord.js';
+import { Client, MessageFlags, TextChannel } from 'discord.js';
+import type { APIMessageTopLevelComponent, Message } from 'discord.js';
 import type { InventoryItem } from '../models/InventoryItem';
 import { InventoryFormatter } from '../ui/InventoryFormatter';
 import { InventoryMetadataManager } from './InventoryMetadataManager';
@@ -35,21 +35,24 @@ export class InventoryMessageManager {
 
       const textChannel = channel as TextChannel;
       const metadata = await this.metadataManager.getChannelMetadata(channelId);
-      const formattedMessage = InventoryFormatter.formatInventoryMessage(items, listTitle);
+      const content = items.length === 0
+        ? await InventoryFormatter.formatEmptyContent(listTitle, channelId, metadata?.defaultCategory)
+        : await InventoryFormatter.formatDataContent(items, listTitle, channelId, metadata?.defaultCategory);
+      const components = InventoryFormatter.buildInventoryComponents(content);
       let message: Message | undefined;
 
       if (metadata?.messageId) {
         message = await this.tryUpdateExistingMessage(
           textChannel,
           metadata.messageId,
-          formattedMessage
+          components
         );
       }
 
       if (!message) {
         message = await textChannel.send({
-          embeds: formattedMessage.embeds,
-          components: formattedMessage.components
+          flags: MessageFlags.IsComponentsV2,
+          components
         });
       }
 
@@ -67,13 +70,15 @@ export class InventoryMessageManager {
   private async tryUpdateExistingMessage(
     channel: TextChannel,
     messageId: string,
-    formattedMessage: ReturnType<typeof InventoryFormatter.formatInventoryMessage>
+    components: APIMessageTopLevelComponent[]
   ): Promise<Message | undefined> {
     try {
       const message = await channel.messages.fetch(messageId);
       return await message.edit({
-        embeds: formattedMessage.embeds,
-        components: formattedMessage.components
+        content: null,
+        embeds: [],
+        flags: MessageFlags.IsComponentsV2,
+        components
       });
     } catch {
       return undefined;

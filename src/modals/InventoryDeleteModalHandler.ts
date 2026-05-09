@@ -62,6 +62,7 @@ export class InventoryDeleteModalHandler extends BaseModalHandler {
     this.repository = repository;
     this.inventoryService = inventoryService;
     this.messageManager = messageManager;
+    this.deleteOnSuccess = true;
   }
 
   public shouldHandle(context: ModalHandlerContext): boolean {

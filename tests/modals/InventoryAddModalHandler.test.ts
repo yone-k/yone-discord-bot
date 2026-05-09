@@ -55,7 +55,8 @@ describe('InventoryAddModalHandler', () => {
         })
       },
       deferReply: vi.fn().mockResolvedValue(undefined),
-      editReply: vi.fn().mockResolvedValue(undefined)
+      editReply: vi.fn().mockResolvedValue(undefined),
+      deleteReply: vi.fn().mockResolvedValue(undefined)
     };
     context = { interaction } as ModalHandlerContext;
     handler = new InventoryAddModalHandler(
@@ -87,9 +88,8 @@ describe('InventoryAddModalHandler', () => {
       expect.any(String),
       interaction.client
     );
-    expect(interaction.editReply).toHaveBeenCalledWith({
-      content: expect.stringContaining('追加')
-    });
+    expect(interaction.editReply).toHaveBeenCalledWith({ content: '処理が完了しました。' });
+    expect(interaction.deleteReply).toHaveBeenCalled();
   });
 
   it('Given non numeric stock When handle is called Then it replies validation error', async () => {

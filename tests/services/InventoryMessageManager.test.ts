@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ChannelType } from 'discord.js';
+import { ChannelType, MessageFlags } from 'discord.js';
+import type { APIMessageTopLevelComponent } from 'discord.js';
 import { InventoryMessageManager } from '../../src/services/InventoryMessageManager';
 import type { InventoryItem } from '../../src/models/InventoryItem';
 
@@ -9,9 +10,22 @@ const mockMetadataManager = vi.hoisted(() => ({
   updateChannelMetadata: vi.fn()
 }));
 
-const mockFormattedMessage = vi.hoisted(() => ({
-  embeds: [{ data: { title: '在庫リスト', description: 'formatted inventory' } }],
-  components: [{ data: { type: 1 }, components: [] }]
+const mockRenderedComponents = vi.hoisted(() => ([
+  {
+    type: 17,
+    components: [
+      {
+        type: 10,
+        content: 'rendered'
+      }
+    ]
+  }
+] as APIMessageTopLevelComponent[]));
+
+const mockInventoryFormatter = vi.hoisted(() => ({
+  formatEmptyContent: vi.fn(),
+  formatDataContent: vi.fn(),
+  buildInventoryComponents: vi.fn()
 }));
 
 vi.mock('../../src/services/InventoryMetadataManager', () => ({
@@ -21,9 +35,7 @@ vi.mock('../../src/services/InventoryMetadataManager', () => ({
 }));
 
 vi.mock('../../src/ui/InventoryFormatter', () => ({
-  InventoryFormatter: {
-    formatInventoryMessage: vi.fn(() => mockFormattedMessage)
-  }
+  InventoryFormatter: mockInventoryFormatter
 }));
 
 describe('InventoryMessageManager', () => {
@@ -33,7 +45,6 @@ describe('InventoryMessageManager', () => {
 
   const mockCreatedMessage = {
     id: 'created-message-id',
-    pin: vi.fn(),
     edit: vi.fn()
   };
 
@@ -63,22 +74,24 @@ describe('InventoryMessageManager', () => {
     mockClient.channels.fetch.mockResolvedValue(mockChannel);
     mockChannel.send.mockResolvedValue(mockCreatedMessage);
     mockChannel.messages.fetch.mockResolvedValue(mockExistingMessage);
-    mockCreatedMessage.pin.mockResolvedValue(undefined);
     mockCreatedMessage.edit.mockResolvedValue(mockCreatedMessage);
     mockExistingMessage.edit.mockResolvedValue(mockExistingMessage);
     mockMetadataManager.getChannelMetadata.mockResolvedValue(null);
     mockMetadataManager.createChannelMetadata.mockResolvedValue({ success: true });
     mockMetadataManager.updateChannelMetadata.mockResolvedValue({ success: true });
+    mockInventoryFormatter.formatEmptyContent.mockResolvedValue('empty content');
+    mockInventoryFormatter.formatDataContent.mockResolvedValue('data content');
+    mockInventoryFormatter.buildInventoryComponents.mockReturnValue(mockRenderedComponents);
   });
 
-  it('Given no existing message When createOrUpdateMessage is called Then sends new message and creates metadata', async () => {
+  it('Given items are empty and no existing metadata When createOrUpdateMessage is called Then sends Components V2 message and creates metadata', async () => {
     // Given
     mockMetadataManager.getChannelMetadata.mockResolvedValue(null);
 
     // When
     const result = await InventoryMessageManager.getInstance().createOrUpdateMessage(
       'channel-1',
-      items,
+      [],
       '在庫リスト',
       mockClient as any
     );
@@ -86,9 +99,16 @@ describe('InventoryMessageManager', () => {
     // Then
     expect(result.success).toBe(true);
     expect(mockClient.channels.fetch).toHaveBeenCalledWith('channel-1');
+    expect(mockInventoryFormatter.formatEmptyContent).toHaveBeenCalledWith(
+      '在庫リスト',
+      'channel-1',
+      undefined
+    );
+    expect(mockInventoryFormatter.formatDataContent).not.toHaveBeenCalled();
+    expect(mockInventoryFormatter.buildInventoryComponents).toHaveBeenCalledWith('empty content');
     expect(mockChannel.send).toHaveBeenCalledWith({
-      embeds: mockFormattedMessage.embeds,
-      components: mockFormattedMessage.components
+      flags: MessageFlags.IsComponentsV2,
+      components: mockRenderedComponents
     });
     expect(mockMetadataManager.createChannelMetadata).toHaveBeenCalledWith(
       'channel-1',
@@ -99,7 +119,7 @@ describe('InventoryMessageManager', () => {
     );
   });
 
-  it('Given existing message When createOrUpdateMessage is called Then fetches and edits the existing message', async () => {
+  it('Given items exist and metadata has a valid messageId When createOrUpdateMessage is called Then fetches and edits the existing Components V2 message', async () => {
     // Given
     mockMetadataManager.getChannelMetadata.mockResolvedValue({
       channelId: 'channel-1',
@@ -119,10 +139,20 @@ describe('InventoryMessageManager', () => {
 
     // Then
     expect(result.success).toBe(true);
+    expect(mockInventoryFormatter.formatDataContent).toHaveBeenCalledWith(
+      items,
+      '在庫リスト',
+      'channel-1',
+      'その他'
+    );
+    expect(mockInventoryFormatter.formatEmptyContent).not.toHaveBeenCalled();
+    expect(mockInventoryFormatter.buildInventoryComponents).toHaveBeenCalledWith('data content');
     expect(mockChannel.messages.fetch).toHaveBeenCalledWith('existing-message-id');
     expect(mockExistingMessage.edit).toHaveBeenCalledWith({
-      embeds: mockFormattedMessage.embeds,
-      components: mockFormattedMessage.components
+      content: null,
+      embeds: [],
+      flags: MessageFlags.IsComponentsV2,
+      components: mockRenderedComponents
     });
     expect(mockChannel.send).not.toHaveBeenCalled();
     expect(mockMetadataManager.updateChannelMetadata).toHaveBeenCalledWith(
@@ -134,7 +164,7 @@ describe('InventoryMessageManager', () => {
     );
   });
 
-  it('Given existing metadata but fetch returns 404 When createOrUpdateMessage is called Then falls back to creating a new message', async () => {
+  it('Given existing metadata but fetch returns 404 When createOrUpdateMessage is called Then falls back to creating a new Components V2 message', async () => {
     // Given
     mockMetadataManager.getChannelMetadata.mockResolvedValue({
       channelId: 'channel-1',
@@ -157,8 +187,8 @@ describe('InventoryMessageManager', () => {
     expect(result.success).toBe(true);
     expect(mockChannel.messages.fetch).toHaveBeenCalledWith('missing-message-id');
     expect(mockChannel.send).toHaveBeenCalledWith({
-      embeds: mockFormattedMessage.embeds,
-      components: mockFormattedMessage.components
+      flags: MessageFlags.IsComponentsV2,
+      components: mockRenderedComponents
     });
     expect(mockMetadataManager.updateChannelMetadata).toHaveBeenCalledWith(
       'channel-1',
@@ -169,7 +199,7 @@ describe('InventoryMessageManager', () => {
     );
   });
 
-  it('Given existing message but edit fails When createOrUpdateMessage is called Then falls back to creating a new message', async () => {
+  it('Given existing message but edit fails When createOrUpdateMessage is called Then falls back to creating a new Components V2 message', async () => {
     // Given
     mockMetadataManager.getChannelMetadata.mockResolvedValue({
       channelId: 'channel-1',
@@ -192,12 +222,14 @@ describe('InventoryMessageManager', () => {
     expect(result.success).toBe(true);
     expect(mockChannel.messages.fetch).toHaveBeenCalledWith('existing-message-id');
     expect(mockExistingMessage.edit).toHaveBeenCalledWith({
-      embeds: mockFormattedMessage.embeds,
-      components: mockFormattedMessage.components
+      content: null,
+      embeds: [],
+      flags: MessageFlags.IsComponentsV2,
+      components: mockRenderedComponents
     });
     expect(mockChannel.send).toHaveBeenCalledWith({
-      embeds: mockFormattedMessage.embeds,
-      components: mockFormattedMessage.components
+      flags: MessageFlags.IsComponentsV2,
+      components: mockRenderedComponents
     });
     expect(mockMetadataManager.updateChannelMetadata).toHaveBeenCalledWith(
       'channel-1',

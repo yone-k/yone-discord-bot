@@ -18,7 +18,7 @@ interface InventoryMetadataReader {
   getChannelMetadata(channelId: string): Promise<InventoryChannelMetadata | null>;
 }
 
-export class InventoryUpdateButtonHandler extends BaseButtonHandler {
+export class InventorySelectionCancelButtonHandler extends BaseButtonHandler {
   private readonly repository: InventoryRepositoryPort;
   private readonly inventoryMetadataManager?: InventoryMetadataReader;
 
@@ -29,19 +29,10 @@ export class InventoryUpdateButtonHandler extends BaseButtonHandler {
     operationLogService?: OperationLogService,
     metadataManager?: MetadataProvider
   ) {
-    super('inventory_update', logger, operationLogService, metadataManager);
+    super('inventory_selection_cancel', logger, operationLogService, metadataManager);
     this.repository = repository;
     this.inventoryMetadataManager = inventoryMetadataManager;
-    this.ephemeral = true;
-  }
-
-  public shouldHandle(context: ButtonHandlerContext): boolean {
-    if (context.interaction.user.bot) {
-      return false;
-    }
-
-    return context.interaction.customId === this.customId
-      || context.interaction.customId.startsWith(`${this.customId}?page=`);
+    this.ephemeral = false;
   }
 
   protected shouldSkipLogging(): boolean {
@@ -50,40 +41,32 @@ export class InventoryUpdateButtonHandler extends BaseButtonHandler {
 
   protected async executeAction(context: ButtonHandlerContext): Promise<OperationResult> {
     const channelId = context.interaction.channelId;
-    const items = await this.repository.fetchAll(channelId);
-
-    if (items.length === 0) {
-      await context.interaction.reply({
-        content: '在庫アイテムがありません。',
-        flags: ['Ephemeral']
-      });
-      return { success: false, message: '在庫アイテムがありません' };
+    if (!channelId) {
+      return { success: false, message: 'チャンネルIDが取得できません' };
     }
 
-    const page = this.parsePage(context.interaction.customId);
+    const items = await this.repository.fetchAll(channelId);
     const metadata = await this.getInventoryMetadata(channelId);
     const listTitle = metadata?.listTitle || '在庫リスト';
     const defaultCategory = metadata?.defaultCategory;
-    const content = await InventoryFormatter.formatDataContent(items, listTitle, channelId, defaultCategory);
-    const components = InventoryFormatter.buildInventorySelectionComponents(content, items, 'update', page);
+    const content = items.length === 0
+      ? await InventoryFormatter.formatEmptyContent(listTitle, channelId, defaultCategory)
+      : await InventoryFormatter.formatDataContent(items, listTitle, channelId, defaultCategory);
+    const components = InventoryFormatter.buildInventoryComponents(content);
+
     await context.interaction.update({
       flags: MessageFlags.IsComponentsV2,
       components
     });
-    return { success: true, message: '在庫更新セレクトメニューを表示しました' };
+
+    return { success: true, message: '在庫選択をキャンセルしました' };
   }
 
   protected getOperationInfo(_context: ButtonHandlerContext): OperationInfo {
     return {
       operationType: 'update',
-      actionName: '在庫アイテム更新'
+      actionName: '在庫選択キャンセル'
     };
-  }
-
-  private parsePage(customId: string): number {
-    const page = new URLSearchParams(customId.split('?')[1] ?? '').get('page');
-    const parsed = Number(page ?? 0);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
   }
 
   private async getInventoryMetadata(channelId: string): Promise<InventoryChannelMetadata | null> {

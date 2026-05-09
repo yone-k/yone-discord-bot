@@ -32,6 +32,7 @@ export class InventoryAddModalHandler extends BaseModalHandler {
     super('inventory_add_modal', logger);
     this.inventoryService = inventoryService;
     this.messageManager = messageManager;
+    this.deleteOnSuccess = true;
   }
 
   protected async executeAction(context: ModalHandlerContext): Promise<OperationResult> {

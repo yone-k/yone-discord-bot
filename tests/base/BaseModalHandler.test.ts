@@ -169,11 +169,6 @@ describe('BaseModalHandler', () => {
   });
 
   describe('deleteOnSuccess option', () => {
-    beforeEach(() => {
-      const mockMessage = { delete: vi.fn().mockResolvedValue(undefined) };
-      mockInteraction.fetchReply = vi.fn().mockResolvedValue(mockMessage);
-    });
-
     it('should delete message when deleteOnSuccess is true', async () => {
       const handler = new TestModalHandler(logger, true, true);
       const mockResult: OperationResult = { success: true, message: 'テスト処理が完了しました' };
@@ -182,7 +177,7 @@ describe('BaseModalHandler', () => {
       await handler.handle(context);
 
       expect(mockInteraction.editReply).toHaveBeenCalledWith({ content: '処理が完了しました。' });
-      expect(mockInteraction.fetchReply).toHaveBeenCalled();
+      expect(mockInteraction.deleteReply).toHaveBeenCalled();
     });
 
     it('should not delete message when deleteOnSuccess is false', async () => {
@@ -193,7 +188,7 @@ describe('BaseModalHandler', () => {
       await handler.handle(context);
 
       expect(mockInteraction.editReply).toHaveBeenCalledWith({ content: '✅ テストが完了しました' });
-      expect(mockInteraction.fetchReply).not.toHaveBeenCalled();
+      expect(mockInteraction.deleteReply).not.toHaveBeenCalled();
     });
 
     it('should not delete message when action failed even if deleteOnSuccess is true', async () => {
@@ -205,7 +200,6 @@ describe('BaseModalHandler', () => {
 
       expect(mockInteraction.editReply).toHaveBeenCalledWith({ content: 'エラーが発生しました' });
       expect(mockInteraction.deleteReply).not.toHaveBeenCalled();
-      expect(mockInteraction.fetchReply).not.toHaveBeenCalled();
     });
 
     it('should delete message with error content when deleteOnFailure is true and action failed', async () => {
@@ -216,7 +210,7 @@ describe('BaseModalHandler', () => {
       await handler.handle(context);
 
       expect(mockInteraction.editReply).toHaveBeenCalledWith({ content: 'エラーが発生しました' });
-      expect(mockInteraction.fetchReply).toHaveBeenCalled();
+      expect(mockInteraction.deleteReply).toHaveBeenCalled();
     });
 
     it('should delete reply without editing when silentOnFailure is true', async () => {

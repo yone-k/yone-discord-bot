@@ -64,8 +64,7 @@ export abstract class BaseModalHandler {
               content: result.success ? '処理が完了しました。' : (result.message || 'エラーが発生しました')
             });
             try {
-              const reply = await context.interaction.fetchReply();
-              await reply.delete();
+              await context.interaction.deleteReply();
             } catch (delayedDeleteError) {
               this.logger.warn('Failed to delete modal message', {
                 error: delayedDeleteError instanceof Error ? delayedDeleteError.message : 'Unknown error',

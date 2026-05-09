@@ -58,7 +58,7 @@ describe('InventoryDeleteModalHandler', () => {
       },
       deferReply: vi.fn(),
       editReply: vi.fn(),
-      deleteReply: vi.fn()
+      deleteReply: vi.fn().mockResolvedValue(undefined)
     };
 
     handler = new InventoryDeleteModalHandler(
@@ -88,9 +88,8 @@ describe('InventoryDeleteModalHandler', () => {
       '在庫リスト',
       interaction.client
     );
-    expect(interaction.editReply).toHaveBeenCalledWith({
-      content: expect.stringContaining('削除しました')
-    });
+    expect(interaction.editReply).toHaveBeenCalledWith({ content: '処理が完了しました。' });
+    expect(interaction.deleteReply).toHaveBeenCalled();
   });
 
   it('参照タスクがある場合、参照タスク一覧を含むエラー応答を返す', async () => {

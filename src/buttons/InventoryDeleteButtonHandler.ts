@@ -1,27 +1,37 @@
+import { MessageFlags } from 'discord.js';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
+import type { InventoryChannelMetadata } from '../models/InventoryChannelMetadata';
 import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import type { MetadataProvider } from '../services/MetadataProvider';
 import type { OperationLogService } from '../services/OperationLogService';
+import { InventoryMetadataManager } from '../services/InventoryMetadataManager';
 import { InventoryRepository } from '../services/InventoryRepository';
+import { InventoryFormatter } from '../ui/InventoryFormatter';
 import { Logger } from '../utils/logger';
 
 interface InventoryRepositoryPort {
   fetchAll(channelId: string): Promise<InventoryItem[]>;
 }
 
+interface InventoryMetadataReader {
+  getChannelMetadata(channelId: string): Promise<InventoryChannelMetadata | null>;
+}
+
 export class InventoryDeleteButtonHandler extends BaseButtonHandler {
-  private static readonly pageSize = 25;
   private readonly repository: InventoryRepositoryPort;
+  private readonly inventoryMetadataManager?: InventoryMetadataReader;
 
   constructor(
     logger: Logger,
     repository: InventoryRepositoryPort = new InventoryRepository(),
+    inventoryMetadataManager?: InventoryMetadataReader,
     operationLogService?: OperationLogService,
     metadataManager?: MetadataProvider
   ) {
     super('inventory_delete', logger, operationLogService, metadataManager);
     this.repository = repository;
+    this.inventoryMetadataManager = inventoryMetadataManager;
     this.ephemeral = true;
   }
 
@@ -51,7 +61,15 @@ export class InventoryDeleteButtonHandler extends BaseButtonHandler {
     }
 
     const page = this.parsePage(context.interaction.customId);
-    await context.interaction.reply(this.buildReply(items, page));
+    const metadata = await this.getInventoryMetadata(channelId);
+    const listTitle = metadata?.listTitle || '在庫リスト';
+    const defaultCategory = metadata?.defaultCategory;
+    const content = await InventoryFormatter.formatDataContent(items, listTitle, channelId, defaultCategory);
+    const components = InventoryFormatter.buildInventorySelectionComponents(content, items, 'delete', page);
+    await context.interaction.update({
+      flags: MessageFlags.IsComponentsV2,
+      components
+    });
     return { success: true, message: '在庫削除セレクトメニューを表示しました' };
   }
 
@@ -68,62 +86,8 @@ export class InventoryDeleteButtonHandler extends BaseButtonHandler {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
   }
 
-  private buildReply(items: InventoryItem[], page: number): Record<string, unknown> {
-    const totalPages = Math.ceil(items.length / InventoryDeleteButtonHandler.pageSize);
-    const currentPage = Math.min(page, Math.max(totalPages - 1, 0));
-    const pageItems = items.slice(
-      currentPage * InventoryDeleteButtonHandler.pageSize,
-      (currentPage + 1) * InventoryDeleteButtonHandler.pageSize
-    );
-
-    const components: unknown[] = [
-      {
-        type: 1,
-        components: [
-          {
-            type: 3,
-            custom_id: `inventory_delete_select_${currentPage}`,
-            placeholder: '削除する在庫を選択してください',
-            min_values: 1,
-            max_values: 1,
-            options: pageItems.map(item => ({
-              label: item.name,
-              value: item.id,
-              description: `${item.category || 'その他'} / 在庫: ${item.stock}`
-            }))
-          }
-        ]
-      }
-    ];
-
-    if (totalPages > 1) {
-      components.push({
-        type: 1,
-        components: [
-          ...(currentPage > 0
-            ? [{
-              type: 2,
-              custom_id: `inventory_delete?page=${currentPage - 1}`,
-              label: '前へ',
-              style: 2
-            }]
-            : []),
-          ...(currentPage < totalPages - 1
-            ? [{
-              type: 2,
-              custom_id: `inventory_delete?page=${currentPage + 1}`,
-              label: '次へ',
-              style: 2
-            }]
-            : [])
-        ]
-      });
-    }
-
-    return {
-      content: '削除する在庫を選択してください。',
-      components,
-      flags: ['Ephemeral']
-    };
+  private async getInventoryMetadata(channelId: string): Promise<InventoryChannelMetadata | null> {
+    const metadataManager = this.inventoryMetadataManager ?? InventoryMetadataManager.getInstance();
+    return metadataManager.getChannelMetadata(channelId);
   }
 }

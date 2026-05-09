@@ -151,7 +151,7 @@ export function parseInventoryItems(value: string | undefined): RemindTask['inve
       if ('inventoryId' in item) {
         const inventoryId = String(item.inventoryId);
         const consume = Number(item.consume);
-        if (inventoryId.trim() === '' || !Number.isFinite(consume) || consume <= 0) {
+        if (inventoryId.trim() === '' || !Number.isFinite(consume) || consume < 0) {
           return [];
         }
         return [{ inventoryId, consume }];

@@ -192,6 +192,97 @@ describe('RemindTaskInventoryModalHandler', () => {
     );
   });
 
+  it('アイテム名,5,0 のように消費=0 を入力すると variable モードのアイテムとしてタスクに設定できる', async () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      messageId: 'msg-1',
+      title: '補充チェック',
+      intervalDays: 7,
+      timeOfDay: '09:00',
+      remindBeforeMinutes: 1440,
+      startAt: new Date('2025-12-29T09:00:00+09:00'),
+      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+    const inventoryItem = {
+      id: 'inventory-1',
+      name: 'アイテム名',
+      stock: 0,
+      category: ''
+    };
+    const allItems = [
+      {
+        ...inventoryItem,
+        stock: 5
+      }
+    ];
+    const mockRepository = {
+      findTaskByMessageId: vi.fn().mockResolvedValue(task),
+      updateTask: vi.fn().mockResolvedValue({ success: true })
+    };
+    const mockMessageManager = {
+      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
+    };
+    const mockMetadataManager = {
+      getChannelMetadata: vi.fn().mockResolvedValue({
+        success: true,
+        metadata: { linkedInventoryChannelId: 'inventory-channel-1' }
+      })
+    };
+    const mockInventoryService = {
+      resolveByName: vi.fn().mockResolvedValue(inventoryItem),
+      update: vi.fn().mockResolvedValue({ success: true }),
+      getById: vi.fn()
+    };
+    const mockInventoryRepository = {
+      fetchAll: vi.fn().mockResolvedValue(allItems)
+    };
+    const mockInventoryMessageManager = {
+      createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true })
+    };
+    const refreshService = {
+      refreshTasksUsingInventory: vi.fn().mockResolvedValue(undefined)
+    };
+    const handler = new (RemindTaskInventoryModalHandler as any)(
+      new Logger(),
+      undefined,
+      mockMetadataManager,
+      mockRepository,
+      mockMessageManager,
+      mockInventoryService,
+      mockInventoryRepository,
+      mockInventoryMessageManager,
+      refreshService
+    );
+    const interaction = {
+      customId: 'remind-task-inventory-modal:msg-1',
+      user: { id: 'user-1' },
+      channelId: 'channel-1',
+      client: {} as any,
+      fields: {
+        getTextInputValue: vi.fn().mockReturnValue('アイテム名,5,0')
+      },
+      deferReply: vi.fn(),
+      editReply: vi.fn(),
+      deleteReply: vi.fn()
+    };
+
+    await handler.handle({ interaction } as any);
+
+    expect(mockInventoryService.resolveByName).toHaveBeenCalledWith('inventory-channel-1', 'アイテム名');
+    expect(mockInventoryService.update).toHaveBeenCalledWith('inventory-channel-1', {
+      ...inventoryItem,
+      stock: 5
+    });
+    expect(mockRepository.updateTask).toHaveBeenCalledWith(
+      'channel-1',
+      expect.objectContaining({
+        inventoryItems: [{ inventoryId: 'inventory-1', consume: 0 }]
+      })
+    );
+  });
+
   it('does not update inventory sheet or refresh inventory message when stock is omitted', async () => {
     const task = createRemindTask({
       id: 'task-1',

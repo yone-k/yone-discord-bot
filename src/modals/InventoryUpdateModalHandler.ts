@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { Client } from 'discord.js';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import type { InventoryItem } from '../models/InventoryItem';
@@ -6,10 +7,13 @@ import { InventoryMessageManager } from '../services/InventoryMessageManager';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryService } from '../services/InventoryService';
 import { RemindTaskRefreshService, type RefreshOptions } from '../services/RemindTaskRefreshService';
+import { parseInventoryCsvText } from '../utils/InventoryParser';
 import { Logger } from '../utils/logger';
 
 interface InventoryServicePort {
+  create(channelId: string, item: InventoryItem): Promise<{ success: boolean; message?: string }>;
   update(channelId: string, item: InventoryItem): Promise<{ success: boolean; message?: string }>;
+  delete(channelId: string, id: string): Promise<void>;
 }
 
 interface InventoryRepositoryPort {
@@ -35,7 +39,6 @@ interface RefreshServicePort {
 
 export class InventoryUpdateModalHandler extends BaseModalHandler {
   private static readonly customId = 'inventory_update_modal';
-  private static readonly customIdPrefix = `${InventoryUpdateModalHandler.customId}_`;
 
   private readonly inventoryService: InventoryServicePort;
   private readonly messageManager: InventoryMessageManagerPort;
@@ -45,8 +48,8 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
   constructor(
     logger: Logger,
     inventoryService: InventoryServicePort = InventoryService.getInstance(),
-    messageManager: InventoryMessageManagerPort = InventoryMessageManager.getInstance(),
     repository: InventoryRepositoryPort = new InventoryRepository(),
+    messageManager: InventoryMessageManagerPort = InventoryMessageManager.getInstance(),
     refreshService: RefreshServicePort = new RemindTaskRefreshService()
   ) {
     super(InventoryUpdateModalHandler.customId, logger);
@@ -58,7 +61,7 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
   }
 
   public shouldHandle(context: ModalHandlerContext): boolean {
-    return context.interaction.customId.startsWith(InventoryUpdateModalHandler.customIdPrefix);
+    return context.interaction.customId === InventoryUpdateModalHandler.customId;
   }
 
   protected async executeAction(context: ModalHandlerContext): Promise<OperationResult> {
@@ -67,32 +70,80 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
       return { success: false, message: 'チャンネルIDが取得できません' };
     }
 
-    const id = this.parseInventoryId(context.interaction.customId);
-    if (!id) {
-      return { success: false, message: '在庫IDが取得できません' };
+    const csvText = context.interaction.fields.getTextInputValue('items');
+    let editedItems;
+    try {
+      editedItems = parseInventoryCsvText(csvText);
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : '在庫CSVの形式が正しくありません'
+      };
     }
 
-    const name = context.interaction.fields.getTextInputValue('name').trim();
-    if (!name) {
-      return { success: false, message: '名前を入力してください' };
+    const currentItems = await this.repository.fetchAll(channelId);
+    const currentByName = new Map(currentItems.map(item => [item.name, item]));
+    const editedByName = new Map(editedItems.map(item => [item.name, item]));
+    const deleteErrors: string[] = [];
+
+    for (const editedItem of editedItems) {
+      const currentItem = currentByName.get(editedItem.name);
+      if (currentItem) {
+        continue;
+      }
+
+      const createResult = await this.inventoryService.create(channelId, {
+        id: randomUUID(),
+        name: editedItem.name,
+        stock: editedItem.stock,
+        category: editedItem.category ?? ''
+      });
+
+      if (!createResult.success) {
+        return { success: false, message: createResult.message || `${editedItem.name}の追加に失敗しました` };
+      }
     }
 
-    const stockText = context.interaction.fields.getTextInputValue('stock').trim();
-    const stock = Number(stockText);
-    if (!Number.isFinite(stock)) {
-      return { success: false, message: '在庫数は数値で入力してください' };
+    for (const editedItem of editedItems) {
+      const currentItem = currentByName.get(editedItem.name);
+      if (!currentItem) {
+        continue;
+      }
+
+      const nextCategory = editedItem.category ?? '';
+      if (currentItem.stock === editedItem.stock && currentItem.category === nextCategory) {
+        continue;
+      }
+
+      const updateResult = await this.inventoryService.update(channelId, {
+        ...currentItem,
+        stock: editedItem.stock,
+        category: nextCategory
+      });
+
+      if (!updateResult.success) {
+        return { success: false, message: updateResult.message || `${editedItem.name}の更新に失敗しました` };
+      }
     }
 
-    const item: InventoryItem = {
-      id,
-      name,
-      stock,
-      category: context.interaction.fields.getTextInputValue('category').trim()
-    };
+    for (const currentItem of currentItems) {
+      if (editedByName.has(currentItem.name)) {
+        continue;
+      }
 
-    const updateResult = await this.inventoryService.update(channelId, item);
-    if (!updateResult.success) {
-      return { success: false, message: updateResult.message || '在庫アイテムの更新に失敗しました' };
+      try {
+        await this.inventoryService.delete(channelId, currentItem.id);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        deleteErrors.push(`${currentItem.name}: ${errorMessage}`);
+      }
+    }
+
+    if (deleteErrors.length > 0) {
+      return {
+        success: false,
+        message: `削除できない在庫アイテムがあります。\n${deleteErrors.join('\n')}`
+      };
     }
 
     const items = await this.repository.fetchAll(channelId);
@@ -107,11 +158,10 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
     }
 
     try {
-      await this.refreshService.refreshTasksUsingInventory(channelId, context.interaction.client, { inventoryId: item.id });
+      await this.refreshService.refreshTasksUsingInventory(channelId, context.interaction.client);
     } catch (error) {
       this.logger.warn('Failed to refresh task messages using inventory', {
         channelId,
-        inventoryId: item.id,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
@@ -128,13 +178,5 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
 
   protected getSuccessMessage(): string {
     return '✅ 在庫アイテムを更新しました。';
-  }
-
-  private parseInventoryId(customId: string): string | null {
-    if (!customId.startsWith(InventoryUpdateModalHandler.customIdPrefix)) {
-      return null;
-    }
-
-    return customId.slice(InventoryUpdateModalHandler.customIdPrefix.length) || null;
   }
 }

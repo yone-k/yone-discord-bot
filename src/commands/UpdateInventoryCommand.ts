@@ -2,10 +2,11 @@ import { ActionRowBuilder, ModalBuilder, SlashCommandBuilder, TextInputBuilder, 
 import { BaseCommand, CommandExecutionContext } from '../base/BaseCommand';
 import type { InventoryItem } from '../models/InventoryItem';
 import { InventoryRepository } from '../services/InventoryRepository';
+import { formatInventoryCsvText } from '../utils/InventoryParser';
 import { Logger } from '../utils/logger';
 
 interface InventoryRepositoryPort {
-  findByName(channelId: string, name: string): Promise<InventoryItem | null>;
+  fetchAll(channelId: string): Promise<InventoryItem[]>;
 }
 
 export class UpdateInventoryCommand extends BaseCommand {
@@ -20,13 +21,7 @@ export class UpdateInventoryCommand extends BaseCommand {
   }
 
   static getOptions(builder: SlashCommandBuilder): SlashCommandBuilder {
-    return builder.addStringOption(option =>
-      option
-        .setName('name')
-        .setDescription('更新する在庫アイテム名')
-        .setRequired(true)
-        .setAutocomplete(true)
-    ) as SlashCommandBuilder;
+    return builder;
   }
 
   constructor(
@@ -44,53 +39,26 @@ export class UpdateInventoryCommand extends BaseCommand {
       throw new Error('このコマンドはDiscordインタラクションとチャンネルIDが必要です');
     }
 
-    const name = context.interaction.options.getString('name', true);
-    const item = await this.repository.findByName(context.channelId, name);
-
-    if (!item) {
-      await context.interaction.reply({
-        content: `アイテムが見つかりません: ${name}`,
-        flags: ['Ephemeral'] as const
-      });
-      return;
-    }
-
-    await context.interaction.showModal(this.buildModal(item));
+    const items = await this.repository.fetchAll(context.channelId);
+    await context.interaction.showModal(this.buildModal(items));
   }
 
-  private buildModal(item: InventoryItem): ModalBuilder {
+  private buildModal(items: InventoryItem[]): ModalBuilder {
     const modal = new ModalBuilder()
-      .setCustomId(`inventory_update_modal_${item.id}`)
+      .setCustomId('inventory_update_modal')
       .setTitle('在庫を更新');
 
-    const nameInput = new TextInputBuilder()
-      .setCustomId('name')
-      .setLabel('名前')
-      .setStyle(TextInputStyle.Short)
+    const itemsInput = new TextInputBuilder()
+      .setCustomId('items')
+      .setLabel('在庫一覧（名前,在庫数,カテゴリ）を編集')
+      .setStyle(TextInputStyle.Paragraph)
       .setRequired(true)
-      .setMaxLength(100)
-      .setValue(item.name);
-
-    const stockInput = new TextInputBuilder()
-      .setCustomId('stock')
-      .setLabel('在庫数')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true)
-      .setMaxLength(20)
-      .setValue(String(item.stock));
-
-    const categoryInput = new TextInputBuilder()
-      .setCustomId('category')
-      .setLabel('カテゴリー')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false)
-      .setMaxLength(50)
-      .setValue(item.category);
+      .setMaxLength(4000)
+      .setPlaceholder('例: 洗剤,3,日用品\n米,10,食品')
+      .setValue(formatInventoryCsvText(items));
 
     modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(nameInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(stockInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(categoryInput)
+      new ActionRowBuilder<TextInputBuilder>().addComponents(itemsInput)
     );
 
     return modal;

@@ -31,6 +31,9 @@ describe('InventoryAddModalHandler', () => {
   let repository: {
     fetchAll: ReturnType<typeof vi.fn>;
   };
+  let metadataReader: {
+    getChannelMetadata: ReturnType<typeof vi.fn>;
+  };
   let interaction: any;
   let context: ModalHandlerContext;
   let handler: InventoryAddModalHandler;
@@ -46,6 +49,9 @@ describe('InventoryAddModalHandler', () => {
     repository = {
       fetchAll: vi.fn().mockResolvedValue([])
     };
+    metadataReader = {
+      getChannelMetadata: vi.fn().mockResolvedValue({ defaultCategory: '未分類' })
+    };
     interaction = {
       customId: 'inventory_add_modal',
       user: { id: 'user-1' },
@@ -54,9 +60,7 @@ describe('InventoryAddModalHandler', () => {
       client: { channels: { fetch: vi.fn() } },
       fields: {
         getTextInputValue: vi.fn((fieldId: string) => {
-          if (fieldId === 'name') return '洗剤';
-          if (fieldId === 'stock') return '3';
-          if (fieldId === 'category') return '日用品';
+          if (fieldId === 'items') return '洗剤,5,日用品\nパン,3,食料品';
           return '';
         })
       },
@@ -68,26 +72,26 @@ describe('InventoryAddModalHandler', () => {
     handler = new InventoryAddModalHandler(
       logger as unknown as Logger,
       inventoryService as any,
+      metadataReader as any,
+      repository as any,
       messageManager as any,
-      repository as any
     );
   });
 
-  it('Given valid input When handle is called Then it creates inventory and updates message with ephemeral success', async () => {
+  it('Given multiple valid lines When handle is called Then it creates inventories sequentially and updates message', async () => {
     // Given
-    const expectedItem = {
-      id: '00000000-0000-4000-8000-000000000029',
-      name: '洗剤',
-      stock: 3,
-      category: '日用品'
-    };
     const allItems = [
-      expectedItem,
+      {
+        id: 'inventory-1',
+        name: '洗剤',
+        stock: 5,
+        category: '日用品'
+      },
       {
         id: 'inventory-2',
-        name: '柔軟剤',
-        stock: 1,
-        category: '日用品'
+        name: 'パン',
+        stock: 3,
+        category: '食料品'
       }
     ];
     repository.fetchAll.mockResolvedValue(allItems);
@@ -98,7 +102,20 @@ describe('InventoryAddModalHandler', () => {
     // Then
     expect(handler.getCustomId()).toBe('inventory_add_modal');
     expect(interaction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
-    expect(inventoryService.create).toHaveBeenCalledWith('channel-1', expectedItem);
+    expect(interaction.fields.getTextInputValue).toHaveBeenCalledWith('items');
+    expect(metadataReader.getChannelMetadata).toHaveBeenCalledWith('channel-1');
+    expect(inventoryService.create).toHaveBeenNthCalledWith(1, 'channel-1', {
+      id: '00000000-0000-4000-8000-000000000029',
+      name: '洗剤',
+      stock: 5,
+      category: '日用品'
+    });
+    expect(inventoryService.create).toHaveBeenNthCalledWith(2, 'channel-1', {
+      id: '00000000-0000-4000-8000-000000000029',
+      name: 'パン',
+      stock: 3,
+      category: '食料品'
+    });
     expect(repository.fetchAll).toHaveBeenCalledWith('channel-1');
     expect(messageManager.createOrUpdateMessage).toHaveBeenCalledWith(
       'channel-1',
@@ -110,12 +127,51 @@ describe('InventoryAddModalHandler', () => {
     expect(interaction.deleteReply).toHaveBeenCalled();
   });
 
-  it('Given non numeric stock When handle is called Then it replies validation error', async () => {
+  it('Given item without category When handle is called Then it uses metadata default category', async () => {
     // Given
     interaction.fields.getTextInputValue = vi.fn((fieldId: string) => {
-      if (fieldId === 'name') return '洗剤';
-      if (fieldId === 'stock') return 'abc';
-      if (fieldId === 'category') return '日用品';
+      if (fieldId === 'items') return '歯磨き粉,2';
+      return '';
+    });
+
+    // When
+    await handler.handle(context);
+
+    // Then
+    expect(inventoryService.create).toHaveBeenCalledWith('channel-1', {
+      id: '00000000-0000-4000-8000-000000000029',
+      name: '歯磨き粉',
+      stock: 2,
+      category: '未分類'
+    });
+    expect(messageManager.createOrUpdateMessage).toHaveBeenCalled();
+  });
+
+  it('Given item without category and metadata default category When handle is called Then it uses empty category', async () => {
+    // Given
+    metadataReader.getChannelMetadata.mockResolvedValue(null);
+    interaction.fields.getTextInputValue = vi.fn((fieldId: string) => {
+      if (fieldId === 'items') return '歯磨き粉,2';
+      return '';
+    });
+
+    // When
+    await handler.handle(context);
+
+    // Then
+    expect(inventoryService.create).toHaveBeenCalledWith('channel-1', {
+      id: '00000000-0000-4000-8000-000000000029',
+      name: '歯磨き粉',
+      stock: 2,
+      category: ''
+    });
+    expect(messageManager.createOrUpdateMessage).toHaveBeenCalled();
+  });
+
+  it('Given invalid items format When handle is called Then it replies parse error', async () => {
+    // Given
+    interaction.fields.getTextInputValue = vi.fn((fieldId: string) => {
+      if (fieldId === 'items') return '洗剤,abc,日用品';
       return '';
     });
 
@@ -124,18 +180,17 @@ describe('InventoryAddModalHandler', () => {
 
     // Then
     expect(inventoryService.create).not.toHaveBeenCalled();
+    expect(repository.fetchAll).not.toHaveBeenCalled();
     expect(messageManager.createOrUpdateMessage).not.toHaveBeenCalled();
     expect(interaction.editReply).toHaveBeenCalledWith({
-      content: expect.stringContaining('数値')
+      content: expect.stringContaining('1行目: 在庫数は数値で入力してください')
     });
   });
 
-  it('Given empty name When handle is called Then it replies validation error', async () => {
+  it('Given empty parsed items When handle is called Then it replies validation error', async () => {
     // Given
     interaction.fields.getTextInputValue = vi.fn((fieldId: string) => {
-      if (fieldId === 'name') return '   ';
-      if (fieldId === 'stock') return '3';
-      if (fieldId === 'category') return '日用品';
+      if (fieldId === 'items') return '   \n';
       return '';
     });
 
@@ -144,60 +199,30 @@ describe('InventoryAddModalHandler', () => {
 
     // Then
     expect(inventoryService.create).not.toHaveBeenCalled();
+    expect(repository.fetchAll).not.toHaveBeenCalled();
     expect(messageManager.createOrUpdateMessage).not.toHaveBeenCalled();
     expect(interaction.editReply).toHaveBeenCalledWith({
-      content: expect.stringContaining('名前')
+      content: '少なくとも1件入力してください'
     });
   });
 
-  it('Given duplicated item When handle is called Then it replies ephemeral error without showing modal again', async () => {
+  it('Given duplicated item When handle is called Then it skips item, logs warning and updates message', async () => {
     // Given
-    inventoryService.create.mockResolvedValue({
-      success: false,
+    inventoryService.create
+      .mockResolvedValueOnce({ success: false, message: '同名のアイテムが既に存在します' })
+      .mockResolvedValueOnce({ success: true });
+
+    // When
+    await handler.handle(context);
+
+    // Then
+    expect(inventoryService.create).toHaveBeenCalledTimes(2);
+    expect(logger.warn).toHaveBeenCalledWith('Skipped inventory item', {
+      name: '洗剤',
       message: '同名のアイテムが既に存在します'
     });
-    interaction.showModal = vi.fn();
-
-    // When
-    await handler.handle(context);
-
-    // Then
-    expect(inventoryService.create).toHaveBeenCalledWith(
-      'channel-1',
-      expect.objectContaining({
-        name: '洗剤',
-        stock: 3,
-        category: '日用品'
-      })
-    );
-    expect(messageManager.createOrUpdateMessage).not.toHaveBeenCalled();
-    expect(interaction.showModal).not.toHaveBeenCalled();
-    expect(interaction.editReply).toHaveBeenCalledWith({
-      content: expect.stringContaining('同名のアイテムが既に存在します')
-    });
-  });
-
-  it('Given empty category When handle is called Then it creates inventory with empty category', async () => {
-    // Given
-    interaction.fields.getTextInputValue = vi.fn((fieldId: string) => {
-      if (fieldId === 'name') return '洗剤';
-      if (fieldId === 'stock') return '3';
-      if (fieldId === 'category') return '';
-      return '';
-    });
-
-    // When
-    await handler.handle(context);
-
-    // Then
-    expect(inventoryService.create).toHaveBeenCalledWith(
-      'channel-1',
-      expect.objectContaining({
-        name: '洗剤',
-        stock: 3,
-        category: ''
-      })
-    );
+    expect(repository.fetchAll).toHaveBeenCalledWith('channel-1');
     expect(messageManager.createOrUpdateMessage).toHaveBeenCalled();
+    expect(interaction.editReply).toHaveBeenCalledWith({ content: '処理が完了しました。' });
   });
 });

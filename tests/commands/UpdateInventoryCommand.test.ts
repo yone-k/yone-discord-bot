@@ -15,7 +15,7 @@ class MockLogger {
 describe('UpdateInventoryCommand', () => {
   let logger: MockLogger;
   let repository: {
-    findByName: ReturnType<typeof vi.fn>;
+    fetchAll: ReturnType<typeof vi.fn>;
   };
   let interaction: {
     options: {
@@ -37,7 +37,7 @@ describe('UpdateInventoryCommand', () => {
   beforeEach(() => {
     logger = new MockLogger();
     repository = {
-      findByName: vi.fn()
+      fetchAll: vi.fn()
     };
     interaction = {
       options: {
@@ -54,43 +54,41 @@ describe('UpdateInventoryCommand', () => {
     command = new UpdateInventoryCommand(logger as unknown as Logger, repository as any);
   });
 
-  it('name option で対象を取得し、既存値を初期値にした更新モーダルを表示する', async () => {
+  it('全在庫を取得し、CSVを初期値にした更新モーダルを表示する', async () => {
     // Given
-    repository.findByName.mockResolvedValue(detergent);
+    repository.fetchAll.mockResolvedValue([detergent]);
 
     // When
     await command.execute(context);
 
     // Then
-    expect(repository.findByName).toHaveBeenCalledWith('inventory-channel-1', '洗剤');
+    expect(repository.fetchAll).toHaveBeenCalledWith('inventory-channel-1');
     expect(interaction.showModal).toHaveBeenCalledTimes(1);
     expect(interaction.reply).not.toHaveBeenCalled();
 
     const modalJson = interaction.showModal.mock.calls[0][0].toJSON();
-    expect(modalJson.custom_id).toBe('inventory_update_modal_inventory-1');
+    expect(modalJson.custom_id).toBe('inventory_update_modal');
     expect(modalJson.title).toContain('在庫');
-    expect(findTextInput(modalJson, 'name')?.value).toBe('洗剤');
-    expect(findTextInput(modalJson, 'stock')?.value).toBe('3');
-    expect(findTextInput(modalJson, 'category')?.value).toBe('日用品');
+    expect(findTextInput(modalJson, 'items')?.value).toBe('洗剤,3,日用品');
   });
 
-  it('対象が見つからない場合はエラー応答する', async () => {
+  it('在庫0件でも空の更新モーダルを表示する', async () => {
     // Given
-    repository.findByName.mockResolvedValue(null);
+    repository.fetchAll.mockResolvedValue([]);
 
     // When
     await command.execute(context);
 
     // Then
-    expect(repository.findByName).toHaveBeenCalledWith('inventory-channel-1', '洗剤');
-    expect(interaction.showModal).not.toHaveBeenCalled();
-    expect(interaction.reply).toHaveBeenCalledWith({
-      content: expect.stringContaining('アイテムが見つかりません'),
-      flags: ['Ephemeral']
-    });
+    expect(repository.fetchAll).toHaveBeenCalledWith('inventory-channel-1');
+    expect(interaction.showModal).toHaveBeenCalledTimes(1);
+    expect(interaction.reply).not.toHaveBeenCalled();
+
+    const modalJson = interaction.showModal.mock.calls[0][0].toJSON();
+    expect(findTextInput(modalJson, 'items')?.value).toBe('');
   });
 
-  it('name option は required かつ autocomplete 付きで定義する', () => {
+  it('コマンドオプションは持たない', () => {
     // Given
     const builder = new SlashCommandBuilder()
       .setName(UpdateInventoryCommand.getCommandName())
@@ -103,12 +101,7 @@ describe('UpdateInventoryCommand', () => {
     expect(command.getName()).toBe('update-inventory');
     expect(command.getDescription()).toBe('在庫を更新する');
     expect(command.getEphemeral()).toBe(true);
-    expect(commandJson.options).toContainEqual(expect.objectContaining({
-      name: 'name',
-      type: 3,
-      required: true,
-      autocomplete: true
-    }));
+    expect(commandJson.options).toEqual([]);
   });
 });
 

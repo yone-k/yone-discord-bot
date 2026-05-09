@@ -3,9 +3,11 @@ import { Client } from 'discord.js';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
+import { InventoryMetadataManager } from '../services/InventoryMetadataManager';
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryService } from '../services/InventoryService';
+import { parseInventoryCsvText } from '../utils/InventoryParser';
 import { Logger } from '../utils/logger';
 
 interface InventoryServicePort {
@@ -14,6 +16,10 @@ interface InventoryServicePort {
 
 interface InventoryRepositoryPort {
   fetchAll(channelId: string): Promise<InventoryItem[]>;
+}
+
+interface InventoryMetadataReaderPort {
+  getChannelMetadata(channelId: string): Promise<{ defaultCategory?: string } | null>;
 }
 
 interface InventoryMessageManagerPort {
@@ -27,19 +33,22 @@ interface InventoryMessageManagerPort {
 
 export class InventoryAddModalHandler extends BaseModalHandler {
   private readonly inventoryService: InventoryServicePort;
-  private readonly messageManager: InventoryMessageManagerPort;
+  private readonly metadataReader: InventoryMetadataReaderPort;
   private readonly repository: InventoryRepositoryPort;
+  private readonly messageManager: InventoryMessageManagerPort;
 
   constructor(
     logger: Logger,
     inventoryService: InventoryServicePort = InventoryService.getInstance(),
-    messageManager: InventoryMessageManagerPort = InventoryMessageManager.getInstance(),
-    repository: InventoryRepositoryPort = new InventoryRepository()
+    metadataReader: InventoryMetadataReaderPort = InventoryMetadataManager.getInstance(),
+    repository: InventoryRepositoryPort = new InventoryRepository(),
+    messageManager: InventoryMessageManagerPort = InventoryMessageManager.getInstance()
   ) {
     super('inventory_add_modal', logger);
     this.inventoryService = inventoryService;
-    this.messageManager = messageManager;
+    this.metadataReader = metadataReader;
     this.repository = repository;
+    this.messageManager = messageManager;
     this.deleteOnSuccess = true;
   }
 
@@ -49,39 +58,52 @@ export class InventoryAddModalHandler extends BaseModalHandler {
       return { success: false, message: 'チャンネルIDが取得できません' };
     }
 
-    const name = context.interaction.fields.getTextInputValue('name').trim();
-    if (!name) {
-      return { success: false, message: '名前を入力してください' };
+    const itemsText = context.interaction.fields.getTextInputValue('items');
+    let parsed;
+    try {
+      parsed = parseInventoryCsvText(itemsText);
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : '入力形式が無効です'
+      };
     }
 
-    const stockText = context.interaction.fields.getTextInputValue('stock').trim();
-    const stock = Number(stockText);
-    if (!Number.isFinite(stock)) {
-      return { success: false, message: '在庫数は数値で入力してください' };
+    if (parsed.length === 0) {
+      return { success: false, message: '少なくとも1件入力してください' };
     }
 
-    const category = context.interaction.fields.getTextInputValue('category').trim();
-    const item: InventoryItem = {
-      id: randomUUID(),
-      name,
-      stock,
-      category
-    };
+    const metadata = await this.metadataReader.getChannelMetadata(channelId);
+    const defaultCategory = metadata?.defaultCategory ?? '';
+    const skipped: string[] = [];
 
-    const createResult = await this.inventoryService.create(channelId, item);
-    if (!createResult.success) {
-      return { success: false, message: createResult.message || '在庫アイテムの追加に失敗しました' };
+    for (const item of parsed) {
+      const result = await this.inventoryService.create(channelId, {
+        id: randomUUID(),
+        name: item.name,
+        stock: item.stock,
+        category: item.category ?? defaultCategory
+      });
+
+      if (!result.success) {
+        this.logger.warn('Skipped inventory item', {
+          name: item.name,
+          message: result.message
+        });
+        skipped.push(item.name);
+      }
     }
 
     const items = await this.repository.fetchAll(channelId);
-    const messageResult = await this.messageManager.createOrUpdateMessage(
+    await this.messageManager.createOrUpdateMessage(
       channelId,
       items,
       '在庫リスト',
       context.interaction.client
     );
-    if (!messageResult.success) {
-      return { success: false, message: messageResult.errorMessage || '在庫メッセージの更新に失敗しました' };
+
+    if (skipped.length > 0) {
+      return { success: true, message: `一部スキップ: ${skipped.join(', ')}` };
     }
 
     return { success: true };

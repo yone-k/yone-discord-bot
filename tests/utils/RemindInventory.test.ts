@@ -9,35 +9,35 @@ import {
 
 describe('RemindInventory', () => {
   it('parses inventory input lines', () => {
-    const text = 'フィルター,1,3\n替えブラシ,2,5';
+    const text = 'フィルター,1\n替えブラシ,2';
     const items = parseInventoryInput(text);
 
     expect(items).toEqual([
-      { name: 'フィルター', stock: 3, consume: 1 },
-      { name: '替えブラシ', stock: 5, consume: 2 }
+      { name: 'フィルター', consume: 1 },
+      { name: '替えブラシ', consume: 2 }
     ]);
   });
 
   it('parses decimal inventory input and rounds to one decimal', () => {
-    const text = 'フィルター,1.44,3.46\n替えブラシ,消費0.55,在庫2.04';
+    const text = 'フィルター,1.44\n替えブラシ,消費0.55';
     const items = parseInventoryInput(text);
 
     expect(items).toEqual([
-      { name: 'フィルター', stock: 3.5, consume: 1.4 },
-      { name: '替えブラシ', stock: 2, consume: 0.6 }
+      { name: 'フィルター', consume: 1.4 },
+      { name: '替えブラシ', consume: 0.6 }
     ]);
   });
 
   it('rejects when rounded consume becomes zero', () => {
-    expect(() => parseInventoryInput('フィルター,0.04,3')).toThrow('消費は0より大きい数値で入力してください');
+    expect(() => parseInventoryInput('フィルター,0.04')).toThrow('消費は0より大きい数値で入力してください');
   });
 
   it('rejects invalid inventory format', () => {
-    expect(() => parseInventoryInput('フィルター,1')).toThrow('在庫が不足しています');
+    expect(() => parseInventoryInput('フィルター')).toThrow('在庫の形式が不正です');
   });
 
   it('rejects duplicate item names', () => {
-    expect(() => parseInventoryInput('フィルター,1,3\nフィルター,2,5')).toThrow('アイテム名が重複しています');
+    expect(() => parseInventoryInput('フィルター,1\nフィルター,2')).toThrow('アイテム名が重複しています');
   });
 
   it('returns insufficient items when stock is below consume', () => {

@@ -27,6 +27,11 @@ vi.mock('google-auth-library', () => ({
   }))
 }));
 
+type GoogleSheetsServiceWithPendingApi = GoogleSheetsService & {
+  runWithLock<T>(lockKey: string, fn: () => Promise<T>): Promise<T>;
+  isKnownSheetName(sheetName: string): boolean;
+};
+
 describe('GoogleSheetsService', () => {
   let originalEnv: NodeJS.ProcessEnv;
   let mockSheets: any;
@@ -272,6 +277,101 @@ describe('GoogleSheetsService', () => {
       );
 
       await expect(service.getSheetData(channelId)).rejects.toThrow();
+    });
+  });
+
+  describe('runWithLock', () => {
+    it('同一lockKeyの並列呼び出しではfnを順次実行する', async () => {
+      // Given
+      const service = GoogleSheetsService.getInstance() as GoogleSheetsServiceWithPendingApi;
+      const events: string[] = [];
+      let resolveFirstStarted: () => void;
+      let releaseFirst: () => void;
+      const firstStarted = new Promise<void>((resolve) => {
+        resolveFirstStarted = resolve;
+      });
+      const firstCanFinish = new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+
+      // When
+      const first = service.runWithLock('same-lock', async () => {
+        events.push('first:start');
+        resolveFirstStarted();
+        await firstCanFinish;
+        events.push('first:end');
+        return 'first';
+      });
+
+      await firstStarted;
+
+      const second = service.runWithLock('same-lock', async () => {
+        events.push('second:start');
+        events.push('second:end');
+        return 'second';
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // Then
+      expect(events).toEqual(['first:start']);
+
+      releaseFirst();
+      await expect(Promise.all([first, second])).resolves.toEqual(['first', 'second']);
+      expect(events).toEqual(['first:start', 'first:end', 'second:start', 'second:end']);
+    });
+
+    it('fnの戻り値をPromiseで返す', async () => {
+      // Given
+      const service = GoogleSheetsService.getInstance() as GoogleSheetsServiceWithPendingApi;
+
+      // When
+      const result = service.runWithLock('return-value-lock', async () => ({
+        value: 42
+      }));
+
+      // Then
+      await expect(result).resolves.toEqual({ value: 42 });
+    });
+
+    it('fnがthrowした場合でもロックを解放して次の呼び出しを進行する', async () => {
+      // Given
+      const service = GoogleSheetsService.getInstance() as GoogleSheetsServiceWithPendingApi;
+      const error = new Error('locked operation failed');
+
+      // When
+      const failed = service.runWithLock('error-lock', async () => {
+        throw error;
+      });
+
+      // Then
+      await expect(failed).rejects.toThrow(error);
+
+      await expect(
+        Promise.race([
+          service.runWithLock('error-lock', async () => 'next operation completed'),
+          new Promise((resolve) => {
+            setTimeout(() => resolve('timeout'), 50);
+          })
+        ])
+      ).resolves.toBe('next operation completed');
+    });
+  });
+
+  describe('isKnownSheetName', () => {
+    it('在庫シート名と既存シート名を既知のシート名として判定する', () => {
+      // Given
+      const service = GoogleSheetsService.getInstance() as GoogleSheetsServiceWithPendingApi;
+
+      // When / Then
+      expect(service.isKnownSheetName('inventory_metadata')).toBe(true);
+      expect(service.isKnownSheetName('inventory_123456789')).toBe(true);
+      expect(service.isKnownSheetName('metadata')).toBe(true);
+      expect(service.isKnownSheetName('remind_metadata')).toBe(true);
+      expect(service.isKnownSheetName('list_123456789')).toBe(true);
+      expect(service.isKnownSheetName('remind_list_123456789')).toBe(true);
+      expect(service.isKnownSheetName('foobar')).toBe(false);
     });
   });
 

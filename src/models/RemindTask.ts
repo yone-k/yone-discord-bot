@@ -19,10 +19,25 @@ export interface RemindTaskInput {
   updatedAt: Date;
 }
 
-export interface RemindInventoryItem {
+export interface NewRemindInventoryItem {
+  inventoryId: string;
+  consume: number;
+}
+
+export interface LegacyRemindInventoryItem {
   name: string;
   stock: number;
   consume: number;
+}
+
+export type RemindInventoryItem = NewRemindInventoryItem | LegacyRemindInventoryItem;
+
+export function isNewInventoryItem(item: RemindInventoryItem): item is NewRemindInventoryItem {
+  return 'inventoryId' in item;
+}
+
+export function isLegacyInventoryItem(item: RemindInventoryItem): item is LegacyRemindInventoryItem {
+  return 'name' in item;
 }
 
 export interface RemindTask {
@@ -95,15 +110,30 @@ export function validateRemindTask(task: RemindTask): void {
   }
 
   for (const item of task.inventoryItems) {
-    if (!item.name || item.name.trim() === '') {
-      throw new Error('inventory_itemsの名称が無効です');
+    if (isNewInventoryItem(item)) {
+      if (!item.inventoryId || item.inventoryId.trim() === '') {
+        throw new Error('inventory_itemsの在庫IDが無効です');
+      }
+      if (!Number.isFinite(item.consume) || item.consume <= 0) {
+        throw new Error('inventory_itemsの消費数が無効です');
+      }
+      continue;
     }
-    if (!Number.isFinite(item.stock) || item.stock < 0) {
-      throw new Error('inventory_itemsの在庫数が無効です');
+
+    if (isLegacyInventoryItem(item)) {
+      if (!item.name || item.name.trim() === '') {
+        throw new Error('inventory_itemsの名称が無効です');
+      }
+      if (!Number.isFinite(item.stock) || item.stock < 0) {
+        throw new Error('inventory_itemsの在庫数が無効です');
+      }
+      if (!Number.isFinite(item.consume) || item.consume <= 0) {
+        throw new Error('inventory_itemsの消費数が無効です');
+      }
+      continue;
     }
-    if (!Number.isFinite(item.consume) || item.consume <= 0) {
-      throw new Error('inventory_itemsの消費数が無効です');
-    }
+
+    throw new Error('inventory_itemsの形式が無効です');
   }
 
   if (!(task.startAt instanceof Date) || isNaN(task.startAt.getTime())) {

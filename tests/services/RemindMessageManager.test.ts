@@ -65,6 +65,63 @@ describe('RemindMessageManager', () => {
     ]);
   });
 
+  it('creates task message with resolved inventory names for new inventory items', async () => {
+    const mockInventoryService = {
+      getById: vi.fn().mockResolvedValue({
+        id: 'inventory-1',
+        name: '牛乳',
+        stock: 3,
+        category: ''
+      })
+    };
+    const mockMetadataManager = {
+      getChannelMetadata: vi.fn().mockResolvedValue({
+        success: true,
+        metadata: { linkedInventoryChannelId: 'inventory-channel-1' }
+      })
+    };
+    const manager = new RemindMessageManager({
+      inventoryService: mockInventoryService,
+      metadataManager: mockMetadataManager
+    } as any);
+    const { now } = createTask();
+    const task = createRemindTask({
+      id: 'task-1',
+      title: '補充チェック',
+      description: '説明',
+      intervalDays: 1,
+      timeOfDay: '00:00',
+      remindBeforeMinutes: 0,
+      inventoryItems: [{ inventoryId: 'inventory-1', consume: 2 }],
+      startAt: new Date('2025-01-01T00:00:00.000Z'),
+      nextDueAt: new Date('2025-01-02T00:00:00.000Z'),
+      createdAt: now,
+      updatedAt: now
+    });
+    const mockMessage = { id: 'msg-1' };
+    const mockChannel = {
+      isTextBased: (): boolean => true,
+      send: vi.fn().mockResolvedValue(mockMessage)
+    };
+    const mockClient = {
+      channels: {
+        fetch: vi.fn().mockResolvedValue(mockChannel)
+      }
+    };
+
+    const result = await manager.createTaskMessage('channel-1', task, mockClient as any, now);
+
+    expect(result.success).toBe(true);
+    expect(mockMetadataManager.getChannelMetadata).toHaveBeenCalledWith('channel-1');
+    expect(mockInventoryService.getById).toHaveBeenCalledWith('inventory-channel-1', 'inventory-1');
+    const payload = mockChannel.send.mock.calls[0][0];
+    const container = payload.components[0];
+    const textContents = container.components
+      .filter((component: any) => component.type === ComponentType.TextDisplay)
+      .map((component: any) => component.content);
+    expect(textContents.some((content: string) => content.includes('在庫: 牛乳 3'))).toBe(true);
+  });
+
   it('updates task message with V2 components', async () => {
     const manager = new RemindMessageManager();
     const { task, now } = createTask();

@@ -25,13 +25,17 @@ describe('RemindTaskCompleteButtonHandler', () => {
     const mockMessageManager = {
       updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
     };
+    const mockInventoryService = {
+      consumeForTask: vi.fn().mockResolvedValue({ kind: 'success' })
+    };
 
     const handler = new RemindTaskCompleteButtonHandler(
       new Logger(),
       undefined,
       undefined,
       mockRepository as any,
-      mockMessageManager as any
+      mockMessageManager as any,
+      mockInventoryService as any
     );
     const interaction = {
       customId: 'remind-task-complete',
@@ -46,6 +50,7 @@ describe('RemindTaskCompleteButtonHandler', () => {
 
     await handler.handle({ interaction } as any);
 
+    expect(mockInventoryService.consumeForTask).toHaveBeenCalledWith('channel-1', task);
     expect(mockRepository.updateTask).toHaveBeenCalled();
     expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();
     expect(interaction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
@@ -60,7 +65,7 @@ describe('RemindTaskCompleteButtonHandler', () => {
       intervalDays: 7,
       timeOfDay: '09:00',
       remindBeforeMinutes: 60,
-      inventoryItems: [{ name: '牛乳', stock: 1, consume: 2 }],
+      inventoryItems: [{ inventoryId: 'inventory-1', consume: 2 }],
       startAt: new Date('2025-12-29T09:00:00+09:00'),
       nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
       createdAt: new Date('2025-12-29T09:00:00+09:00'),
@@ -81,13 +86,20 @@ describe('RemindTaskCompleteButtonHandler', () => {
         metadata: { remindNoticeThreadId: 'thread-1', remindNoticeMessageId: 'notice-msg-1' }
       })
     };
+    const mockInventoryService = {
+      consumeForTask: vi.fn().mockResolvedValue({
+        kind: 'shortage',
+        items: [{ inventoryId: 'inventory-1', name: '牛乳', required: 2, available: 1 }]
+      })
+    };
 
     const handler = new RemindTaskCompleteButtonHandler(
       new Logger(),
       undefined,
       mockMetadataManager as any,
       mockRepository as any,
-      mockMessageManager as any
+      mockMessageManager as any,
+      mockInventoryService as any
     );
     const interaction = {
       customId: 'remind-task-complete',
@@ -102,6 +114,7 @@ describe('RemindTaskCompleteButtonHandler', () => {
 
     await handler.handle({ interaction } as any);
 
+    expect(mockInventoryService.consumeForTask).toHaveBeenCalledWith('channel-1', task);
     expect(mockRepository.updateTask).not.toHaveBeenCalled();
     expect(mockMessageManager.updateTaskMessage).not.toHaveBeenCalled();
     expect(interaction.editReply).toHaveBeenCalledWith(expect.objectContaining({
@@ -169,5 +182,58 @@ describe('RemindTaskCompleteButtonHandler', () => {
       '@everyone 補充チェックの次回分に必要な在庫が不足しています。\n不足している在庫の詳細は以下の通りです\n牛乳 2個',
       interaction.client
     );
+  });
+
+  it('blocks completion when legacy inventory migration is required', async () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      messageId: 'msg-1',
+      title: '補充チェック',
+      intervalDays: 7,
+      timeOfDay: '09:00',
+      remindBeforeMinutes: 60,
+      inventoryItems: [{ name: '牛乳', stock: 3, consume: 1 }],
+      startAt: new Date('2025-12-29T09:00:00+09:00'),
+      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+    const mockRepository = {
+      findTaskByMessageId: vi.fn().mockResolvedValue(task),
+      updateTask: vi.fn().mockResolvedValue({ success: true })
+    };
+    const mockMessageManager = {
+      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
+    };
+    const mockInventoryService = {
+      consumeForTask: vi.fn().mockResolvedValue({ kind: 'migration_required' })
+    };
+    const handler = new RemindTaskCompleteButtonHandler(
+      new Logger(),
+      undefined,
+      undefined,
+      mockRepository as any,
+      mockMessageManager as any,
+      mockInventoryService as any
+    );
+    const interaction = {
+      customId: 'remind-task-complete',
+      user: { id: 'user-1', bot: false },
+      channelId: 'channel-1',
+      message: { id: 'msg-1' },
+      client: {} as any,
+      deferReply: vi.fn(),
+      deleteReply: vi.fn(),
+      editReply: vi.fn()
+    };
+
+    await handler.handle({ interaction } as any);
+
+    expect(mockInventoryService.consumeForTask).toHaveBeenCalledWith('channel-1', task);
+    expect(mockRepository.updateTask).not.toHaveBeenCalled();
+    expect(mockMessageManager.updateTaskMessage).not.toHaveBeenCalled();
+    expect(interaction.editReply).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('在庫移行')
+    }));
   });
 });

@@ -1,14 +1,16 @@
 import { EmbedBuilder } from 'discord.js';
-import { RemindTask } from '../models/RemindTask';
+import { isNewInventoryItem, RemindTask } from '../models/RemindTask';
 import { formatRemainingDuration } from '../utils/RemindDuration';
 import { formatInventoryDetail } from '../utils/RemindInventory';
 import { formatInventorySummary } from '../utils/RemindInventory';
+
+export type InventoryNameResolver = (inventoryId: string) => Promise<{ name: string; stock: number } | null>;
 
 export class RemindTaskFormatter {
   private static readonly EMBED_COLOR = 0xFFA726;
 
   public static formatTaskEmbed(task: RemindTask, now: Date = new Date()): EmbedBuilder {
-    const summary = this.formatSummaryText(task, now);
+    const summary = this.formatSummaryText(task, now) as { progressBar: string; detailsText: string };
     const description = [summary.progressBar, summary.detailsText].filter(Boolean).join('\n');
 
     return new EmbedBuilder()
@@ -44,8 +46,18 @@ export class RemindTaskFormatter {
 
   public static formatSummaryText(
     task: RemindTask,
-    now: Date = new Date()
-  ): { progressBar: string; detailsText: string } {
+    now?: Date
+  ): { progressBar: string; detailsText: string };
+  public static formatSummaryText(
+    task: RemindTask,
+    now: Date,
+    resolveInventoryName: InventoryNameResolver
+  ): Promise<{ progressBar: string; detailsText: string }>;
+  public static formatSummaryText(
+    task: RemindTask,
+    now: Date = new Date(),
+    resolveInventoryName?: InventoryNameResolver
+  ): { progressBar: string; detailsText: string } | Promise<{ progressBar: string; detailsText: string }> {
     const progressBar = this.buildProgressBar(task, now);
     const nextDueText = this.formatTokyoDateTime(task.nextDueAt);
     const remainingDays = this.calculateRemainingDays(task, now);
@@ -62,12 +74,43 @@ export class RemindTaskFormatter {
           ? `-# 残り: ${remainingDays}日`
           : `-# 期限: ${nextDueText}`));
 
+    if (resolveInventoryName) {
+      return this.resolveInventorySummary(task, resolveInventoryName).then((inventorySummary) => ({
+        progressBar,
+        detailsText: inventorySummary ? `${baseDetail}\n-# ${inventorySummary}` : baseDetail
+      }));
+    }
+
     const inventorySummary = formatInventorySummary(task.inventoryItems);
-    const detailsText = inventorySummary
-      ? `${baseDetail}\n-# ${inventorySummary}`
-      : baseDetail;
+    const detailsText = inventorySummary ? `${baseDetail}\n-# ${inventorySummary}` : baseDetail;
 
     return { progressBar, detailsText };
+  }
+
+  private static async resolveInventorySummary(
+    task: RemindTask,
+    resolveInventoryName: InventoryNameResolver
+  ): Promise<string | null> {
+    if (!task.inventoryItems || task.inventoryItems.length === 0) {
+      return null;
+    }
+
+    if (!task.inventoryItems.some(isNewInventoryItem)) {
+      return formatInventorySummary(task.inventoryItems);
+    }
+
+    const display = await Promise.all(task.inventoryItems.slice(0, 3).map(async (item) => {
+      if (!isNewInventoryItem(item)) {
+        return `${item.name} ${item.stock}`;
+      }
+      const resolved = await resolveInventoryName(item.inventoryId);
+      if (!resolved) {
+        return `[不明な在庫:${item.inventoryId.slice(0, 8)}]`;
+      }
+      return `${resolved.name} ${resolved.stock}`;
+    }));
+    const suffix = task.inventoryItems.length > 3 ? '...' : '';
+    return `在庫: ${display.join(', ')}${suffix}`;
   }
 
   private static buildProgressBar(task: RemindTask, now: Date): string {

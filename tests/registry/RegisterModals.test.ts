@@ -154,14 +154,23 @@ describe('RegisterModals', () => {
       expect(handler?.constructor.name).toBe('RemindTaskInventoryModalHandler');
     });
 
+    it('InventoryAddModalHandlerが正しく登録される', () => {
+      registerAllModals(modalManager, logger);
+      const registeredHandlers = modalManager.getRegisteredHandlers();
+      const handler = registeredHandlers.find(h => h.getCustomId() === 'inventory_add_modal');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('InventoryAddModalHandler');
+    });
+
     it('登録されるハンドラー数が期待する値と一致する', () => {
       registerAllModals(modalManager, logger);
       
       const registeredHandlers = modalManager.getRegisteredHandlers();
       // 現在のモーダルハンドラー数: EditListModalHandler, AddListModalHandler, ConfirmationModalHandler,
       // RemindTaskUpdateModalHandler, RemindTaskUpdateOverrideModalHandler, RemindTaskCompleteModalHandler,
-      // RemindTaskDeleteModalHandler, RemindTaskAddModalHandler, RemindTaskInventoryModalHandler
-      expect(registeredHandlers).toHaveLength(9);
+      // RemindTaskDeleteModalHandler, RemindTaskAddModalHandler, RemindTaskInventoryModalHandler,
+      // InventoryAddModalHandler, InventoryUpdateModalHandler, InventoryDeleteModalHandler
+      expect(registeredHandlers).toHaveLength(12);
     });
   });
 });

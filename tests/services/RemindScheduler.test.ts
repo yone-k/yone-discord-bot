@@ -109,7 +109,7 @@ describe('RemindScheduler', () => {
     expect(mockMessageManager.sendReminderToThread).not.toHaveBeenCalled();
   });
 
-  it('includes inventory shortage notice on pre-reminder when insufficient', async () => {
+  it('includes InventoryService shortage notice on pre-reminder when insufficient', async () => {
     const task = createRemindTask({
       id: 'task-1',
       messageId: 'msg-1',
@@ -117,7 +117,7 @@ describe('RemindScheduler', () => {
       intervalDays: 7,
       timeOfDay: '09:00',
       remindBeforeMinutes: 60,
-      inventoryItems: [{ name: '牛乳', stock: 0, consume: 1 }],
+      inventoryItems: [{ inventoryId: 'inventory-1', consume: 1 }],
       startAt: new Date('2025-12-29T09:00:00+09:00'),
       nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
       createdAt: new Date('2025-12-29T09:00:00+09:00'),
@@ -143,20 +143,85 @@ describe('RemindScheduler', () => {
       updateTaskMessage: vi.fn().mockResolvedValue({ success: true }),
       sendReminderToThread: vi.fn().mockResolvedValue({ success: true })
     };
+    const mockInventoryService = {
+      checkShortageForTask: vi.fn().mockResolvedValue({
+        kind: 'shortage',
+        items: [{ inventoryId: 'inventory-1', name: '牛乳', required: 1, available: 0 }]
+      })
+    };
 
     const mockClient = { channels: { fetch: vi.fn() } };
 
     const scheduler = new RemindScheduler(
       mockMetadataManager as any,
       mockRepository as any,
-      mockMessageManager as any
+      mockMessageManager as any,
+      mockInventoryService as any
     );
 
     await scheduler.runOnce(mockClient as any, new Date('2026-01-05T08:30:00+09:00'));
 
+    expect(mockInventoryService.checkShortageForTask).toHaveBeenCalledWith('channel-1', task);
     const contents = mockMessageManager.sendReminderToThread.mock.calls.map((call: any[]) => call[3]);
     expect(contents.some((content: string) => content.includes('期限まであと1時間'))).toBe(true);
     expect(contents.some((content: string) => content.includes('不足している在庫の詳細は以下の通りです'))).toBe(true);
     expect(contents.some((content: string) => content.includes('牛乳 1個'))).toBe(true);
+  });
+
+  it('skips inventory shortage check when inventory channel is not linked', async () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      messageId: 'msg-1',
+      title: '補充チェック',
+      intervalDays: 7,
+      timeOfDay: '09:00',
+      remindBeforeMinutes: 60,
+      inventoryItems: [{ inventoryId: 'inventory-1', consume: 1 }],
+      startAt: new Date('2025-12-29T09:00:00+09:00'),
+      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+    const mockMetadataManager = {
+      listChannelMetadata: vi.fn().mockResolvedValue([{
+        channelId: 'channel-1',
+        messageId: '',
+        listTitle: '',
+        lastSyncTime: new Date(),
+        remindNoticeThreadId: 'thread-1',
+        remindNoticeMessageId: 'notice-msg-1',
+        linkedInventoryChannelId: undefined
+      }]),
+      updateChannelMetadata: vi.fn().mockResolvedValue({ success: true })
+    };
+    const mockRepository = {
+      fetchTasks: vi.fn().mockResolvedValue([task]),
+      updateTask: vi.fn().mockResolvedValue({ success: true })
+    };
+    const mockMessageManager = {
+      updateTaskMessage: vi.fn().mockResolvedValue({ success: true }),
+      sendReminderToThread: vi.fn().mockResolvedValue({ success: true })
+    };
+    const mockInventoryService = {
+      checkShortageForTask: vi.fn()
+    };
+    const mockClient = { channels: { fetch: vi.fn() } };
+    const scheduler = new RemindScheduler(
+      mockMetadataManager as any,
+      mockRepository as any,
+      mockMessageManager as any,
+      mockInventoryService as any
+    );
+
+    await scheduler.runOnce(mockClient as any, new Date('2026-01-05T08:30:00+09:00'));
+
+    expect(mockInventoryService.checkShortageForTask).not.toHaveBeenCalled();
+    expect(mockMessageManager.sendReminderToThread).toHaveBeenCalledWith(
+      'channel-1',
+      'thread-1',
+      'notice-msg-1',
+      '@everyone 補充チェックの期限まであと1時間になりました。',
+      mockClient
+    );
   });
 });

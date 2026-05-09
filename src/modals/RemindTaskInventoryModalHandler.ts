@@ -7,23 +7,27 @@ import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { parseInventoryInput } from '../utils/RemindInventory';
 import type { RemindTask } from '../models/RemindTask';
+import { InventoryService } from '../services/InventoryService';
 
 export class RemindTaskInventoryModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
+  private inventoryService: Pick<InventoryService, 'resolveByName'>;
 
   constructor(
     logger: Logger,
     operationLogService?: OperationLogService,
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
-    messageManager?: RemindMessageManager
+    messageManager?: RemindMessageManager,
+    inventoryService?: Pick<InventoryService, 'resolveByName'>
   ) {
     super('remind-task-inventory-modal', logger, operationLogService, metadataManager);
     this.deleteOnSuccess = true;
     this.silentOnSuccess = true;
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
+    this.inventoryService = inventoryService || InventoryService.getInstance();
   }
 
   public shouldHandle(context: ModalHandlerContext): boolean {
@@ -57,7 +61,23 @@ export class RemindTaskInventoryModalHandler extends BaseModalHandler {
     let inventoryItems: RemindTask['inventoryItems'] = [];
     if (input !== '') {
       try {
-        inventoryItems = parseInventoryInput(input);
+        if (!this.metadataManager) {
+          return { success: false, message: '在庫チャンネルが連携されていません' };
+        }
+        const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+        const linkedInventoryChannelId = (metadataResult.metadata as { linkedInventoryChannelId?: string } | undefined)
+          ?.linkedInventoryChannelId;
+        if (!linkedInventoryChannelId) {
+          return { success: false, message: '在庫チャンネルが連携されていません' };
+        }
+        const parsedItems = parseInventoryInput(input);
+        inventoryItems = await Promise.all(parsedItems.map(async (item) => {
+          const inventoryItem = await this.inventoryService.resolveByName(linkedInventoryChannelId, item.name);
+          return {
+            inventoryId: inventoryItem.id,
+            consume: item.consume
+          };
+        }));
       } catch (error) {
         return { success: false, message: error instanceof Error ? error.message : '在庫の形式が無効です' };
       }

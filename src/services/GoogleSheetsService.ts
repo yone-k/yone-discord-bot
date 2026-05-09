@@ -456,6 +456,16 @@ export class GoogleSheetsService {
     };
   }
 
+  public async runWithLock<T>(lockKey: string, fn: () => Promise<T>): Promise<T> {
+    const releaseLock = await this.acquireOperationLock(lockKey);
+
+    try {
+      return await fn();
+    } finally {
+      releaseLock();
+    }
+  }
+
   /**
    * スプレッドシートのバックアップを作成（ロールバック用）
    */
@@ -972,8 +982,10 @@ export class GoogleSheetsService {
     return (
       sheetName === 'metadata'
       || sheetName === 'remind_metadata'
+      || sheetName === 'inventory_metadata'
       || sheetName.startsWith('list_')
       || sheetName.startsWith('remind_list_')
+      || sheetName.startsWith('inventory_')
     );
   }
 

@@ -60,6 +60,33 @@ export const buttonSettings: ButtonSettings = {
     ping: {
       enabled: false,
       buttons: []
+    },
+
+    inventory: {
+      enabled: true,
+      buttons: [
+        {
+          customId: 'inventory_add',
+          label: '追加',
+          style: ButtonStyle.Primary,
+          description: '在庫アイテムを追加',
+          handler: 'InventoryAddButtonHandler'
+        },
+        {
+          customId: 'inventory_update',
+          label: '更新',
+          style: ButtonStyle.Secondary,
+          description: '在庫アイテムを更新',
+          handler: 'InventoryUpdateButtonHandler'
+        },
+        {
+          customId: 'inventory_delete',
+          label: '削除',
+          style: ButtonStyle.Danger,
+          description: '在庫アイテムを削除',
+          handler: 'InventoryDeleteButtonHandler'
+        }
+      ]
     }
   },
   

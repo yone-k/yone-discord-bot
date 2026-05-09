@@ -25,13 +25,28 @@ describe('RemindTaskInventoryModalHandler', () => {
     const mockMessageManager = {
       updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
     };
+    const mockMetadataManager = {
+      getChannelMetadata: vi.fn().mockResolvedValue({
+        success: true,
+        metadata: { linkedInventoryChannelId: 'inventory-channel-1' }
+      })
+    };
+    const mockInventoryService = {
+      resolveByName: vi.fn().mockResolvedValue({
+        id: 'inventory-1',
+        name: 'フィルター',
+        stock: 0,
+        category: ''
+      })
+    };
 
     const handler = new RemindTaskInventoryModalHandler(
       new Logger(),
       undefined,
-      undefined,
+      mockMetadataManager as any,
       mockRepository as any,
-      mockMessageManager as any
+      mockMessageManager as any,
+      mockInventoryService as any
     );
 
     const interaction = {
@@ -40,7 +55,7 @@ describe('RemindTaskInventoryModalHandler', () => {
       channelId: 'channel-1',
       client: {} as any,
       fields: {
-        getTextInputValue: vi.fn().mockReturnValue('フィルター,1,3')
+        getTextInputValue: vi.fn().mockReturnValue('フィルター,1')
       },
       deferReply: vi.fn(),
       editReply: vi.fn(),
@@ -49,10 +64,12 @@ describe('RemindTaskInventoryModalHandler', () => {
 
     await handler.handle({ interaction } as any);
 
+    expect(mockMetadataManager.getChannelMetadata).toHaveBeenCalledWith('channel-1');
+    expect(mockInventoryService.resolveByName).toHaveBeenCalledWith('inventory-channel-1', 'フィルター');
     expect(mockRepository.updateTask).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        inventoryItems: [{ name: 'フィルター', stock: 3, consume: 1 }]
+        inventoryItems: [{ inventoryId: 'inventory-1', consume: 1 }]
       })
     );
     expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();

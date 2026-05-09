@@ -1,6 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { createRemindTask } from '../../src/models/RemindTask';
-import { getRemindSheetHeaders, toSheetRow, fromSheetRow } from '../../src/utils/RemindSheetMapper';
+import {
+  createRemindTask,
+  isLegacyInventoryItem,
+  isNewInventoryItem,
+  type LegacyRemindInventoryItem,
+  type NewRemindInventoryItem,
+  type RemindInventoryItem
+} from '../../src/models/RemindTask';
+import {
+  getRemindSheetHeaders,
+  toSheetRow,
+  fromSheetRow,
+  parseInventoryItems,
+  parseLegacyInventoryItemsForMigration
+} from '../../src/utils/RemindSheetMapper';
 
 describe('RemindSheetMapper', () => {
   it('returns remind sheet headers', () => {
@@ -139,5 +152,91 @@ describe('RemindSheetMapper', () => {
 
     const task = fromSheetRow(row);
     expect(task.inventoryItems).toEqual([{ name: '洗剤', stock: 1.1, consume: 0.6 }]);
+  });
+});
+
+describe('RemindInventoryItem union parsing', () => {
+  it('parses new format inventory items from JSON', () => {
+    // Given
+    const json = JSON.stringify([{ inventoryId: 'inventory-1', consume: 1 }]);
+
+    // When
+    const items: RemindInventoryItem[] = parseInventoryItems(json);
+
+    // Then
+    expect(items).toEqual<NewRemindInventoryItem[]>([
+      { inventoryId: 'inventory-1', consume: 1 }
+    ]);
+    expect(items.every(isNewInventoryItem)).toBe(true);
+  });
+
+  it('parses legacy format inventory items from JSON', () => {
+    // Given
+    const json = JSON.stringify([{ name: '洗剤', stock: 3, consume: 1 }]);
+
+    // When
+    const items: RemindInventoryItem[] = parseInventoryItems(json);
+
+    // Then
+    expect(items).toEqual<LegacyRemindInventoryItem[]>([
+      { name: '洗剤', stock: 3, consume: 1 }
+    ]);
+    expect(items.every(isLegacyInventoryItem)).toBe(true);
+  });
+
+  it('always reads new format JSON as legacy items for migration', () => {
+    // Given
+    const json = JSON.stringify([{ inventoryId: 'inventory-1', consume: 1 }]);
+
+    // When
+    const items: LegacyRemindInventoryItem[] = parseLegacyInventoryItemsForMigration(json);
+
+    // Then
+    expect(items).toEqual<LegacyRemindInventoryItem[]>([]);
+    expect(items.every(isLegacyInventoryItem)).toBe(true);
+  });
+
+  it('skips non-legacy items without a name key during migration parsing', () => {
+    // Given
+    const json = JSON.stringify([
+      { inventoryId: 'inventory-1', consume: 1 },
+      { name: '洗剤', stock: 3, consume: 1 }
+    ]);
+
+    // When
+    const items: LegacyRemindInventoryItem[] = parseLegacyInventoryItemsForMigration(json);
+
+    // Then
+    expect(items).toEqual<LegacyRemindInventoryItem[]>([
+      { name: '洗剤', stock: 3, consume: 1 }
+    ]);
+  });
+
+  it('detects new inventory items with the type guard', () => {
+    // Given
+    const newItem = { inventoryId: 'inventory-1', consume: 1 };
+    const legacyItem = { name: '洗剤', stock: 3, consume: 1 };
+
+    // When
+    const newItemResult = isNewInventoryItem(newItem);
+    const legacyItemResult = isNewInventoryItem(legacyItem);
+
+    // Then
+    expect(newItemResult).toBe(true);
+    expect(legacyItemResult).toBe(false);
+  });
+
+  it('detects legacy inventory items with the type guard', () => {
+    // Given
+    const legacyItem = { name: '洗剤', stock: 3, consume: 1 };
+    const newItem = { inventoryId: 'inventory-1', consume: 1 };
+
+    // When
+    const legacyItemResult = isLegacyInventoryItem(legacyItem);
+    const newItemResult = isLegacyInventoryItem(newItem);
+
+    // Then
+    expect(legacyItemResult).toBe(true);
+    expect(newItemResult).toBe(false);
   });
 });

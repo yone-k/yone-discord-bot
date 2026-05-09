@@ -11,23 +11,27 @@ import {
   formatInventoryShortageNotice,
   getInsufficientInventoryItems
 } from '../utils/RemindInventory';
+import { InventoryService, type ConsumeForTaskResult } from '../services/InventoryService';
 
 export class RemindTaskCompleteModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
+  private inventoryService?: Pick<InventoryService, 'consumeForTask'>;
 
   constructor(
     logger: Logger,
     operationLogService?: OperationLogService,
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
-    messageManager?: RemindMessageManager
+    messageManager?: RemindMessageManager,
+    inventoryService?: Pick<InventoryService, 'consumeForTask'>
   ) {
     super('remind-task-complete-modal', logger, operationLogService, metadataManager);
     this.deleteOnSuccess = true;
     this.silentOnSuccess = true;
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
+    this.inventoryService = inventoryService ?? (process.env.NODE_ENV === 'test' ? undefined : InventoryService.getInstance());
   }
 
   public shouldHandle(context: ModalHandlerContext): boolean {
@@ -57,17 +61,28 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
       return { success: false, message: 'タスクが見つかりません' };
     }
 
-    const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
-    if (insufficientItems.length > 0) {
-      const shortageNotice = formatInventoryShortageNotice(insufficientItems);
-      return {
-        success: false,
-        message: `${task.title}の完了に必要な在庫が不足しています。\n${shortageNotice}`
-      };
-    }
+    let consumedInventory = task.inventoryItems;
+    let nextInsufficientItems = getInsufficientInventoryItems(consumedInventory);
+    if (this.inventoryService) {
+      const inventoryResult = await this.inventoryService.consumeForTask(channelId, task);
+      const blockedResult = this.toBlockedResult(task.title, inventoryResult);
+      if (blockedResult) {
+        return blockedResult;
+      }
+      nextInsufficientItems = [];
+    } else {
+      const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
+      if (insufficientItems.length > 0) {
+        const shortageNotice = formatInventoryShortageNotice(insufficientItems);
+        return {
+          success: false,
+          message: `${task.title}の完了に必要な在庫が不足しています。\n${shortageNotice}`
+        };
+      }
 
-    const consumedInventory = consumeInventory(task.inventoryItems);
-    const nextInsufficientItems = getInsufficientInventoryItems(consumedInventory);
+      consumedInventory = consumeInventory(task.inventoryItems);
+      nextInsufficientItems = getInsufficientInventoryItems(consumedInventory);
+    }
 
     const now = new Date();
     const nextDueAt = calculateNextDueAt(
@@ -133,5 +148,23 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
   private parseMessageId(customId: string): string | null {
     const parts = customId.split(':');
     return parts.length === 2 ? parts[1] : null;
+  }
+
+  private toBlockedResult(title: string, result: ConsumeForTaskResult): OperationResult | null {
+    if (result.kind === 'success') {
+      return null;
+    }
+    if (result.kind === 'migration_required') {
+      return {
+        success: false,
+        message: '在庫移行が必要です。先に在庫移行を実行してください。'
+      };
+    }
+
+    const shortageNotice = formatInventoryShortageNotice(result.items as never);
+    return {
+      success: false,
+      message: `${title}の完了に必要な在庫が不足しています。\n${shortageNotice}`
+    };
   }
 }

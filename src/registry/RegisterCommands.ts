@@ -4,7 +4,14 @@ import { InitListCommand } from '../commands/InitListCommand';
 import { DeleteAllMessageCommand } from '../commands/DeleteAllMessageCommand';
 import { AddListCommand } from '../commands/AddListCommand';
 import { InitRemindListCommand } from '../commands/InitRemindListCommand';
+import { InitInventoryCommand } from '../commands/InitInventoryCommand';
 import { AddRemindListCommand } from '../commands/AddRemindListCommand';
+import { AddInventoryCommand } from '../commands/AddInventoryCommand';
+import { DeleteInventoryCommand } from '../commands/DeleteInventoryCommand';
+import { LinkInventoryCommand } from '../commands/LinkInventoryCommand';
+import { UnlinkInventoryCommand } from '../commands/UnlinkInventoryCommand';
+import { MigrateInventoryCommand } from '../commands/MigrateInventoryCommand';
+import { UpdateInventoryCommand } from '../commands/UpdateInventoryCommand';
 import { Logger } from '../utils/logger';
 
 export function registerAllCommands(commandManager: CommandManager, logger: Logger): void {
@@ -27,8 +34,29 @@ export function registerAllCommands(commandManager: CommandManager, logger: Logg
   const initRemindListCommand = new InitRemindListCommand(logger);
   commandManager.register(initRemindListCommand);
 
+  const initInventoryCommand = new InitInventoryCommand(logger);
+  commandManager.register(initInventoryCommand);
+
   const addRemindListCommand = new AddRemindListCommand(logger);
   commandManager.register(addRemindListCommand);
+
+  const addInventoryCommand = new AddInventoryCommand(logger);
+  commandManager.register(addInventoryCommand);
+
+  const deleteInventoryCommand = new DeleteInventoryCommand(logger);
+  commandManager.register(deleteInventoryCommand);
+
+  const linkInventoryCommand = new LinkInventoryCommand(logger);
+  commandManager.register(linkInventoryCommand);
+
+  const unlinkInventoryCommand = new UnlinkInventoryCommand(logger);
+  commandManager.register(unlinkInventoryCommand);
+
+  const migrateInventoryCommand = new MigrateInventoryCommand(logger);
+  commandManager.register(migrateInventoryCommand);
+
+  const updateInventoryCommand = new UpdateInventoryCommand(logger);
+  commandManager.register(updateInventoryCommand);
   
   logger.info('All commands registered successfully');
 }

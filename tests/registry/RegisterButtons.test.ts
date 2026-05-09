@@ -145,14 +145,39 @@ describe('RegisterButtons', () => {
       expect(handler?.constructor.name).toBe('RemindTaskAddButtonHandler');
     });
 
+    it('InventoryAddButtonHandlerが正しく登録される', () => {
+      registerAllButtons(buttonManager, logger);
+
+      const handler = buttonManager.getHandlerByCustomId('inventory_add');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('InventoryAddButtonHandler');
+    });
+
+    it('InventoryUpdateButtonHandlerが正しく登録される', () => {
+      registerAllButtons(buttonManager, logger);
+
+      const handler = buttonManager.getHandlerByCustomId('inventory_update');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('InventoryUpdateButtonHandler');
+    });
+
+    it('InventoryDeleteButtonHandlerが正しく登録される', () => {
+      registerAllButtons(buttonManager, logger);
+
+      const handler = buttonManager.getHandlerByCustomId('inventory_delete');
+      expect(handler).toBeDefined();
+      expect(handler?.constructor.name).toBe('InventoryDeleteButtonHandler');
+    });
+
     it('登録されるハンドラー数が期待する値と一致する', () => {
       registerAllButtons(buttonManager, logger);
       
       const registeredHandlers = buttonManager.getRegisteredHandlers();
       // 現在のボタンハンドラー数: InitListButtonHandler, EditListButtonHandler, AddListButtonHandler,
       // RemindTaskUpdateButtonHandler, RemindTaskUpdateCancelButtonHandler, RemindTaskCompleteButtonHandler,
-      // RemindTaskDeleteButtonHandler, RemindTaskDetailButtonHandler, RemindTaskAddButtonHandler
-      expect(registeredHandlers).toHaveLength(9);
+      // RemindTaskDeleteButtonHandler, RemindTaskDetailButtonHandler, RemindTaskAddButtonHandler,
+      // InventoryAddButtonHandler, InventoryUpdateButtonHandler, InventoryDeleteButtonHandler
+      expect(registeredHandlers).toHaveLength(12);
     });
   });
 });

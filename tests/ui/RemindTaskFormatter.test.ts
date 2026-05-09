@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskFormatter } from '../../src/ui/RemindTaskFormatter';
 import { createRemindTask } from '../../src/models/RemindTask';
 
@@ -147,6 +147,37 @@ describe('RemindTaskFormatter', () => {
     });
 
     const summary = RemindTaskFormatter.formatSummaryText(task, new Date('2026-01-04T09:00:00+09:00'));
+    expect(summary.detailsText).toContain('在庫: 牛乳 3, 卵 2');
+  });
+
+  it('includes resolved inventory names in formatSummaryText for new inventory items', async () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      title: '補充チェック',
+      intervalDays: 7,
+      timeOfDay: '09:00',
+      remindBeforeMinutes: 60,
+      inventoryItems: [
+        { inventoryId: 'inventory-1', consume: 1 },
+        { inventoryId: 'inventory-2', consume: 2 }
+      ],
+      startAt: new Date('2025-12-29T09:00:00+09:00'),
+      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+    const resolveInventoryName = vi.fn()
+      .mockResolvedValueOnce({ name: '牛乳', stock: 3 })
+      .mockResolvedValueOnce({ name: '卵', stock: 2 });
+
+    const summary = await (RemindTaskFormatter as any).formatSummaryText(
+      task,
+      new Date('2026-01-04T09:00:00+09:00'),
+      resolveInventoryName
+    );
+
+    expect(resolveInventoryName).toHaveBeenCalledWith('inventory-1');
+    expect(resolveInventoryName).toHaveBeenCalledWith('inventory-2');
     expect(summary.detailsText).toContain('在庫: 牛乳 3, 卵 2');
   });
 

@@ -20,6 +20,8 @@ import type {
 import { GoogleSheetsService, OperationResult } from './GoogleSheetsService';
 import { RemindTask } from '../models/RemindTask';
 import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
+import { InventoryService } from './InventoryService';
+import { RemindMetadataManager } from './RemindMetadataManager';
 
 export interface RemindMessageResult extends OperationResult {
   messageId?: string;
@@ -32,13 +34,19 @@ export interface RemindThreadResult extends OperationResult {
 
 export interface RemindMessageManagerOptions {
   sheetUrlResolver?: (channelId: string) => Promise<string>;
+  inventoryService?: Pick<InventoryService, 'getById'>;
+  metadataManager?: Pick<RemindMetadataManager, 'getChannelMetadata'>;
 }
 
 export class RemindMessageManager {
   private sheetUrlResolver: (channelId: string) => Promise<string>;
+  private inventoryService?: Pick<InventoryService, 'getById'>;
+  private metadataManager?: Pick<RemindMetadataManager, 'getChannelMetadata'>;
 
   constructor(options: RemindMessageManagerOptions = {}) {
     this.sheetUrlResolver = options.sheetUrlResolver ?? this.resolveSheetUrl.bind(this);
+    this.inventoryService = options.inventoryService;
+    this.metadataManager = options.metadataManager;
   }
 
   public async sendReminderToThread(
@@ -151,7 +159,7 @@ export class RemindMessageManager {
 
     const message = await (channel as TextChannel).send({
       flags: MessageFlags.IsComponentsV2,
-      components: this.buildMessageComponents(task, now)
+      components: await this.buildMessageComponents(task, now, channelId)
     });
 
     return { success: true, messageId: message.id };
@@ -174,7 +182,7 @@ export class RemindMessageManager {
       content: null,
       embeds: [],
       flags: MessageFlags.IsComponentsV2,
-      components: this.buildMessageComponents(task, now)
+      components: await this.buildMessageComponents(task, now, channelId)
     });
 
     return { success: true };
@@ -184,7 +192,11 @@ export class RemindMessageManager {
     task: RemindTask,
     now: Date = new Date()
   ): APIMessageTopLevelComponent[] {
-    return this.buildMessageComponents(task, now);
+    return this.buildMessageComponentsWithActionRowsSync(
+      task,
+      now,
+      [this.buildActionRow().toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>]
+    );
   }
 
   public buildUpdateSelectionComponents(
@@ -192,7 +204,7 @@ export class RemindMessageManager {
     messageId: string,
     now: Date = new Date()
   ): APIMessageTopLevelComponent[] {
-    return this.buildMessageComponentsWithActionRows(
+    return this.buildMessageComponentsWithActionRowsSync(
       task,
       now,
       this.buildUpdateSelectionActionRows(messageId)
@@ -361,20 +373,72 @@ export class RemindMessageManager {
     return '';
   }
 
-  private buildMessageComponents(task: RemindTask, now: Date): APIMessageTopLevelComponent[] {
+  private async buildMessageComponents(
+    task: RemindTask,
+    now: Date,
+    channelId?: string
+  ): Promise<APIMessageTopLevelComponent[]> {
     return this.buildMessageComponentsWithActionRows(
       task,
       now,
-      [this.buildActionRow().toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>]
+      [this.buildActionRow().toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>],
+      channelId
     );
   }
 
-  private buildMessageComponentsWithActionRows(
+  private async buildMessageComponentsWithActionRows(
+    task: RemindTask,
+    now: Date,
+    actionRows: APIActionRowComponent<APIComponentInMessageActionRow>[],
+    channelId?: string
+  ): Promise<APIMessageTopLevelComponent[]> {
+    const inventoryResolver = channelId ? await this.buildInventoryResolver(channelId) : undefined;
+    const summary = inventoryResolver
+      ? await RemindTaskFormatter.formatSummaryText(task, now, inventoryResolver)
+      : RemindTaskFormatter.formatSummaryText(task, now);
+    const progressBlock = `\`\`\`\n${summary.progressBar}\n\`\`\``;
+    const containerComponents: APIComponentInContainer[] = [
+      this.buildTextDisplay(`## ${task.title}`),
+      this.buildTextDisplay(progressBlock)
+    ];
+
+    if (summary.detailsText) {
+      containerComponents.push(this.buildTextDisplay(summary.detailsText));
+    }
+
+    containerComponents.push(...actionRows);
+
+    return [{
+      type: ComponentType.Container,
+      components: containerComponents
+    }];
+  }
+
+  private async buildInventoryResolver(
+    channelId: string
+  ): Promise<((inventoryId: string) => Promise<{ name: string; stock: number } | null>) | undefined> {
+    if (!this.inventoryService || !this.metadataManager) {
+      return undefined;
+    }
+
+    const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+    const linkedInventoryChannelId = metadataResult.metadata?.linkedInventoryChannelId;
+    if (!linkedInventoryChannelId) {
+      return undefined;
+    }
+
+    return async (inventoryId: string): Promise<{ name: string; stock: number } | null> => {
+      const item = await this.inventoryService?.getById(linkedInventoryChannelId, inventoryId);
+      return item ? { name: item.name, stock: item.stock } : null;
+    };
+  }
+
+  private buildMessageComponentsWithActionRowsSync(
     task: RemindTask,
     now: Date,
     actionRows: APIActionRowComponent<APIComponentInMessageActionRow>[]
   ): APIMessageTopLevelComponent[] {
-    const summary = RemindTaskFormatter.formatSummaryText(task, now);
+    const summary = RemindTaskFormatter.formatSummaryText(task, now) as { progressBar: string; detailsText: string };
     const progressBlock = `\`\`\`\n${summary.progressBar}\n\`\`\``;
     const containerComponents: APIComponentInContainer[] = [
       this.buildTextDisplay(`## ${task.title}`),

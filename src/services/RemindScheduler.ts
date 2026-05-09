@@ -2,6 +2,7 @@ import { Client } from 'discord.js';
 import { shouldSendOverdue, shouldSendPreReminder } from '../utils/RemindNotification';
 import { formatRemainingDuration } from '../utils/RemindDuration';
 import { formatInventoryShortageNotice, getInsufficientInventoryItems } from '../utils/RemindInventory';
+import { InventoryService } from './InventoryService';
 import { RemindMetadataManager } from './RemindMetadataManager';
 import { RemindMessageManager } from './RemindMessageManager';
 import { RemindTaskRepository } from './RemindTaskRepository';
@@ -12,7 +13,10 @@ export class RemindScheduler {
   constructor(
     private metadataManager: RemindMetadataManager = RemindMetadataManager.getInstance(),
     private repository: RemindTaskRepository = new RemindTaskRepository(),
-    private messageManager: RemindMessageManager = new RemindMessageManager()
+    private messageManager: RemindMessageManager = new RemindMessageManager(),
+    private inventoryService: Pick<InventoryService, 'checkShortageForTask'> | undefined = process.env.NODE_ENV === 'test'
+      ? undefined
+      : InventoryService.getInstance()
   ) {}
 
   public start(client: Client): void {
@@ -38,7 +42,12 @@ export class RemindScheduler {
   }
 
   private async processChannel(
-    channelMetadata: { channelId: string; remindNoticeThreadId?: string; remindNoticeMessageId?: string },
+    channelMetadata: {
+      channelId: string;
+      remindNoticeThreadId?: string;
+      remindNoticeMessageId?: string;
+      linkedInventoryChannelId?: string;
+    },
     client: Client,
     now: Date
   ): Promise<void> {
@@ -59,10 +68,7 @@ export class RemindScheduler {
         }
 
         const remainingText = formatRemainingDuration(task.remindBeforeMinutes);
-        const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
-        const inventoryNotice = insufficientItems.length > 0
-          ? `\n${formatInventoryShortageNotice(insufficientItems)}`
-          : '';
+        const inventoryNotice = await this.buildInventoryNotice(channelMetadata, task);
 
         const sendResult = await this.messageManager.sendReminderToThread(
           channelId,
@@ -132,5 +138,31 @@ export class RemindScheduler {
         await this.messageManager.updateTaskMessage(channelId, task.messageId, task, client, now);
       }
     }
+  }
+
+  private async buildInventoryNotice(
+    channelMetadata: {
+      channelId: string;
+      linkedInventoryChannelId?: string;
+    },
+    task: Awaited<ReturnType<RemindTaskRepository['fetchTasks']>>[number]
+  ): Promise<string> {
+    if (this.inventoryService) {
+      const hasLinkedProperty = Object.prototype.hasOwnProperty.call(channelMetadata, 'linkedInventoryChannelId');
+      if (hasLinkedProperty && !channelMetadata.linkedInventoryChannelId) {
+        return '';
+      }
+
+      const shortageResult = await this.inventoryService.checkShortageForTask(channelMetadata.channelId, task);
+      if (shortageResult.kind !== 'shortage') {
+        return '';
+      }
+      return `\n${formatInventoryShortageNotice(shortageResult.items as never)}`;
+    }
+
+    const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
+    return insufficientItems.length > 0
+      ? `\n${formatInventoryShortageNotice(insufficientItems)}`
+      : '';
   }
 }

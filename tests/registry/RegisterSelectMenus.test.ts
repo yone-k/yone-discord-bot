@@ -74,10 +74,26 @@ describe('RegisterSelectMenus', () => {
     expect(handler?.constructor.name).toBe('RemindTaskUpdateSelectMenuHandler');
   });
 
+  it('InventoryUpdateSelectMenuHandlerが正しく登録される', () => {
+    registerAllSelectMenus(selectMenuManager, logger);
+
+    const handler = selectMenuManager.getHandlerByCustomId('inventory_update_select');
+    expect(handler).toBeDefined();
+    expect(handler?.constructor.name).toBe('InventoryUpdateSelectMenuHandler');
+  });
+
+  it('InventoryDeleteSelectMenuHandlerが正しく登録される', () => {
+    registerAllSelectMenus(selectMenuManager, logger);
+
+    const handler = selectMenuManager.getHandlerByCustomId('inventory_delete_select');
+    expect(handler).toBeDefined();
+    expect(handler?.constructor.name).toBe('InventoryDeleteSelectMenuHandler');
+  });
+
   it('登録されるハンドラー数が期待する値と一致する', () => {
     registerAllSelectMenus(selectMenuManager, logger);
 
     const registeredHandlers = selectMenuManager.getRegisteredHandlers();
-    expect(registeredHandlers).toHaveLength(1);
+    expect(registeredHandlers).toHaveLength(3);
   });
 });

@@ -28,6 +28,9 @@ describe('InventoryAddModalHandler', () => {
   let messageManager: {
     createOrUpdateMessage: ReturnType<typeof vi.fn>;
   };
+  let repository: {
+    fetchAll: ReturnType<typeof vi.fn>;
+  };
   let interaction: any;
   let context: ModalHandlerContext;
   let handler: InventoryAddModalHandler;
@@ -39,6 +42,9 @@ describe('InventoryAddModalHandler', () => {
     };
     messageManager = {
       createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true })
+    };
+    repository = {
+      fetchAll: vi.fn().mockResolvedValue([])
     };
     interaction = {
       customId: 'inventory_add_modal',
@@ -62,7 +68,8 @@ describe('InventoryAddModalHandler', () => {
     handler = new InventoryAddModalHandler(
       logger as unknown as Logger,
       inventoryService as any,
-      messageManager as any
+      messageManager as any,
+      repository as any
     );
   });
 
@@ -74,6 +81,16 @@ describe('InventoryAddModalHandler', () => {
       stock: 3,
       category: '日用品'
     };
+    const allItems = [
+      expectedItem,
+      {
+        id: 'inventory-2',
+        name: '柔軟剤',
+        stock: 1,
+        category: '日用品'
+      }
+    ];
+    repository.fetchAll.mockResolvedValue(allItems);
 
     // When
     await handler.handle(context);
@@ -82,9 +99,10 @@ describe('InventoryAddModalHandler', () => {
     expect(handler.getCustomId()).toBe('inventory_add_modal');
     expect(interaction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(inventoryService.create).toHaveBeenCalledWith('channel-1', expectedItem);
+    expect(repository.fetchAll).toHaveBeenCalledWith('channel-1');
     expect(messageManager.createOrUpdateMessage).toHaveBeenCalledWith(
       'channel-1',
-      expect.arrayContaining([expectedItem]),
+      allItems,
       expect.any(String),
       interaction.client
     );

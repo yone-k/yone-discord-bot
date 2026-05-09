@@ -3,11 +3,16 @@ import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler'
 import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
+import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryService } from '../services/InventoryService';
 import { Logger } from '../utils/logger';
 
 interface InventoryServicePort {
   update(channelId: string, item: InventoryItem): Promise<{ success: boolean; message?: string }>;
+}
+
+interface InventoryRepositoryPort {
+  fetchAll(channelId: string): Promise<InventoryItem[]>;
 }
 
 interface InventoryMessageManagerPort {
@@ -25,15 +30,18 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
 
   private readonly inventoryService: InventoryServicePort;
   private readonly messageManager: InventoryMessageManagerPort;
+  private readonly repository: InventoryRepositoryPort;
 
   constructor(
     logger: Logger,
     inventoryService: InventoryServicePort = InventoryService.getInstance(),
-    messageManager: InventoryMessageManagerPort = InventoryMessageManager.getInstance()
+    messageManager: InventoryMessageManagerPort = InventoryMessageManager.getInstance(),
+    repository: InventoryRepositoryPort = new InventoryRepository()
   ) {
     super(InventoryUpdateModalHandler.customId, logger);
     this.inventoryService = inventoryService;
     this.messageManager = messageManager;
+    this.repository = repository;
     this.deleteOnSuccess = true;
   }
 
@@ -75,9 +83,10 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
       return { success: false, message: updateResult.message || '在庫アイテムの更新に失敗しました' };
     }
 
+    const items = await this.repository.fetchAll(channelId);
     const messageResult = await this.messageManager.createOrUpdateMessage(
       channelId,
-      [item],
+      items,
       '在庫リスト',
       context.interaction.client
     );

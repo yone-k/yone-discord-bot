@@ -17,6 +17,9 @@ describe('InventoryUpdateModalHandler', () => {
   let inventoryMessageManager: {
     createOrUpdateMessage: ReturnType<typeof vi.fn>;
   };
+  let repository: {
+    fetchAll: ReturnType<typeof vi.fn>;
+  };
   let interaction: {
     customId: string;
     user: { id: string };
@@ -39,6 +42,9 @@ describe('InventoryUpdateModalHandler', () => {
     inventoryMessageManager = {
       createOrUpdateMessage: vi.fn()
     };
+    repository = {
+      fetchAll: vi.fn().mockResolvedValue([])
+    };
     interaction = {
       customId: 'inventory_update_modal_inventory-1',
       user: { id: 'user-1' },
@@ -59,14 +65,30 @@ describe('InventoryUpdateModalHandler', () => {
     handler = new InventoryUpdateModalHandler(
       logger as unknown as Logger,
       inventoryService as any,
-      inventoryMessageManager as any
+      inventoryMessageManager as any,
+      repository as any
     );
   });
 
   it('入力値で InventoryService.update を呼び、在庫メッセージ更新後に成功応答する', async () => {
     // Given
+    const allItems = [
+      {
+        id: 'inventory-1',
+        name: '洗剤',
+        stock: 5,
+        category: '日用品'
+      },
+      {
+        id: 'inventory-2',
+        name: '柔軟剤',
+        stock: 2,
+        category: '日用品'
+      }
+    ];
     inventoryService.update.mockResolvedValue({ success: true });
     inventoryMessageManager.createOrUpdateMessage.mockResolvedValue({ success: true });
+    repository.fetchAll.mockResolvedValue(allItems);
 
     // When
     await handler.handle({ interaction: interaction as any });
@@ -78,7 +100,13 @@ describe('InventoryUpdateModalHandler', () => {
       stock: 5,
       category: '日用品'
     });
-    expect(inventoryMessageManager.createOrUpdateMessage).toHaveBeenCalled();
+    expect(repository.fetchAll).toHaveBeenCalledWith('inventory-channel-1');
+    expect(inventoryMessageManager.createOrUpdateMessage).toHaveBeenCalledWith(
+      'inventory-channel-1',
+      allItems,
+      expect.any(String),
+      interaction.client
+    );
     expect(interaction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(interaction.editReply).toHaveBeenCalledWith({ content: '処理が完了しました。' });
     expect(interaction.deleteReply).toHaveBeenCalled();

@@ -20,6 +20,8 @@ import { OperationLogService } from './services/OperationLogService';
 import { MetadataManager } from './services/MetadataManager';
 import { RemindScheduler } from './services/RemindScheduler';
 import { ListDueReminderScheduler } from './services/ListDueReminderScheduler';
+import { AutocompleteManager } from './services/AutocompleteManager';
+import { registerAllAutocompletes } from './registry/RegisterAutocompletes';
 
 class DiscordBot {
   private client: Client;
@@ -30,6 +32,7 @@ class DiscordBot {
   private modalManager!: ModalManager;
   private buttonManager!: ButtonManager;
   private selectMenuManager!: SelectMenuManager;
+  private autocompleteManager!: AutocompleteManager;
   private httpServer!: express.Application;
   private server: Server | null = null;
   private operationLogService!: OperationLogService;
@@ -83,13 +86,15 @@ class DiscordBot {
       this.modalManager = new ModalManager(this.logger);
       this.buttonManager = new ButtonManager(this.logger, this.operationLogService, this.metadataManager);
       this.selectMenuManager = new SelectMenuManager(this.logger, this.operationLogService, this.metadataManager);
+      this.autocompleteManager = new AutocompleteManager();
 
       // 新しいレジストリ関数を使用してハンドラーを登録
       registerAllButtons(this.buttonManager, this.logger, this.operationLogService, this.metadataManager);
       registerAllModals(this.modalManager, this.logger);
       registerAllSelectMenus(this.selectMenuManager, this.logger, this.operationLogService, this.metadataManager);
+      registerAllAutocompletes(this.autocompleteManager, this.logger);
 
-      this.logger.info('Button, select menu and modal handlers registered successfully');
+      this.logger.info('Button, select menu, modal and autocomplete handlers registered successfully');
     } catch (error) {
       this.logger.error('Failed to register button handlers', { error });
       throw error;
@@ -228,6 +233,8 @@ class DiscordBot {
           await this.selectMenuManager.handleSelectMenuInteraction(interaction);
         } else if (interaction.isModalSubmit()) {
           await this.modalManager.handleModalSubmit(interaction);
+        } else if (interaction.isAutocomplete()) {
+          await this.autocompleteManager.dispatch(interaction);
         }
       } catch (error) {
         this.logger.error('Error handling interaction', {

@@ -4,6 +4,7 @@ import { OperationLogService } from '../services/OperationLogService';
 import { MetadataManager } from '../services/MetadataManager';
 import { RemindMetadataManager } from '../services/RemindMetadataManager';
 import { RemindTaskUpdateSelectMenuHandler } from '../selectmenus/RemindTaskUpdateSelectMenuHandler';
+import { InventoryDeleteSelectMenuHandler } from '../selectmenus/InventoryDeleteSelectMenuHandler';
 
 export function registerAllSelectMenus(
   selectMenuManager: SelectMenuManager,
@@ -20,6 +21,9 @@ export function registerAllSelectMenus(
     remindMetadataManager
   );
   selectMenuManager.registerHandler(remindUpdateSelectMenuHandler);
+
+  const inventoryDeleteSelectMenuHandler = new InventoryDeleteSelectMenuHandler(logger);
+  selectMenuManager.registerHandler(inventoryDeleteSelectMenuHandler);
 
   logger.info('All select menu handlers registered successfully');
 }

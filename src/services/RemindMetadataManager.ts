@@ -1,15 +1,8 @@
 import { GoogleSheetsService, OperationResult } from './GoogleSheetsService';
 import { MetadataProviderResult } from './MetadataProvider';
+import type { RemindChannelMetadata } from '../models/RemindChannelMetadata';
 
-export interface RemindChannelMetadata {
-  channelId: string;
-  messageId: string;
-  listTitle: string;
-  lastSyncTime: Date;
-  operationLogThreadId?: string;
-  remindNoticeThreadId?: string;
-  remindNoticeMessageId?: string;
-}
+export type { RemindChannelMetadata } from '../models/RemindChannelMetadata';
 
 export interface RemindMetadataOperationResult extends MetadataProviderResult {
   metadata?: RemindChannelMetadata;
@@ -26,7 +19,8 @@ export class RemindMetadataManager {
     'last_sync_time',
     'operation_log_thread_id',
     'remind_notice_thread_id',
-    'remind_notice_message_id'
+    'remind_notice_message_id',
+    'linked_inventory_channel_id'
   ];
 
   private constructor() {
@@ -89,7 +83,8 @@ export class RemindMetadataManager {
     listTitle: string,
     operationLogThreadId?: string,
     remindNoticeThreadId?: string,
-    remindNoticeMessageId?: string
+    remindNoticeMessageId?: string,
+    linkedInventoryChannelId?: string
   ): Promise<RemindMetadataOperationResult> {
     await this.getOrCreateMetadataSheet();
 
@@ -100,7 +95,8 @@ export class RemindMetadataManager {
       lastSyncTime: new Date(),
       operationLogThreadId,
       remindNoticeThreadId,
-      remindNoticeMessageId
+      remindNoticeMessageId,
+      linkedInventoryChannelId
     };
 
     const row = this.formatRow(metadata);
@@ -137,6 +133,9 @@ export class RemindMetadataManager {
       channelId,
       lastSyncTime: new Date()
     };
+    if (updated.linkedInventoryChannelId === '') {
+      updated.linkedInventoryChannelId = undefined;
+    }
 
     const newData = [...sheetData];
     newData[rowIndex] = this.formatRow(updated);
@@ -157,6 +156,19 @@ export class RemindMetadataManager {
     return sheetData.slice(1).map(row => this.parseRow(row));
   }
 
+  public async findChannelsLinkedToInventory(inventoryChannelId: string): Promise<string[]> {
+    const sheetData = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+    if (sheetData.length <= 1) {
+      return [];
+    }
+
+    return sheetData
+      .slice(1)
+      .map(row => this.parseRow(row))
+      .filter(metadata => metadata.linkedInventoryChannelId === inventoryChannelId)
+      .map(metadata => metadata.channelId);
+  }
+
   private parseRow(row: string[]): RemindChannelMetadata {
     return {
       channelId: row[0],
@@ -165,7 +177,8 @@ export class RemindMetadataManager {
       lastSyncTime: this.parseDate(row[3]),
       operationLogThreadId: row[4] || undefined,
       remindNoticeThreadId: row[5] || undefined,
-      remindNoticeMessageId: row[6] || undefined
+      remindNoticeMessageId: row[6] || undefined,
+      linkedInventoryChannelId: row[7] || undefined
     };
   }
 
@@ -177,7 +190,8 @@ export class RemindMetadataManager {
       this.formatDate(metadata.lastSyncTime),
       metadata.operationLogThreadId || '',
       metadata.remindNoticeThreadId || '',
-      metadata.remindNoticeMessageId || ''
+      metadata.remindNoticeMessageId || '',
+      metadata.linkedInventoryChannelId || ''
     ];
   }
 

@@ -54,7 +54,7 @@ export class RemindTaskUpdateCancelButtonHandler extends BaseButtonHandler {
       return { success: false, message: 'タスクが見つかりません' };
     }
 
-    const components = this.messageManager.buildTaskMessageComponents(task, new Date());
+    const components = await this.messageManager.buildTaskMessageComponents(task, new Date(), channelId);
     await context.interaction.update({ components });
 
     return { success: true, message: '更新選択を取り消しました' };

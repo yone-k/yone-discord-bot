@@ -36,7 +36,7 @@ describe('ButtonConfigManager', () => {
       expect(buttons[1]).toEqual({
         customId: 'edit-list-button',
         label: '編集',
-        style: ButtonStyle.Secondary,
+        style: ButtonStyle.Primary,
         emoji: '📝',
         description: 'リスト編集',
         handler: 'EditListButtonHandler'
@@ -109,7 +109,7 @@ describe('ButtonConfigManager', () => {
           {
             customId: 'edit-list-button',
             label: '編集',
-            style: ButtonStyle.Secondary,
+            style: ButtonStyle.Primary,
             emoji: '📝',
             description: 'リスト編集',
             handler: 'EditListButtonHandler'

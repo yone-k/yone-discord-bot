@@ -1,4 +1,15 @@
-import type { RemindInventoryItem } from '../models/RemindTask';
+import {
+  isLegacyInventoryItem,
+  type LegacyRemindInventoryItem,
+  type RemindInventoryItem
+} from '../models/RemindTask';
+import type { ShortageItem } from '../services/InventoryService';
+
+export interface InventoryInputItem {
+  name: string;
+  stock?: number;
+  consume: number;
+}
 
 const parseInventoryNumber = (token: string, label: string): number | null => {
   const pattern = new RegExp(`^${label}\\s*[:=]?\\s*(\\d+(?:\\.\\d+)?)$`);
@@ -31,7 +42,10 @@ const normalizeLineTokens = (line: string): string[] =>
     .map((part) => part.trim())
     .filter((part) => part !== '');
 
-export const parseInventoryInput = (input: string): RemindInventoryItem[] => {
+const toLegacyInventoryItems = (items: RemindInventoryItem[]): LegacyRemindInventoryItem[] =>
+  items.filter(isLegacyInventoryItem);
+
+export const parseInventoryInput = (input: string): InventoryInputItem[] => {
   if (!input) {
     return [];
   }
@@ -47,7 +61,7 @@ export const parseInventoryInput = (input: string): RemindInventoryItem[] => {
 
   const items = lines.map((line) => {
     const tokens = normalizeLineTokens(line);
-    if (tokens.length < 2) {
+    if (tokens.length < 2 || tokens.length > 3) {
       throw new Error('在庫の形式が不正です');
     }
 
@@ -81,26 +95,33 @@ export const parseInventoryInput = (input: string): RemindInventoryItem[] => {
       .map(parseNumericToken)
       .filter((token): token is number => token !== null);
 
-    if (consume === null && numericTokens.length > 0) {
-      consume = numericTokens[0];
-    }
-    if (stock === null && numericTokens.length > 1) {
-      stock = numericTokens[1];
+    if (tokens.length === 3 && stock === null && numericTokens.length > 0) {
+      stock = numericTokens[0];
     }
 
-    if (stock === null) {
-      throw new Error('在庫が不足しています');
+    if (consume === null && numericTokens.length > 0) {
+      const consumeIndex = tokens.length === 3 && stock === numericTokens[0] ? 1 : 0;
+      consume = numericTokens[consumeIndex] ?? null;
     }
+
+    if (tokens.length === 3 && consume === null && stock !== null && numericTokens.length > 1) {
+      consume = numericTokens[1];
+    }
+
+    if (tokens.length === 2 && consume === null && numericTokens.length > 0) {
+      consume = numericTokens[0];
+    }
+
     if (consume === null) {
       throw new Error('消費が不足しています');
     }
-    const roundedStock = roundInventoryValue(stock);
     const roundedConsume = roundInventoryValue(consume);
-    if (!Number.isFinite(roundedStock) || roundedStock < 0) {
-      throw new Error('在庫は0以上の数値で入力してください');
-    }
     if (!Number.isFinite(roundedConsume) || roundedConsume <= 0) {
       throw new Error('消費は0より大きい数値で入力してください');
+    }
+    const roundedStock = stock === null ? undefined : roundInventoryValue(stock);
+    if (roundedStock !== undefined && (!Number.isFinite(roundedStock) || roundedStock < 0)) {
+      throw new Error('在庫は0以上の数値で入力してください');
     }
 
     return { name, stock: roundedStock, consume: roundedConsume };
@@ -123,7 +144,10 @@ export const formatInventoryInput = (items: RemindInventoryItem[]): string => {
     return '';
   }
   return items
-    .map(item => `${item.name},${formatInventoryValue(item.consume)},${formatInventoryValue(item.stock)}`)
+    .filter(isLegacyInventoryItem)
+    .map(item => item.stock === undefined
+      ? `${item.name},${formatInventoryValue(item.consume)}`
+      : `${item.name},${formatInventoryValue(item.stock)},${formatInventoryValue(item.consume)}`)
     .join('\n');
 };
 
@@ -133,17 +157,19 @@ export const getInsufficientInventoryItems = (
   if (!items || items.length === 0) {
     return [];
   }
-  return items.filter(item => item.stock < item.consume);
+  return toLegacyInventoryItems(items).filter(item => item.stock < item.consume);
 };
 
 export const consumeInventory = (items: RemindInventoryItem[]): RemindInventoryItem[] => {
   if (!items || items.length === 0) {
     return [];
   }
-  return items.map(item => ({
-    ...item,
-    stock: item.stock - item.consume
-  }));
+  return items.map(item => isLegacyInventoryItem(item)
+    ? {
+      ...item,
+      stock: item.stock - item.consume
+    }
+    : item);
 };
 
 export const formatInventorySummary = (
@@ -153,11 +179,15 @@ export const formatInventorySummary = (
   if (!items || items.length === 0) {
     return null;
   }
-  const display = items
+  const legacyItems = toLegacyInventoryItems(items);
+  if (legacyItems.length === 0) {
+    return null;
+  }
+  const display = legacyItems
     .slice(0, maxItems)
     .map(item => `${item.name} ${formatInventoryValue(item.stock)}`)
     .join(', ');
-  const suffix = items.length > maxItems ? '...' : '';
+  const suffix = legacyItems.length > maxItems ? '...' : '';
   return `在庫: ${display}${suffix}`;
 };
 
@@ -168,28 +198,39 @@ export const formatInventoryDetail = (
   if (!items || items.length === 0) {
     return null;
   }
-  const display = items
+  const legacyItems = toLegacyInventoryItems(items);
+  if (legacyItems.length === 0) {
+    return null;
+  }
+  const display = legacyItems
     .slice(0, maxItems)
     .map(item => `${item.name} 在庫${formatInventoryValue(item.stock)}/消費${formatInventoryValue(item.consume)}`)
     .join(', ');
-  const suffix = items.length > maxItems ? '...' : '';
+  const suffix = legacyItems.length > maxItems ? '...' : '';
   return `在庫: ${display}${suffix}`;
 };
 
 export const formatInventoryShortage = (items: RemindInventoryItem[]): string => {
-  const parts = items.map(item => item.name);
+  const parts = toLegacyInventoryItems(items).map(item => item.name);
   return parts.join('、');
 };
 
 export const formatInventoryShortageNotice = (items: RemindInventoryItem[]): string => {
   const parts = items.map((item) => {
-    const shortage = Math.max(0, item.consume - item.stock);
-    return `${item.name} ${formatInventoryValue(shortage)}個`;
+    if ('required' in item && 'available' in item) {
+      const shortage = Math.max(0, (item as unknown as ShortageItem).required - (item as unknown as ShortageItem).available);
+      return `${(item as unknown as ShortageItem).name} ${formatInventoryValue(shortage)}個`;
+    }
+    if (isLegacyInventoryItem(item)) {
+      const shortage = Math.max(0, item.consume - item.stock);
+      return `${item.name} ${formatInventoryValue(shortage)}個`;
+    }
+    return '';
   });
-  return `不足している在庫の詳細は以下の通りです\n${parts.join('\n')}`;
+  return `不足している在庫の詳細は以下の通りです\n${parts.filter(Boolean).join('\n')}`;
 };
 
 export const formatInventoryDepleted = (items: RemindInventoryItem[]): string => {
-  const parts = items.map(item => `${item.name}`);
+  const parts = toLegacyInventoryItems(items).map(item => `${item.name}`);
   return parts.join(', ');
 };

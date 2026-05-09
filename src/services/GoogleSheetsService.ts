@@ -282,6 +282,39 @@ export class GoogleSheetsService {
     }
   }
 
+  public async deleteSheetByName(sheetName: string): Promise<OperationResult> {
+    try {
+      await this.getAuthClient();
+
+      const spreadsheetResponse = await this.sheets.spreadsheets.get({
+        spreadsheetId: this.config.spreadsheetId
+      });
+
+      const sheet = spreadsheetResponse.data.sheets?.find(
+        (s: sheets_v4.Schema$Sheet) => s.properties?.title === sheetName
+      );
+
+      if (!sheet?.properties?.sheetId) {
+        return { success: false, message: `Sheet not found: ${sheetName}` };
+      }
+
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: this.config.spreadsheetId,
+        requestBody: {
+          requests: [{
+            deleteSheet: {
+              sheetId: sheet.properties.sheetId
+            }
+          }]
+        }
+      });
+
+      return { success: true, sheetId: sheet.properties.sheetId };
+    } catch (error) {
+      return { success: false, message: (error as Error).message };
+    }
+  }
+
   public async getSheetData(channelId: string): Promise<string[][]> {
     return this.executeWithRetry(async () => {
       await this.getAuthClient();
@@ -454,6 +487,16 @@ export class GoogleSheetsService {
       clearTimeout(timeoutId);
       releaseLock();
     };
+  }
+
+  public async runWithLock<T>(lockKey: string, fn: () => Promise<T>): Promise<T> {
+    const releaseLock = await this.acquireOperationLock(lockKey);
+
+    try {
+      return await fn();
+    } finally {
+      releaseLock();
+    }
   }
 
   /**
@@ -972,8 +1015,10 @@ export class GoogleSheetsService {
     return (
       sheetName === 'metadata'
       || sheetName === 'remind_metadata'
+      || sheetName === 'inventory_metadata'
       || sheetName.startsWith('list_')
       || sheetName.startsWith('remind_list_')
+      || sheetName.startsWith('inventory_')
     );
   }
 

@@ -5,6 +5,8 @@ import { SlashCommandBuilder } from 'discord.js';
 import { RemindTaskService, type RemindTaskInputData } from '../services/RemindTaskService';
 import { parseRemindBeforeInput } from '../utils/RemindDuration';
 import { parseInventoryInput } from '../utils/RemindInventory';
+import { RemindMetadataManager } from '../services/RemindMetadataManager';
+import { InventoryService } from '../services/InventoryService';
 
 export class AddRemindListCommand extends BaseCommand {
   static getCommandName(): string {
@@ -51,12 +53,21 @@ export class AddRemindListCommand extends BaseCommand {
   }
 
   private remindTaskService: RemindTaskService;
+  private metadataManager: Pick<RemindMetadataManager, 'getChannelMetadata'>;
+  private inventoryService: Pick<InventoryService, 'resolveByName'>;
 
-  constructor(logger: Logger, remindTaskService?: RemindTaskService) {
+  constructor(
+    logger: Logger,
+    remindTaskService?: RemindTaskService,
+    metadataManager?: Pick<RemindMetadataManager, 'getChannelMetadata'>,
+    inventoryService?: Pick<InventoryService, 'resolveByName'>
+  ) {
     super('add-remind-list', 'リマインドタスクを追加します', logger);
     this.ephemeral = true;
     this.useThread = false;
     this.remindTaskService = remindTaskService || new RemindTaskService();
+    this.metadataManager = metadataManager || RemindMetadataManager.getInstance();
+    this.inventoryService = inventoryService || InventoryService.getInstance();
   }
 
   async execute(context?: CommandExecutionContext): Promise<void> {
@@ -104,7 +115,19 @@ export class AddRemindListCommand extends BaseCommand {
     let inventoryItems: RemindTaskInputData['inventoryItems'];
     if (inventoryText) {
       try {
-        inventoryItems = parseInventoryInput(inventoryText);
+        const parsedInventoryItems = parseInventoryInput(inventoryText);
+        const metadataResult = await this.metadataManager.getChannelMetadata(context.channelId);
+        const linkedInventoryChannelId = metadataResult.metadata?.linkedInventoryChannelId;
+        if (!linkedInventoryChannelId) {
+          throw new Error('在庫チャンネルが連携されていません');
+        }
+        inventoryItems = await Promise.all(parsedInventoryItems.map(async (item) => {
+          const inventoryItem = await this.inventoryService.resolveByName(linkedInventoryChannelId, item.name);
+          return {
+            inventoryId: inventoryItem.id,
+            consume: item.consume
+          };
+        }));
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Invalid inventory input';
         throw new CommandError(

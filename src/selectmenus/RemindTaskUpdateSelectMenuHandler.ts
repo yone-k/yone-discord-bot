@@ -13,22 +13,26 @@ import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { formatRemindBeforeInput } from '../utils/RemindDuration';
 import { formatInventoryInput } from '../utils/RemindInventory';
-import { RemindTask } from '../models/RemindTask';
+import { isNewInventoryItem, RemindTask } from '../models/RemindTask';
+import { InventoryService } from '../services/InventoryService';
 
 export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
+  private inventoryService?: Pick<InventoryService, 'getById'>;
 
   constructor(
     logger: Logger,
     operationLogService?: OperationLogService,
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
-    messageManager?: RemindMessageManager
+    messageManager?: RemindMessageManager,
+    inventoryService?: Pick<InventoryService, 'getById'>
   ) {
     super('remind-task-update-select', logger, operationLogService, metadataManager);
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
+    this.inventoryService = inventoryService ?? (process.env.NODE_ENV === 'test' ? undefined : InventoryService.getInstance());
     this.ephemeral = true;
   }
 
@@ -74,7 +78,7 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
     } else if (selection === 'advanced') {
       modal = this.buildAdvancedModal(task, messageId);
     } else if (selection === 'inventory') {
-      modal = this.buildInventoryModal(task, messageId);
+      modal = await this.buildInventoryModal(channelId, task, messageId);
     }
 
     if (!modal) {
@@ -196,25 +200,53 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
     return modal;
   }
 
-  private buildInventoryModal(task: RemindTask, messageId: string): ModalBuilder {
+  private async buildInventoryModal(channelId: string, task: RemindTask, messageId: string): Promise<ModalBuilder> {
     const modal = new ModalBuilder()
       .setCustomId(`remind-task-inventory-modal:${messageId}`)
       .setTitle('在庫設定');
 
     const inventoryInput = new TextInputBuilder()
       .setCustomId('inventory-items')
-      .setLabel('在庫詳細(名前,消費数,在庫数 の形式。小数は1.5)')
+      .setLabel('在庫詳細(名前,在庫数,消費数 の形式。小数は1.5)')
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(false)
       .setMaxLength(1000)
-      .setPlaceholder('例: フィルター,1.5,3')
-      .setValue(formatInventoryInput(task.inventoryItems));
+      .setPlaceholder('例: フィルター,5,1.5')
+      .setValue(await this.formatInventoryInputForModal(channelId, task));
 
     modal.addComponents(
       new ActionRowBuilder<TextInputBuilder>().addComponents(inventoryInput)
     );
 
     return modal;
+  }
+
+  private async formatInventoryInputForModal(channelId: string, task: RemindTask): Promise<string> {
+    if (!task.inventoryItems.some(isNewInventoryItem)) {
+      return formatInventoryInput(task.inventoryItems);
+    }
+    if (!this.metadataManager) {
+      return '';
+    }
+    const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+    const linkedInventoryChannelId = (metadataResult.metadata as { linkedInventoryChannelId?: string } | undefined)
+      ?.linkedInventoryChannelId;
+    if (!linkedInventoryChannelId) {
+      return '';
+    }
+
+    const lines = await Promise.all(task.inventoryItems.map(async (item) => {
+      if (!isNewInventoryItem(item)) {
+        return `${item.name},${item.consume}`;
+      }
+      const inventoryItem = await this.inventoryService?.getById(linkedInventoryChannelId, item.inventoryId);
+      const name = inventoryItem?.name ?? `[不明な在庫:${item.inventoryId.slice(0, 8)}]`;
+      if (!inventoryItem) {
+        return `${name},${item.consume}`;
+      }
+      return `${name},${inventoryItem.stock},${item.consume}`;
+    }));
+    return lines.join('\n');
   }
 
   private parseMessageId(customId: string): string | null {

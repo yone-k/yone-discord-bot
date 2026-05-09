@@ -8,6 +8,9 @@ import { RemindTaskCompleteModalHandler } from '../modals/RemindTaskCompleteModa
 import { RemindTaskDeleteModalHandler } from '../modals/RemindTaskDeleteModalHandler';
 import { RemindTaskAddModalHandler } from '../modals/RemindTaskAddModalHandler';
 import { RemindTaskInventoryModalHandler } from '../modals/RemindTaskInventoryModalHandler';
+import { InventoryAddModalHandler } from '../modals/InventoryAddModalHandler';
+import { InventoryUpdateModalHandler } from '../modals/InventoryUpdateModalHandler';
+import { InventoryDeleteModalHandler } from '../modals/InventoryDeleteModalHandler';
 import { DeleteAllMessageLogic } from '../services/DeleteAllMessageLogic';
 import { Logger } from '../utils/logger';
 import { TextChannel } from 'discord.js';
@@ -91,6 +94,15 @@ export function registerAllModals(modalManager: ModalManager, logger: Logger): v
     remindMetadataManager
   );
   modalManager.registerHandler(remindInventoryModalHandler);
+
+  const inventoryAddModalHandler = new InventoryAddModalHandler(logger);
+  modalManager.registerHandler(inventoryAddModalHandler);
+
+  const inventoryUpdateModalHandler = new InventoryUpdateModalHandler(logger);
+  modalManager.registerHandler(inventoryUpdateModalHandler);
+
+  const inventoryDeleteModalHandler = new InventoryDeleteModalHandler(logger);
+  modalManager.registerHandler(inventoryDeleteModalHandler);
 
   logger.info('All modal handlers registered successfully');
 }

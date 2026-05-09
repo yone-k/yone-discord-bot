@@ -8,6 +8,10 @@ import { RemindTaskCompleteButtonHandler } from '../buttons/RemindTaskCompleteBu
 import { RemindTaskDeleteButtonHandler } from '../buttons/RemindTaskDeleteButtonHandler';
 import { RemindTaskDetailButtonHandler } from '../buttons/RemindTaskDetailButtonHandler';
 import { RemindTaskAddButtonHandler } from '../buttons/RemindTaskAddButtonHandler';
+import { InventoryAddButtonHandler } from '../buttons/InventoryAddButtonHandler';
+import { InventoryUpdateButtonHandler } from '../buttons/InventoryUpdateButtonHandler';
+import { InventoryDeleteButtonHandler } from '../buttons/InventoryDeleteButtonHandler';
+import { InventorySelectionCancelButtonHandler } from '../buttons/InventorySelectionCancelButtonHandler';
 import { Logger } from '../utils/logger';
 import { OperationLogService } from '../services/OperationLogService';
 import { MetadataManager } from '../services/MetadataManager';
@@ -56,6 +60,18 @@ export function registerAllButtons(
 
   const remindAddButtonHandler = new RemindTaskAddButtonHandler(logger, remindOperationLogService, remindMetadataManager);
   buttonManager.registerHandler(remindAddButtonHandler);
+
+  const inventoryAddButtonHandler = new InventoryAddButtonHandler(logger);
+  buttonManager.registerHandler(inventoryAddButtonHandler);
+
+  const inventoryUpdateButtonHandler = new InventoryUpdateButtonHandler(logger);
+  buttonManager.registerHandler(inventoryUpdateButtonHandler);
+
+  const inventoryDeleteButtonHandler = new InventoryDeleteButtonHandler(logger);
+  buttonManager.registerHandler(inventoryDeleteButtonHandler);
+
+  const inventorySelectionCancelButtonHandler = new InventorySelectionCancelButtonHandler(logger);
+  buttonManager.registerHandler(inventorySelectionCancelButtonHandler);
   
   logger.info('All button handlers registered successfully');
 }

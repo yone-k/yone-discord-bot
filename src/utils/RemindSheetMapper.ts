@@ -1,4 +1,9 @@
-import { createRemindTask, RemindTask } from '../models/RemindTask';
+import {
+  createRemindTask,
+  RemindTask,
+  type LegacyRemindInventoryItem,
+  type RemindInventoryItem
+} from '../models/RemindTask';
 
 const TOKYO_OFFSET_MINUTES = 9 * 60;
 const DEFAULT_REMIND_BEFORE_MINUTES = 1440;
@@ -128,7 +133,7 @@ function formatDateTime(date: Date): string {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+09:00`;
 }
 
-function parseInventoryItems(value: string | undefined): RemindTask['inventoryItems'] {
+export function parseInventoryItems(value: string | undefined): RemindTask['inventoryItems'] {
   if (!value || value.trim() === '') {
     return [];
   }
@@ -138,21 +143,77 @@ function parseInventoryItems(value: string | undefined): RemindTask['inventoryIt
     if (!Array.isArray(parsed)) {
       return [];
     }
-    return parsed
-      .filter(item => item && typeof item.name === 'string')
-      .map(item => ({
-        name: item.name,
-        stock: roundInventoryValue(Number(item.stock)),
-        consume: roundInventoryValue(Number(item.consume))
-      }))
-      .filter(item =>
-        item.name.trim() !== ''
-        && Number.isFinite(item.stock)
-        && Number.isFinite(item.consume)
-      );
+    return parsed.flatMap((item): RemindInventoryItem[] => {
+      if (!item || typeof item !== 'object') {
+        return [];
+      }
+
+      if ('inventoryId' in item) {
+        const inventoryId = String(item.inventoryId);
+        const consume = Number(item.consume);
+        if (inventoryId.trim() === '' || !Number.isFinite(consume) || consume <= 0) {
+          return [];
+        }
+        return [{ inventoryId, consume }];
+      }
+
+      if ('name' in item) {
+        const legacyItem = parseLegacyInventoryItem(item);
+        return legacyItem ? [legacyItem] : [];
+      }
+
+      return [];
+    });
   } catch {
     return [];
   }
+}
+
+export function parseLegacyInventoryItemsForMigration(value: string): LegacyRemindInventoryItem[] {
+  if (!value || value.trim() === '') {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.flatMap((item): LegacyRemindInventoryItem[] => {
+      const legacyItem = parseLegacyInventoryItem(item);
+      return legacyItem ? [legacyItem] : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
+function parseLegacyInventoryItem(item: unknown): LegacyRemindInventoryItem | null {
+  if (!item || typeof item !== 'object' || !('name' in item)) {
+    return null;
+  }
+
+  const candidate = item as { name: unknown; stock: unknown; consume: unknown };
+  if (typeof candidate.name !== 'string') {
+    return null;
+  }
+
+  const legacyItem = {
+    name: candidate.name,
+    stock: roundInventoryValue(Number(candidate.stock)),
+    consume: roundInventoryValue(Number(candidate.consume))
+  };
+
+  if (
+    legacyItem.name.trim() === ''
+    || !Number.isFinite(legacyItem.stock)
+    || !Number.isFinite(legacyItem.consume)
+  ) {
+    return null;
+  }
+
+  return legacyItem;
 }
 
 function formatInventoryItems(items: RemindTask['inventoryItems']): string {

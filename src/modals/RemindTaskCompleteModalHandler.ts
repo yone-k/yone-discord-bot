@@ -1,4 +1,5 @@
 import { Logger } from '../utils/logger';
+import type { InventoryItem } from '../models/InventoryItem';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
@@ -11,23 +12,60 @@ import {
   formatInventoryShortageNotice,
   getInsufficientInventoryItems
 } from '../utils/RemindInventory';
+import { InventoryService, type ConsumeForTaskResult } from '../services/InventoryService';
+import { InventoryRepository } from '../services/InventoryRepository';
+import { InventoryMessageManager } from '../services/InventoryMessageManager';
+import { RemindTaskRefreshService } from '../services/RemindTaskRefreshService';
+
+interface InventoryRepositoryPort {
+  fetchAll(channelId: string): Promise<InventoryItem[]>;
+}
+
+interface InventoryMessageManagerPort {
+  createOrUpdateMessage(
+    channelId: string,
+    items: InventoryItem[],
+    listTitle: string,
+    client: ModalHandlerContext['interaction']['client']
+  ): Promise<{ success: boolean; errorMessage?: string }>;
+}
+
+interface RefreshServicePort {
+  refreshTasksUsingInventory(
+    linkedInventoryChannelId: string,
+    client: ModalHandlerContext['interaction']['client'],
+    options: { excludeMessageId?: string }
+  ): Promise<void>;
+}
 
 export class RemindTaskCompleteModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
+  private inventoryService?: Pick<InventoryService, 'consumeForTask'>;
+  private inventoryRepository?: InventoryRepositoryPort;
+  private inventoryMessageManager?: InventoryMessageManagerPort;
+  private refreshService?: RefreshServicePort;
 
   constructor(
     logger: Logger,
     operationLogService?: OperationLogService,
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
-    messageManager?: RemindMessageManager
+    messageManager?: RemindMessageManager,
+    inventoryService?: Pick<InventoryService, 'consumeForTask'>,
+    inventoryRepository?: InventoryRepositoryPort,
+    inventoryMessageManager?: InventoryMessageManagerPort,
+    refreshService?: RefreshServicePort
   ) {
     super('remind-task-complete-modal', logger, operationLogService, metadataManager);
     this.deleteOnSuccess = true;
     this.silentOnSuccess = true;
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
+    this.inventoryService = inventoryService ?? (process.env.NODE_ENV === 'test' ? undefined : InventoryService.getInstance());
+    this.inventoryRepository = inventoryRepository;
+    this.inventoryMessageManager = inventoryMessageManager;
+    this.refreshService = refreshService;
   }
 
   public shouldHandle(context: ModalHandlerContext): boolean {
@@ -57,17 +95,29 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
       return { success: false, message: 'タスクが見つかりません' };
     }
 
-    const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
-    if (insufficientItems.length > 0) {
-      const shortageNotice = formatInventoryShortageNotice(insufficientItems);
-      return {
-        success: false,
-        message: `${task.title}の完了に必要な在庫が不足しています。\n${shortageNotice}`
-      };
-    }
+    let consumedInventory = task.inventoryItems;
+    let nextInsufficientItems = getInsufficientInventoryItems(consumedInventory);
+    if (this.inventoryService) {
+      const inventoryResult = await this.inventoryService.consumeForTask(channelId, task);
+      const blockedResult = this.toBlockedResult(task.title, inventoryResult);
+      if (blockedResult) {
+        return blockedResult;
+      }
+      await this.refreshInventoryMessage(inventoryResult, context.interaction.client, messageId);
+      nextInsufficientItems = [];
+    } else {
+      const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
+      if (insufficientItems.length > 0) {
+        const shortageNotice = formatInventoryShortageNotice(insufficientItems);
+        return {
+          success: false,
+          message: `${task.title}の完了に必要な在庫が不足しています。\n${shortageNotice}`
+        };
+      }
 
-    const consumedInventory = consumeInventory(task.inventoryItems);
-    const nextInsufficientItems = getInsufficientInventoryItems(consumedInventory);
+      consumedInventory = consumeInventory(task.inventoryItems);
+      nextInsufficientItems = getInsufficientInventoryItems(consumedInventory);
+    }
 
     const now = new Date();
     const nextDueAt = calculateNextDueAt(
@@ -130,8 +180,70 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
     );
   }
 
+  private async refreshInventoryMessage(
+    inventoryResult: ConsumeForTaskResult,
+    client: ModalHandlerContext['interaction']['client'],
+    messageId: string
+  ): Promise<void> {
+    if (inventoryResult.kind !== 'success' || !inventoryResult.linkedInventoryChannelId) {
+      return;
+    }
+
+    const channelId = inventoryResult.linkedInventoryChannelId;
+    try {
+      const inventoryRepository = this.inventoryRepository ?? new InventoryRepository();
+      const inventoryMessageManager = this.inventoryMessageManager ?? InventoryMessageManager.getInstance();
+      const items = await inventoryRepository.fetchAll(channelId);
+      const result = await inventoryMessageManager.createOrUpdateMessage(channelId, items, '在庫リスト', client);
+      if (!result.success) {
+        this.logger.warn('Failed to refresh inventory message after task completion', {
+          channelId,
+          error: result.errorMessage
+        });
+      }
+      try {
+        await this.getRefreshService().refreshTasksUsingInventory(channelId, client, { excludeMessageId: messageId });
+      } catch (error) {
+        this.logger.warn('Failed to refresh task messages after inventory consumption', {
+          channelId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    } catch (error) {
+      this.logger.warn('Failed to refresh inventory message after task completion', {
+        channelId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private getRefreshService(): RefreshServicePort {
+    if (!this.refreshService) {
+      this.refreshService = new RemindTaskRefreshService();
+    }
+    return this.refreshService;
+  }
+
   private parseMessageId(customId: string): string | null {
     const parts = customId.split(':');
     return parts.length === 2 ? parts[1] : null;
+  }
+
+  private toBlockedResult(title: string, result: ConsumeForTaskResult): OperationResult | null {
+    if (result.kind === 'success') {
+      return null;
+    }
+    if (result.kind === 'migration_required') {
+      return {
+        success: false,
+        message: '在庫移行が必要です。先に在庫移行を実行してください。'
+      };
+    }
+
+    const shortageNotice = formatInventoryShortageNotice(result.items as never);
+    return {
+      success: false,
+      message: `${title}の完了に必要な在庫が不足しています。\n${shortageNotice}`
+    };
   }
 }

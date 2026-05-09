@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindMessageManager } from '../../src/services/RemindMessageManager';
-import { ComponentType, MessageFlags } from 'discord.js';
+import { ButtonStyle, ComponentType, MessageFlags } from 'discord.js';
 import { createRemindTask, type RemindTask } from '../../src/models/RemindTask';
 
 describe('RemindMessageManager', () => {
@@ -340,6 +340,7 @@ describe('RemindMessageManager', () => {
       (component: any) => component.type === ComponentType.ActionRow
     );
     expect(actionRow?.components?.[0]?.custom_id).toBe('remind-task-add');
+    expect(actionRow?.components?.[0]?.style).toBe(ButtonStyle.Success);
   });
 
   it('updates parent message to add button when missing', async () => {

@@ -124,12 +124,12 @@ describe('InventoryFormatter', () => {
         expect.objectContaining({
           custom_id: 'inventory_add',
           label: '追加',
-          style: ButtonStyle.Primary
+          style: ButtonStyle.Success
         }),
         expect.objectContaining({
           custom_id: 'inventory_update',
           label: '更新',
-          style: ButtonStyle.Secondary
+          style: ButtonStyle.Primary
         }),
         expect.objectContaining({
           custom_id: 'inventory_delete',

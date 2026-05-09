@@ -107,13 +107,13 @@ export class InventoryFormatter {
         type: ComponentType.Button,
         custom_id: 'inventory_add',
         label: '追加',
-        style: ButtonStyle.Primary
+        style: ButtonStyle.Success
       },
       {
         type: ComponentType.Button,
         custom_id: 'inventory_update',
         label: '更新',
-        style: ButtonStyle.Secondary
+        style: ButtonStyle.Primary
       },
       {
         type: ComponentType.Button,

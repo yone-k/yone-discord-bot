@@ -255,7 +255,7 @@ export class RemindMessageManager {
     const addButton = new ButtonBuilder()
       .setCustomId('remind-task-add')
       .setLabel('新規作成')
-      .setStyle(ButtonStyle.Primary);
+      .setStyle(ButtonStyle.Success);
 
     return new ActionRowBuilder<ButtonBuilder>().addComponents(addButton);
   }

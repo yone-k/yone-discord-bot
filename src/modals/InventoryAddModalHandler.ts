@@ -7,7 +7,7 @@ import { InventoryMetadataManager } from '../services/InventoryMetadataManager';
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryService } from '../services/InventoryService';
-import { parseInventoryCsvText } from '../utils/InventoryParser';
+import { parseInventoryAddCsvText } from '../utils/InventoryParser';
 import { Logger } from '../utils/logger';
 
 interface InventoryServicePort {
@@ -59,9 +59,10 @@ export class InventoryAddModalHandler extends BaseModalHandler {
     }
 
     const itemsText = context.interaction.fields.getTextInputValue('items');
-    let parsed;
+    const categoryInput = context.interaction.fields.getTextInputValue('category');
+    let parsed: { name: string; stock: number }[];
     try {
-      parsed = parseInventoryCsvText(itemsText);
+      parsed = parseInventoryAddCsvText(itemsText);
     } catch (error) {
       return {
         success: false,
@@ -73,8 +74,10 @@ export class InventoryAddModalHandler extends BaseModalHandler {
       return { success: false, message: '少なくとも1件入力してください' };
     }
 
+    const trimmed = (categoryInput ?? '').trim();
     const metadata = await this.metadataReader.getChannelMetadata(channelId);
     const defaultCategory = metadata?.defaultCategory ?? '';
+    const unifiedCategory = trimmed !== '' ? trimmed : defaultCategory;
     const skipped: string[] = [];
 
     for (const item of parsed) {
@@ -82,7 +85,7 @@ export class InventoryAddModalHandler extends BaseModalHandler {
         id: randomUUID(),
         name: item.name,
         stock: item.stock,
-        category: item.category ?? defaultCategory
+        category: unifiedCategory
       });
 
       if (!result.success) {

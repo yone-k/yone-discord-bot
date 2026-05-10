@@ -7,6 +7,11 @@ export interface InventoryCsvItem {
   category?: string;
 }
 
+export interface InventoryAddCsvItem {
+  name: string;
+  stock: number;
+}
+
 const roundStock = (value: number): number => Math.round(value * 10) / 10;
 
 const formatStock = (value: number): string => {
@@ -15,15 +20,39 @@ const formatStock = (value: number): string => {
   return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed;
 };
 
-export const parseInventoryCsvText = (text: string): InventoryCsvItem[] => {
+const splitCsvLines = (text: string): string[] => {
   if (!text) {
     return [];
   }
 
-  const lines = text
+  return text
     .split(/\r?\n/)
     .map(line => line.trim())
     .filter(line => line !== '');
+};
+
+const parseNameAndStock = (name: string, stockText: string, index: number): InventoryAddCsvItem => {
+  if (!name) {
+    throw new Error(`${index + 1}行目: 名前が空です`);
+  }
+
+  if (!/^-?\d+(?:\.\d+)?$/.test(stockText)) {
+    throw new Error(`${index + 1}行目: 在庫数は数値で入力してください`);
+  }
+
+  const stock = roundStock(Number(stockText));
+  if (stock < 0) {
+    throw new Error(`${index + 1}行目: 在庫数は0以上で入力してください`);
+  }
+
+  return {
+    name,
+    stock,
+  };
+};
+
+export const parseInventoryCsvText = (text: string): InventoryCsvItem[] => {
+  const lines = splitCsvLines(text);
 
   return lines.map((line, index) => {
     const tokens = line.split(',').map(token => token.trim());
@@ -32,24 +61,26 @@ export const parseInventoryCsvText = (text: string): InventoryCsvItem[] => {
     }
 
     const [name, stockText, categoryRaw] = tokens;
-    if (!name) {
-      throw new Error(`${index + 1}行目: 名前が空です`);
-    }
-
-    if (!/^-?\d+(?:\.\d+)?$/.test(stockText)) {
-      throw new Error(`${index + 1}行目: 在庫数は数値で入力してください`);
-    }
-
-    const stock = roundStock(Number(stockText));
-    if (stock < 0) {
-      throw new Error(`${index + 1}行目: 在庫数は0以上で入力してください`);
-    }
+    const item = parseNameAndStock(name, stockText, index);
 
     return {
-      name,
-      stock,
+      ...item,
       category: categoryRaw === undefined || categoryRaw === '' ? undefined : categoryRaw,
     };
+  });
+};
+
+export const parseInventoryAddCsvText = (text: string): InventoryAddCsvItem[] => {
+  const lines = splitCsvLines(text);
+
+  return lines.map((line, index) => {
+    const tokens = line.split(',').map(token => token.trim());
+    if (tokens.length !== 2) {
+      throw new Error(`${index + 1}行目: 「名前,在庫数」の形式で入力してください`);
+    }
+
+    const [name, stockText] = tokens;
+    return parseNameAndStock(name, stockText, index);
   });
 };
 

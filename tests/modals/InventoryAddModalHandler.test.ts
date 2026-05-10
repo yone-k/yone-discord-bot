@@ -38,6 +38,14 @@ describe('InventoryAddModalHandler', () => {
   let context: ModalHandlerContext;
   let handler: InventoryAddModalHandler;
 
+  const mockModalFields = (items: string, category: string): void => {
+    interaction.fields.getTextInputValue = vi.fn((fieldId: string) => {
+      if (fieldId === 'items') return items;
+      if (fieldId === 'category') return category;
+      return '';
+    });
+  };
+
   beforeEach(() => {
     logger = new MockLogger();
     inventoryService = {
@@ -60,7 +68,8 @@ describe('InventoryAddModalHandler', () => {
       client: { channels: { fetch: vi.fn() } },
       fields: {
         getTextInputValue: vi.fn((fieldId: string) => {
-          if (fieldId === 'items') return '洗剤,5,日用品\nパン,3,食料品';
+          if (fieldId === 'items') return '洗剤,5\nパン,3';
+          if (fieldId === 'category') return '';
           return '';
         })
       },
@@ -78,8 +87,9 @@ describe('InventoryAddModalHandler', () => {
     );
   });
 
-  it('Given multiple valid lines When handle is called Then it creates inventories sequentially and updates message', async () => {
+  it('Given multiple valid lines with explicit category When handle is called Then it creates inventories sequentially with unified category and updates message', async () => {
     // Given
+    mockModalFields('洗剤,5\nパン,3', '日用品');
     const allItems = [
       {
         id: 'inventory-1',
@@ -91,7 +101,7 @@ describe('InventoryAddModalHandler', () => {
         id: 'inventory-2',
         name: 'パン',
         stock: 3,
-        category: '食料品'
+        category: '日用品'
       }
     ];
     repository.fetchAll.mockResolvedValue(allItems);
@@ -103,6 +113,7 @@ describe('InventoryAddModalHandler', () => {
     expect(handler.getCustomId()).toBe('inventory_add_modal');
     expect(interaction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(interaction.fields.getTextInputValue).toHaveBeenCalledWith('items');
+    expect(interaction.fields.getTextInputValue).toHaveBeenCalledWith('category');
     expect(metadataReader.getChannelMetadata).toHaveBeenCalledWith('channel-1');
     expect(inventoryService.create).toHaveBeenNthCalledWith(1, 'channel-1', {
       id: '00000000-0000-4000-8000-000000000029',
@@ -114,7 +125,7 @@ describe('InventoryAddModalHandler', () => {
       id: '00000000-0000-4000-8000-000000000029',
       name: 'パン',
       stock: 3,
-      category: '食料品'
+      category: '日用品'
     });
     expect(repository.fetchAll).toHaveBeenCalledWith('channel-1');
     expect(messageManager.createOrUpdateMessage).toHaveBeenCalledWith(
@@ -127,12 +138,9 @@ describe('InventoryAddModalHandler', () => {
     expect(interaction.deleteReply).toHaveBeenCalled();
   });
 
-  it('Given item without category When handle is called Then it uses metadata default category', async () => {
+  it('Given items without category and metadata default category When handle is called Then it uses metadata default category', async () => {
     // Given
-    interaction.fields.getTextInputValue = vi.fn((fieldId: string) => {
-      if (fieldId === 'items') return '歯磨き粉,2';
-      return '';
-    });
+    mockModalFields('歯磨き粉,2', '');
 
     // When
     await handler.handle(context);
@@ -144,16 +152,14 @@ describe('InventoryAddModalHandler', () => {
       stock: 2,
       category: '未分類'
     });
+    expect(interaction.fields.getTextInputValue).toHaveBeenCalledWith('category');
     expect(messageManager.createOrUpdateMessage).toHaveBeenCalled();
   });
 
-  it('Given item without category and metadata default category When handle is called Then it uses empty category', async () => {
+  it('Given items without category and no metadata When handle is called Then it uses empty category', async () => {
     // Given
     metadataReader.getChannelMetadata.mockResolvedValue(null);
-    interaction.fields.getTextInputValue = vi.fn((fieldId: string) => {
-      if (fieldId === 'items') return '歯磨き粉,2';
-      return '';
-    });
+    mockModalFields('歯磨き粉,2', '');
 
     // When
     await handler.handle(context);
@@ -165,15 +171,13 @@ describe('InventoryAddModalHandler', () => {
       stock: 2,
       category: ''
     });
+    expect(interaction.fields.getTextInputValue).toHaveBeenCalledWith('category');
     expect(messageManager.createOrUpdateMessage).toHaveBeenCalled();
   });
 
   it('Given invalid items format When handle is called Then it replies parse error', async () => {
     // Given
-    interaction.fields.getTextInputValue = vi.fn((fieldId: string) => {
-      if (fieldId === 'items') return '洗剤,abc,日用品';
-      return '';
-    });
+    mockModalFields('洗剤,abc', '');
 
     // When
     await handler.handle(context);
@@ -189,10 +193,7 @@ describe('InventoryAddModalHandler', () => {
 
   it('Given empty parsed items When handle is called Then it replies validation error', async () => {
     // Given
-    interaction.fields.getTextInputValue = vi.fn((fieldId: string) => {
-      if (fieldId === 'items') return '   \n';
-      return '';
-    });
+    mockModalFields('   \n', '');
 
     // When
     await handler.handle(context);
@@ -208,6 +209,7 @@ describe('InventoryAddModalHandler', () => {
 
   it('Given duplicated item When handle is called Then it skips item, logs warning and updates message', async () => {
     // Given
+    mockModalFields('洗剤,5\nパン,3', '日用品');
     inventoryService.create
       .mockResolvedValueOnce({ success: false, message: '同名のアイテムが既に存在します' })
       .mockResolvedValueOnce({ success: true });
@@ -217,6 +219,19 @@ describe('InventoryAddModalHandler', () => {
 
     // Then
     expect(inventoryService.create).toHaveBeenCalledTimes(2);
+    expect(inventoryService.create).toHaveBeenNthCalledWith(1, 'channel-1', {
+      id: '00000000-0000-4000-8000-000000000029',
+      name: '洗剤',
+      stock: 5,
+      category: '日用品'
+    });
+    expect(inventoryService.create).toHaveBeenNthCalledWith(2, 'channel-1', {
+      id: '00000000-0000-4000-8000-000000000029',
+      name: 'パン',
+      stock: 3,
+      category: '日用品'
+    });
+    expect(interaction.fields.getTextInputValue).toHaveBeenCalledWith('category');
     expect(logger.warn).toHaveBeenCalledWith('Skipped inventory item', {
       name: '洗剤',
       message: '同名のアイテムが既に存在します'

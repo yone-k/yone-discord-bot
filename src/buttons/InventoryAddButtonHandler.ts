@@ -36,16 +36,28 @@ export class InventoryAddButtonHandler extends BaseButtonHandler {
       .setCustomId('inventory_add_modal')
       .setTitle('在庫を追加');
 
+    const categoryInput = new TextInputBuilder()
+      .setCustomId('category')
+      .setLabel('カテゴリー（省略可）')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('例: 食料品、日用品')
+      .setRequired(false)
+      .setMaxLength(50);
+
     const itemsInput = new TextInputBuilder()
       .setCustomId('items')
-      .setLabel('名前,在庫数,カテゴリ（1行に1つ）')
+      .setLabel('名前,在庫数（1行に1つ）')
       .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('例:\n洗剤,5,日用品\nパン,3,食料品')
+      .setPlaceholder('例:\n洗剤,5\nパン,3')
       .setRequired(true)
       .setMaxLength(4000);
 
-    return modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(itemsInput)
-    );
+    const categoryRow = new ActionRowBuilder<TextInputBuilder>()
+      .addComponents(categoryInput);
+
+    const itemsRow = new ActionRowBuilder<TextInputBuilder>()
+      .addComponents(itemsInput);
+
+    return modal.addComponents(categoryRow, itemsRow);
   }
 }

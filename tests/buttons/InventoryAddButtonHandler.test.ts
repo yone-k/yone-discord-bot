@@ -23,12 +23,22 @@ describe('InventoryAddButtonHandler', () => {
     const modalJson = interaction.showModal.mock.calls[0][0].toJSON();
     expect(modalJson.custom_id).toBe('inventory_add_modal');
     expect(modalJson.title).toBe('在庫を追加');
-    expect(modalJson.components).toHaveLength(1);
-    const input = modalJson.components[0].components[0];
-    expect(input.custom_id).toBe('items');
-    expect(input.label).toBe('名前,在庫数,カテゴリ（1行に1つ）');
-    expect(input.style).toBe(TextInputStyle.Paragraph);
-    expect(input.required).toBe(true);
-    expect(input.placeholder).toBe('例:\n洗剤,5,日用品\nパン,3,食料品');
+    expect(modalJson.components).toHaveLength(2);
+
+    const categoryInput = modalJson.components[0].components[0];
+    expect(categoryInput.custom_id).toBe('category');
+    expect(categoryInput.label).toBe('カテゴリー（省略可）');
+    expect(categoryInput.style).toBe(TextInputStyle.Short);
+    expect(categoryInput.required).toBe(false);
+    expect(categoryInput.max_length).toBe(50);
+    expect(categoryInput.placeholder).toBe('例: 食料品、日用品');
+
+    const itemsInput = modalJson.components[1].components[0];
+    expect(itemsInput.custom_id).toBe('items');
+    expect(itemsInput.label).toBe('名前,在庫数（1行に1つ）');
+    expect(itemsInput.style).toBe(TextInputStyle.Paragraph);
+    expect(itemsInput.required).toBe(true);
+    expect(itemsInput.max_length).toBe(4000);
+    expect(itemsInput.placeholder).toBe('例:\n洗剤,5\nパン,3');
   });
 });

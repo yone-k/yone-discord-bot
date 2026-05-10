@@ -181,13 +181,6 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
       }
     }
 
-    if (deleteErrors.length > 0) {
-      return {
-        success: false,
-        message: `削除できない在庫アイテムがあります。\n${deleteErrors.join('\n')}`
-      };
-    }
-
     const items = await this.repository.fetchAll(channelId);
     const messageResult = await this.messageManager.createOrUpdateMessage(
       channelId,
@@ -206,6 +199,13 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
         channelId,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
+    }
+
+    if (deleteErrors.length > 0) {
+      return {
+        success: false,
+        message: `削除できない在庫アイテムがあります。\n${deleteErrors.join('\n')}`
+      };
     }
 
     return { success: true };

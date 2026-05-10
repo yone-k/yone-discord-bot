@@ -168,6 +168,15 @@ describe('InventoryUpdateModalHandler', () => {
 
   it('deleteが参照タスクありでthrowした場合、途中成功後に該当アイテム名を含むエラー応答を返す', async () => {
     // Given
+    const latestItems: InventoryItem[] = [
+      { id: 'inventory-1', name: '洗剤', stock: 5, category: '日用品' },
+      { id: 'inventory-2', name: '米', stock: 10, category: '食品' },
+      { id: 'inventory-4', name: '追加対象', stock: 2, category: '備品' }
+    ];
+    repository.fetchAll
+      .mockReset()
+      .mockResolvedValueOnce(currentItems)
+      .mockResolvedValueOnce(latestItems);
     inventoryService.delete.mockRejectedValue(new Error('在庫アイテムを削除できません: 参照中のタスクがあります'));
 
     // When
@@ -177,8 +186,16 @@ describe('InventoryUpdateModalHandler', () => {
     expect(inventoryService.create).toHaveBeenCalled();
     expect(inventoryService.update).toHaveBeenCalled();
     expect(inventoryService.delete).toHaveBeenCalledWith('inventory-channel-1', 'inventory-3');
-    expect(inventoryMessageManager.createOrUpdateMessage).not.toHaveBeenCalled();
-    expect(refreshService.refreshTasksUsingInventory).not.toHaveBeenCalled();
+    expect(inventoryMessageManager.createOrUpdateMessage).toHaveBeenCalledWith(
+      'inventory-channel-1',
+      latestItems,
+      '在庫リスト',
+      interaction.client
+    );
+    expect(refreshService.refreshTasksUsingInventory).toHaveBeenCalledWith(
+      'inventory-channel-1',
+      interaction.client
+    );
     expect(interaction.editReply).toHaveBeenCalledWith({
       content: expect.stringContaining('削除対象')
     });
@@ -333,5 +350,38 @@ describe('InventoryUpdateModalHandler', () => {
     expect(handler.shouldHandle({
       interaction: { customId: 'inventory_update_modal_inventory-1' }
     } as any)).toBe(false);
+  });
+
+  it('空文字CSVを送信した場合、参照中以外の全在庫が削除されメッセージが更新される', async () => {
+    // Given
+    interaction.fields.getTextInputValue.mockReturnValue('');
+    repository.fetchAll
+      .mockReset()
+      .mockResolvedValueOnce(currentItems)
+      .mockResolvedValueOnce([]);
+    inventoryService.findReferencingTasks.mockResolvedValue([]);
+
+    // When
+    await handler.handle({ interaction: interaction as any });
+
+    // Then
+    expect(inventoryService.create).not.toHaveBeenCalled();
+    expect(inventoryService.update).not.toHaveBeenCalled();
+    expect(inventoryService.delete).toHaveBeenCalledTimes(3);
+    for (const item of currentItems) {
+      expect(inventoryService.delete).toHaveBeenCalledWith('inventory-channel-1', item.id);
+    }
+    expect(inventoryMessageManager.createOrUpdateMessage).toHaveBeenCalledWith(
+      'inventory-channel-1',
+      [],
+      '在庫リスト',
+      interaction.client
+    );
+    expect(refreshService.refreshTasksUsingInventory).toHaveBeenCalledWith(
+      'inventory-channel-1',
+      interaction.client
+    );
+    expect(interaction.editReply).toHaveBeenCalledWith({ content: '処理が完了しました。' });
+    expect(interaction.deleteReply).toHaveBeenCalled();
   });
 });

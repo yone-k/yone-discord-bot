@@ -55,7 +55,7 @@ describe('InventoryUpdateButtonHandler', () => {
       custom_id: 'items',
       label: '在庫一覧（名前,在庫数,カテゴリ）を編集',
       style: TextInputStyle.Paragraph,
-      required: true,
+      required: false,
       value: '米,10.5,食品\n洗剤,3,日用品'
     }));
   });

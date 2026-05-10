@@ -170,6 +170,40 @@ describe('RemindInventoryItem union parsing', () => {
     expect(items.every(isNewInventoryItem)).toBe(true);
   });
 
+  it('parses new format inventory items with zero consume from JSON', () => {
+    // Given
+    const json = JSON.stringify([{ inventoryId: 'inventory-1', consume: 0 }]);
+
+    // When
+    const items: RemindInventoryItem[] = parseInventoryItems(json);
+
+    // Then
+    expect(items).toContainEqual<NewRemindInventoryItem>({
+      inventoryId: 'inventory-1',
+      consume: 0
+    });
+  });
+
+  it('filters new format inventory items with negative consume from JSON', () => {
+    // Given
+    const json = JSON.stringify([
+      { inventoryId: 'inventory-1', consume: -1 },
+      { inventoryId: 'inventory-2', consume: 1 }
+    ]);
+
+    // When
+    const items: RemindInventoryItem[] = parseInventoryItems(json);
+
+    // Then
+    expect(items).not.toContainEqual<NewRemindInventoryItem>({
+      inventoryId: 'inventory-1',
+      consume: -1
+    });
+    expect(items).toEqual<NewRemindInventoryItem[]>([
+      { inventoryId: 'inventory-2', consume: 1 }
+    ]);
+  });
+
   it('parses legacy format inventory items from JSON', () => {
     // Given
     const json = JSON.stringify([{ name: '洗剤', stock: 3, consume: 1 }]);

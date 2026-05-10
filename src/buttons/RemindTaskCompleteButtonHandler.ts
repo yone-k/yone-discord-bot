@@ -1,5 +1,7 @@
+import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { Logger } from '../utils/logger';
 import type { InventoryItem } from '../models/InventoryItem';
+import { isNewInventoryItem, type RemindTask } from '../models/RemindTask';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
@@ -41,7 +43,7 @@ interface RefreshServicePort {
 export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
-  private inventoryService?: Pick<InventoryService, 'consumeForTask'>;
+  private inventoryService?: Pick<InventoryService, 'consumeForTask' | 'getById'>;
   private inventoryRepository?: InventoryRepositoryPort;
   private inventoryMessageManager?: InventoryMessageManagerPort;
   private refreshService?: RefreshServicePort;
@@ -52,7 +54,7 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
     messageManager?: RemindMessageManager,
-    inventoryService?: Pick<InventoryService, 'consumeForTask'>,
+    inventoryService?: Pick<InventoryService, 'consumeForTask' | 'getById'>,
     inventoryRepository?: InventoryRepositoryPort,
     inventoryMessageManager?: InventoryMessageManagerPort,
     refreshService?: RefreshServicePort
@@ -80,14 +82,15 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
 
   protected async executeAction(context: ButtonHandlerContext): Promise<OperationResult> {
     const interaction = context.interaction;
-
-    if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferReply({ flags: ['Ephemeral'] as const });
-    }
+    let hasDeferredReply = Boolean(interaction.deferred);
 
     const replyError = async (message: string): Promise<OperationResult> => {
       try {
-        await interaction.editReply({ content: message });
+        if (hasDeferredReply || interaction.deferred || interaction.replied) {
+          await interaction.editReply({ content: message });
+        } else {
+          await interaction.reply({ content: message, flags: ['Ephemeral'] as const });
+        }
       } catch {
         // ignore reply failures
       }
@@ -104,6 +107,15 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
       const task = await this.repository.findTaskByMessageId(channelId, messageId);
       if (!task) {
         return await replyError('タスクが見つかりません');
+      }
+
+      if (this.hasVariableInventoryItem(task) && this.metadataManager && this.inventoryService?.getById) {
+        return await this.showVariableConsumptionModal(interaction, channelId, messageId, task);
+      }
+
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: ['Ephemeral'] as const });
+        hasDeferredReply = true;
       }
 
       let consumedInventory = task.inventoryItems;
@@ -177,6 +189,71 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
     }
   }
 
+  private hasVariableInventoryItem(task: RemindTask): boolean {
+    return task.inventoryItems.some(item => isNewInventoryItem(item) && item.consume === 0);
+  }
+
+  private async showVariableConsumptionModal(
+    interaction: ButtonHandlerContext['interaction'],
+    channelId: string,
+    messageId: string,
+    task: RemindTask
+  ): Promise<OperationResult> {
+    const metadataResult = await this.metadataManager?.getChannelMetadata(channelId);
+    const linkedInventoryChannelId = (metadataResult?.metadata as { linkedInventoryChannelId?: string } | undefined)
+      ?.linkedInventoryChannelId;
+    if (!linkedInventoryChannelId) {
+      const message = '在庫チャンネルが連携されていません';
+      await interaction.reply({ content: message, flags: ['Ephemeral'] as const });
+      return { success: false, message };
+    }
+
+    const prefill = await this.buildVariableConsumptionPrefill(linkedInventoryChannelId, task);
+    const modal = new ModalBuilder()
+      .setCustomId(`remind-task-complete-modal:${messageId}:${Date.now()}`)
+      .setTitle('完了時の消費数入力');
+
+    const inventoryInput = new TextInputBuilder()
+      .setCustomId('inventory-items')
+      .setLabel('消費数(名前,数 の形式 / 空欄でスキップor固定値)')
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(false)
+      .setPlaceholder('例: 洗剤,2.5')
+      .setMaxLength(1000)
+      .setValue(prefill);
+
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(inventoryInput)
+    );
+
+    await interaction.showModal(modal);
+    return { success: true };
+  }
+
+  private async buildVariableConsumptionPrefill(linkedInventoryChannelId: string, task: RemindTask): Promise<string> {
+    const inventoryRepository = this.inventoryRepository ?? new InventoryRepository();
+    const inventoryItems = await inventoryRepository.fetchAll(linkedInventoryChannelId);
+    const inventoryItemsById = new Map(inventoryItems.map(inventoryItem => [inventoryItem.id, inventoryItem]));
+
+    const lines = task.inventoryItems.map((item) => {
+      if (!isNewInventoryItem(item)) {
+        return this.formatInventoryPrefillLine(item.name, item.consume);
+      }
+
+      const inventoryItem = inventoryItemsById.get(item.inventoryId);
+      const name = inventoryItem?.name ?? `[不明な在庫:${item.inventoryId.slice(0, 8)}]`;
+      return this.formatInventoryPrefillLine(name, item.consume);
+    });
+    return lines.join('\n');
+  }
+
+  private formatInventoryPrefillLine(name: string, consume: number): string {
+    if (consume > 0) {
+      return `${name},${consume}`;
+    }
+    return `${name},`;
+  }
+
   private async notifyInventory(channelId: string, message: string, client: ButtonHandlerContext['interaction']['client']): Promise<void> {
     if (!this.metadataManager) {
       return;
@@ -247,6 +324,9 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
     }
     if (result.kind === 'migration_required') {
       return '在庫移行が必要です。先に在庫移行を実行してください。';
+    }
+    if (result.kind === 'error') {
+      return `在庫の更新に失敗しました: ${result.message}`;
     }
 
     const shortageNotice = formatInventoryShortageNotice(result.items as never);

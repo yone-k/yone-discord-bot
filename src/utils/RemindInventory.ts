@@ -36,11 +36,11 @@ const formatInventoryValue = (value: number): string => {
   return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed;
 };
 
-const normalizeLineTokens = (line: string): string[] =>
+const normalizeLineTokens = (line: string, keepEmpty: boolean = false): string[] =>
   line
     .split(',')
     .map((part) => part.trim())
-    .filter((part) => part !== '');
+    .filter((part) => keepEmpty || part !== '');
 
 const toLegacyInventoryItems = (items: RemindInventoryItem[]): LegacyRemindInventoryItem[] =>
   items.filter(isLegacyInventoryItem);
@@ -116,8 +116,8 @@ export const parseInventoryInput = (input: string): InventoryInputItem[] => {
       throw new Error('消費が不足しています');
     }
     const roundedConsume = roundInventoryValue(consume);
-    if (!Number.isFinite(roundedConsume) || roundedConsume <= 0) {
-      throw new Error('消費は0より大きい数値で入力してください');
+    if (!Number.isFinite(roundedConsume) || roundedConsume < 0) {
+      throw new Error('消費は0以上の数値で入力してください');
     }
     const roundedStock = stock === null ? undefined : roundInventoryValue(stock);
     if (roundedStock !== undefined && (!Number.isFinite(roundedStock) || roundedStock < 0)) {
@@ -134,6 +134,51 @@ export const parseInventoryInput = (input: string): InventoryInputItem[] => {
       throw new Error('アイテム名が重複しています');
     }
     seen.add(key);
+  }
+
+  return items;
+};
+
+export const parseCompletionInput = (input: string): Array<{ name: string; consume: number | null }> => {
+  if (!input) {
+    return [];
+  }
+
+  const lines = input
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== '');
+
+  const items = lines.map((line) => {
+    const tokens = normalizeLineTokens(line, true);
+    if (tokens.length < 1 || tokens.length > 2) {
+      throw new Error('完了入力の形式が不正です');
+    }
+
+    const name = tokens[0];
+    if (!name) {
+      throw new Error('アイテム名が空です');
+    }
+
+    const consumeToken = tokens[1];
+    if (consumeToken === undefined || consumeToken === '') {
+      return { name, consume: null };
+    }
+
+    const consume = parseNumericToken(consumeToken);
+    if (consume === null || !Number.isFinite(consume) || consume < 0) {
+      throw new Error('消費は0以上の数値で入力してください');
+    }
+
+    return { name, consume };
+  });
+
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (seen.has(item.name)) {
+      throw new Error('アイテム名が重複しています');
+    }
+    seen.add(item.name);
   }
 
   return items;

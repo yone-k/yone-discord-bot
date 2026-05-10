@@ -99,7 +99,7 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
 
   private buildBasicModal(task: RemindTask, messageId: string): ModalBuilder {
     const modal = new ModalBuilder()
-      .setCustomId(`remind-task-update-modal:${messageId}`)
+      .setCustomId(`remind-task-update-modal:${messageId}:${Date.now()}`)
       .setTitle('リマインド更新');
 
     const titleInput = new TextInputBuilder()
@@ -155,7 +155,7 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
 
   private buildAdvancedModal(task: RemindTask, messageId: string): ModalBuilder {
     const modal = new ModalBuilder()
-      .setCustomId(`remind-task-update-override-modal:${messageId}`)
+      .setCustomId(`remind-task-update-override-modal:${messageId}:${Date.now()}`)
       .setTitle('詳細設定');
 
     const lastDoneValue = task.lastDoneAt ? this.formatTokyoDateTime(task.lastDoneAt) : '';
@@ -202,7 +202,7 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
 
   private async buildInventoryModal(channelId: string, task: RemindTask, messageId: string): Promise<ModalBuilder> {
     const modal = new ModalBuilder()
-      .setCustomId(`remind-task-inventory-modal:${messageId}`)
+      .setCustomId(`remind-task-inventory-modal:${messageId}:${Date.now()}`)
       .setTitle('在庫設定');
 
     const inventoryInput = new TextInputBuilder()

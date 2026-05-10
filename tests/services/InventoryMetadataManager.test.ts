@@ -155,6 +155,10 @@ describe('InventoryMetadataManager', () => {
 
     // Then
     expect(result.success).toBe(true);
+    expect(mockGoogleSheetsService.getSheetDataByName).toHaveBeenCalledWith(
+      'inventory_metadata',
+      { skipCache: true }
+    );
     expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith('inventory_metadata', [
       metadataHeaders,
       ['channel-1', 'message-3', '更新後在庫リスト', expect.any(String), '飲料', 'thread-3'],

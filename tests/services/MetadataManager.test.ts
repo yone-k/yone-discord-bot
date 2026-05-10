@@ -30,6 +30,12 @@ vi.mock('google-auth-library', () => ({
   }))
 }));
 
+const resetGoogleSheetsServiceSingleton = (): void => {
+  const instance = (GoogleSheetsService as any).instance;
+  instance?.sheetCache?.clear?.();
+  (GoogleSheetsService as any).instance = undefined;
+};
+
 describe('MetadataManager', () => {
   let originalEnv: NodeJS.ProcessEnv;
   let metadataManager: MetadataManager;
@@ -47,7 +53,7 @@ describe('MetadataManager', () => {
 
     // シングルトンをリセット
     (Config as any).instance = undefined;
-    (GoogleSheetsService as any).instance = undefined;
+    resetGoogleSheetsServiceSingleton();
     (MetadataManager as any).instance = undefined;
 
     // モックを取得
@@ -102,7 +108,7 @@ describe('MetadataManager', () => {
   afterEach(() => {
     process.env = originalEnv;
     (Config as any).instance = undefined;
-    (GoogleSheetsService as any).instance = undefined;
+    resetGoogleSheetsServiceSingleton();
     
     // MetadataManagerのシングルトンと初期化状態をリセット
     const instance = (MetadataManager as any).instance;
@@ -169,31 +175,43 @@ describe('MetadataManager', () => {
         }
       });
 
-      // Act
-      const result = await metadataManager.updateChannelMetadata(testChannelId, testMetadata);
+      const getSheetDataByNameSpy = vi.spyOn(GoogleSheetsService.prototype, 'getSheetDataByName');
+      await metadataManager.getOrCreateMetadataSheet();
+      getSheetDataByNameSpy.mockClear();
 
-      // Assert
-      expect(result.success).toBe(true);
-      expect(result.metadata).toBeDefined();
-      expect(result.metadata!.operationLogThreadId).toBe(testOperationLogThreadId);
-      
-      // updateが6列で呼ばれることを確認
-      expect(mockSheets.values.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          range: 'A2:F2',
-          valueInputOption: 'RAW',
-          resource: {
-            values: [[
-              testChannelId,
-              'msg123',
-              'テストリスト',
-              expect.any(String), // 日付文字列
-              'general',
-              testOperationLogThreadId
-            ]]
-          }
-        })
-      );
+      try {
+        // Act
+        const result = await metadataManager.updateChannelMetadata(testChannelId, testMetadata);
+
+        // Assert
+        expect(result.success).toBe(true);
+        expect(result.metadata).toBeDefined();
+        expect(result.metadata!.operationLogThreadId).toBe(testOperationLogThreadId);
+        expect(getSheetDataByNameSpy).toHaveBeenCalledWith(
+          'metadata',
+          { skipCache: true }
+        );
+
+        // updateが6列で呼ばれることを確認
+        expect(mockSheets.values.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            range: 'A2:F2',
+            valueInputOption: 'RAW',
+            resource: {
+              values: [[
+                testChannelId,
+                'msg123',
+                'テストリスト',
+                expect.any(String), // 日付文字列
+                'general',
+                testOperationLogThreadId
+              ]]
+            }
+          })
+        );
+      } finally {
+        getSheetDataByNameSpy.mockRestore();
+      }
     });
 
     it('createChannelMetadata() が新フィールドを保存できる', async () => {
@@ -298,7 +316,7 @@ describe('MetadataManager', () => {
       
       // インスタンスとモックをクリア
       (Config as any).instance = undefined;
-      (GoogleSheetsService as any).instance = undefined;
+      resetGoogleSheetsServiceSingleton();
       (MetadataManager as any).instance = undefined;
       vi.clearAllMocks();
       
@@ -337,7 +355,7 @@ describe('MetadataManager', () => {
 
       // Act - Configシングルトンをリセット
       (Config as any).instance = undefined;
-      (GoogleSheetsService as any).instance = undefined;
+      resetGoogleSheetsServiceSingleton();
       (MetadataManager as any).instance = undefined;
 
       const newInstance = MetadataManager.getInstance();
@@ -427,31 +445,43 @@ describe('MetadataManager', () => {
         }
       });
 
-      // Act
-      const result = await metadataManager.updateChannelMetadata(testChannelId, testMetadata);
+      const getSheetDataByNameSpy = vi.spyOn(GoogleSheetsService.prototype, 'getSheetDataByName');
+      await metadataManager.getOrCreateMetadataSheet();
+      getSheetDataByNameSpy.mockClear();
 
-      // Assert
-      expect(result.success).toBe(true);
-      expect(result.metadata).toBeDefined();
-      expect(result.metadata!.operationLogThreadId).toBeUndefined();
-      
-      // updateが6列で呼ばれることを確認（6列目は空文字列またはundefined）
-      expect(mockSheets.values.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          range: 'A2:F2',
-          valueInputOption: 'RAW',
-          resource: {
-            values: [[
-              testChannelId,
-              'msg123',
-              'テストリスト',
-              expect.any(String), // 日付文字列
-              'general',
-              ''
-            ]]
-          }
-        })
-      );
+      try {
+        // Act
+        const result = await metadataManager.updateChannelMetadata(testChannelId, testMetadata);
+
+        // Assert
+        expect(result.success).toBe(true);
+        expect(result.metadata).toBeDefined();
+        expect(result.metadata!.operationLogThreadId).toBeUndefined();
+        expect(getSheetDataByNameSpy).toHaveBeenCalledWith(
+          'metadata',
+          { skipCache: true }
+        );
+
+        // updateが6列で呼ばれることを確認（6列目は空文字列またはundefined）
+        expect(mockSheets.values.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            range: 'A2:F2',
+            valueInputOption: 'RAW',
+            resource: {
+              values: [[
+                testChannelId,
+                'msg123',
+                'テストリスト',
+                expect.any(String), // 日付文字列
+                'general',
+                ''
+              ]]
+            }
+          })
+        );
+      } finally {
+        getSheetDataByNameSpy.mockRestore();
+      }
     });
 
     it('5列から6列への移行時にヘッダー更新が正しく動作する', async () => {

@@ -36,7 +36,7 @@ export class RemindTaskRepository {
 
   public async updateTask(channelId: string, task: RemindTask): Promise<OperationResult> {
     const sheetName = this.getSheetNameForChannel(channelId);
-    const data = await this.googleSheetsService.getSheetDataByName(sheetName);
+    const data = await this.googleSheetsService.getSheetDataByName(sheetName, { skipCache: true });
     if (data.length === 0) {
       return { success: false, message: 'Sheet is empty' };
     }
@@ -79,7 +79,7 @@ export class RemindTaskRepository {
 
   public async deleteTask(channelId: string, taskId: string): Promise<OperationResult> {
     const sheetName = this.getSheetNameForChannel(channelId);
-    const data = await this.googleSheetsService.getSheetDataByName(sheetName);
+    const data = await this.googleSheetsService.getSheetDataByName(sheetName, { skipCache: true });
     if (data.length === 0) {
       return { success: false, message: 'Sheet is empty' };
     }

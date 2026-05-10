@@ -1,14 +1,20 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { Logger } from '../../src/utils/logger';
 import { createRemindTask } from '../../src/models/RemindTask';
 import { RemindTaskUpdateSelectMenuHandler } from '../../src/selectmenus/RemindTaskUpdateSelectMenuHandler';
 
 describe('RemindTaskUpdateSelectMenuHandler', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it.each([
-    { value: 'basic', expectedCustomId: 'remind-task-update-modal:msg-1' },
-    { value: 'advanced', expectedCustomId: 'remind-task-update-override-modal:msg-1' },
-    { value: 'inventory', expectedCustomId: 'remind-task-inventory-modal:msg-1' }
+    { value: 'basic', expectedCustomId: 'remind-task-update-modal:msg-1:1700000000000' },
+    { value: 'advanced', expectedCustomId: 'remind-task-update-override-modal:msg-1:1700000000000' },
+    { value: 'inventory', expectedCustomId: 'remind-task-inventory-modal:msg-1:1700000000000' }
   ])('restores task message before showing modal for %s selection', async ({ value, expectedCustomId }) => {
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
+
     const task = createRemindTask({
       id: 'task-1',
       messageId: 'msg-1',

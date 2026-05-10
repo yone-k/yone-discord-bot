@@ -55,7 +55,7 @@ describe('RemindTask', () => {
     expect(() => validateRemindTask(task)).not.toThrow();
   });
 
-  it('rejects inventory consume value less than or equal to zero', () => {
+  it('rejects legacy inventory consume value less than or equal to zero', () => {
     const task = createRemindTask({
       id: 'task-1',
       title: '棚卸し',
@@ -86,5 +86,41 @@ describe('RemindTask', () => {
     });
 
     expect(() => validateRemindTask(task)).toThrow('interval_daysは1以上である必要があります');
+  });
+});
+
+describe('validateRemindTask inventory consume boundaries', () => {
+  it('consume === 0 の NewRemindInventoryItem が validateRemindTask を通過する（エラーを投げない）', () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      title: '棚卸し',
+      intervalDays: 1,
+      timeOfDay: '10:00',
+      remindBeforeMinutes: 0,
+      inventoryItems: [{ inventoryId: 'inventory-1', consume: 0 }],
+      startAt: new Date('2025-12-29T10:00:00+09:00'),
+      nextDueAt: new Date('2025-12-30T10:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+
+    expect(() => validateRemindTask(task)).not.toThrow();
+  });
+
+  it('consume < 0 の NewRemindInventoryItem は validateRemindTask でエラー: inventory_itemsの消費数が無効です を投げる', () => {
+    const task = createRemindTask({
+      id: 'task-1',
+      title: '棚卸し',
+      intervalDays: 1,
+      timeOfDay: '10:00',
+      remindBeforeMinutes: 0,
+      inventoryItems: [{ inventoryId: 'inventory-1', consume: -1 }],
+      startAt: new Date('2025-12-29T10:00:00+09:00'),
+      nextDueAt: new Date('2025-12-30T10:00:00+09:00'),
+      createdAt: new Date('2025-12-29T09:00:00+09:00'),
+      updatedAt: new Date('2025-12-29T09:00:00+09:00')
+    });
+
+    expect(() => validateRemindTask(task)).toThrow('inventory_itemsの消費数が無効です');
   });
 });

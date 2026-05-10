@@ -41,7 +41,7 @@ export class RemindSheetManager {
 
   public async getOrCreateChannelSheet(channelId: string): Promise<RemindSheetResult> {
     const sheetName = this.getSheetNameForChannel(channelId);
-    const existingData = await this.googleSheetsService.getSheetDataByName(sheetName);
+    const existingData = await this.googleSheetsService.getSheetDataByName(sheetName, { skipCache: true });
 
     if (existingData.length > 0) {
       return { existed: true, data: existingData };

@@ -109,6 +109,6 @@ export class RemindTaskUpdateModalHandler extends BaseModalHandler {
 
   private parseMessageId(customId: string): string | null {
     const parts = customId.split(':');
-    return parts.length === 2 ? parts[1] : null;
+    return parts.length >= 2 && parts[1] ? parts[1] : null;
   }
 }

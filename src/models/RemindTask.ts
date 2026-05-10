@@ -114,7 +114,7 @@ export function validateRemindTask(task: RemindTask): void {
       if (!item.inventoryId || item.inventoryId.trim() === '') {
         throw new Error('inventory_itemsの在庫IDが無効です');
       }
-      if (!Number.isFinite(item.consume) || item.consume <= 0) {
+      if (!Number.isFinite(item.consume) || item.consume < 0) {
         throw new Error('inventory_itemsの消費数が無効です');
       }
       continue;

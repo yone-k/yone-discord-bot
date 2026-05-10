@@ -6,8 +6,12 @@ import { InventoryRepository } from './InventoryRepository';
 import { GoogleSheetsService, type OperationResult } from './GoogleSheetsService';
 import { RemindMetadataManager } from './RemindMetadataManager';
 import { RemindTaskRepository } from './RemindTaskRepository';
+import { LoggerManager } from '../utils/LoggerManager';
 
-type InventoryRepositoryPort = Pick<InventoryRepository, 'findByName' | 'findById' | 'append' | 'update' | 'delete'>;
+type InventoryRepositoryPort = Pick<
+  InventoryRepository,
+  'findByName' | 'findById' | 'append' | 'update' | 'bulkUpdate' | 'delete' | 'fetchAll'
+>;
 type RemindMetadataManagerPort = Pick<RemindMetadataManager, 'findChannelsLinkedToInventory' | 'getChannelMetadata'>;
 type RemindTaskRepositoryPort = Pick<RemindTaskRepository, 'fetchTasks'>;
 type GoogleSheetsServicePort = Pick<GoogleSheetsService, 'runWithLock'>;
@@ -22,15 +26,17 @@ export interface ShortageItem {
 export type ConsumeForTaskResult =
   | { kind: 'success'; linkedInventoryChannelId?: string }
   | { kind: 'shortage'; items: ShortageItem[] }
-  | { kind: 'migration_required' };
+  | { kind: 'migration_required' }
+  | { kind: 'error'; message: string };
 
-interface ReferencedTask {
+export interface ReferencedTask {
   channelId: string;
   title: string;
 }
 
 export class InventoryService {
   private static instance: InventoryService | undefined;
+  private readonly logger = LoggerManager.getLogger('InventoryService');
 
   constructor(
     private readonly inventoryRepository: InventoryRepositoryPort,
@@ -115,6 +121,17 @@ export class InventoryService {
   }
 
   public async delete(channelId: string, id: string): Promise<void> {
+    const references = await this.findReferencingTasks(channelId, id);
+
+    if (references.length > 0) {
+      const referenceLines = references.map(reference => `- ${reference.channelId}: ${reference.title}`).join('\n');
+      throw new Error(`在庫アイテムを削除できません: 参照中のタスクがあります\n${referenceLines}`);
+    }
+
+    await this.inventoryRepository.delete(channelId, id);
+  }
+
+  public async findReferencingTasks(channelId: string, id: string): Promise<ReferencedTask[]> {
     const taskChannelIds = await this.remindMetadataManager.findChannelsLinkedToInventory(channelId);
     const references: ReferencedTask[] = [];
 
@@ -123,12 +140,7 @@ export class InventoryService {
       references.push(...this.findReferencedTasks(taskChannelId, tasks, id));
     }
 
-    if (references.length > 0) {
-      const referenceLines = references.map(reference => `- ${reference.channelId}: ${reference.title}`).join('\n');
-      throw new Error(`在庫アイテムを削除できません: 参照中のタスクがあります\n${referenceLines}`);
-    }
-
-    await this.inventoryRepository.delete(channelId, id);
+    return references;
   }
 
   public async consumeForTask(taskChannelId: string, task: RemindTask): Promise<ConsumeForTaskResult> {
@@ -168,11 +180,30 @@ export class InventoryService {
       return { kind: 'shortage', items: shortages };
     }
 
-    for (const stockedItem of stockedItems) {
-      await this.inventoryRepository.update(linkedInventoryChannelId, {
-        ...stockedItem.item,
-        stock: stockedItem.item.stock - stockedItem.request.consume
-      }, { useLock: false });
+    const updatedItems = stockedItems.map(stockedItem => ({
+      ...stockedItem.item,
+      stock: stockedItem.item.stock - stockedItem.request.consume
+    }));
+
+    const result = await this.inventoryRepository.bulkUpdate(linkedInventoryChannelId, updatedItems, { useLock: false });
+
+    if (result.success === false) {
+      const message = result.message ?? 'Unknown error';
+      this.logger.warn('Inventory consumption bulk update failed', {
+        component: 'InventoryService',
+        method: 'consumeInventoryItems',
+        linkedInventoryChannelId,
+        itemCount: updatedItems.length,
+        message
+      });
+      this.logger.error('Inventory consumption failed', {
+        component: 'InventoryService',
+        method: 'consumeInventoryItems',
+        linkedInventoryChannelId,
+        itemCount: updatedItems.length,
+        message
+      });
+      return { kind: 'error', message };
     }
 
     return { kind: 'success', linkedInventoryChannelId };
@@ -182,10 +213,12 @@ export class InventoryService {
     linkedInventoryChannelId: string,
     inventoryItems: NewRemindInventoryItem[]
   ): Promise<ShortageItem[]> {
+    const inventory = await this.inventoryRepository.fetchAll(linkedInventoryChannelId);
+    const inventoryById = new Map(inventory.map(item => [item.id, item]));
     const shortages: ShortageItem[] = [];
 
     for (const request of inventoryItems) {
-      const item = await this.inventoryRepository.findById(linkedInventoryChannelId, request.inventoryId);
+      const item = inventoryById.get(request.inventoryId);
       if (!item) {
         shortages.push({
           inventoryId: request.inventoryId,
@@ -216,11 +249,13 @@ export class InventoryService {
       stockedItems: Array<{ request: NewRemindInventoryItem; item: InventoryItem }>;
       shortages: ShortageItem[];
     }> {
+    const inventory = await this.inventoryRepository.fetchAll(linkedInventoryChannelId);
+    const inventoryById = new Map(inventory.map(item => [item.id, item]));
     const stockedItems: Array<{ request: NewRemindInventoryItem; item: InventoryItem }> = [];
     const shortages: ShortageItem[] = [];
 
     for (const request of inventoryItems) {
-      const item = await this.inventoryRepository.findById(linkedInventoryChannelId, request.inventoryId);
+      const item = inventoryById.get(request.inventoryId);
       if (!item) {
         shortages.push({
           inventoryId: request.inventoryId,

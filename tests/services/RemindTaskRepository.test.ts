@@ -96,6 +96,10 @@ describe('RemindTaskRepository', () => {
     const result = await repository.updateTask('123', task);
 
     expect(result.success).toBe(true);
+    expect(mockGoogleSheetsService.getSheetDataByName).toHaveBeenCalledWith(
+      'remind_list_123',
+      { skipCache: true }
+    );
     expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalled();
   });
 

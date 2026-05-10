@@ -90,7 +90,10 @@ export class MetadataManager {
     
     // APIからデータを取得してキャッシュを更新
     try {
-      this.cachedSheetData = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+      this.cachedSheetData = await this.googleSheetsService.getSheetDataByName(
+        this.METADATA_SHEET_NAME,
+        forceRefresh ? { skipCache: true } : undefined
+      );
       this.lastCacheTime = now;
       return this.cachedSheetData;
     } catch (error) {
@@ -378,7 +381,7 @@ export class MetadataManager {
       }
 
       // 既存データの検索と更新（キャッシュを使用）
-      const data = await this.getCachedSheetData();
+      const data = await this.getCachedSheetData(true);
       
       // 更新対象行を検索
       let targetRowIndex = -1;
@@ -518,7 +521,7 @@ export class MetadataManager {
       const updatedMetadata = updateSyncTime(metadata);
 
       // metadataシートから直接データを取得（キャッシュを使用、getChannelMetadataを使わない）
-      const data = await this.getCachedSheetData();
+      const data = await this.getCachedSheetData(true);
       
       // 更新対象行を検索
       let targetRowIndex = -1;

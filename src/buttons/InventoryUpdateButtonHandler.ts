@@ -69,14 +69,14 @@ export class InventoryUpdateButtonHandler extends BaseButtonHandler {
 
   private buildModal(csvText: string): ModalBuilder {
     const modal = new ModalBuilder()
-      .setCustomId('inventory_update_modal')
+      .setCustomId(`inventory_update_modal:${Date.now()}`)
       .setTitle('在庫を更新');
 
     const itemsInput = new TextInputBuilder()
       .setCustomId('items')
       .setLabel('在庫一覧（名前,在庫数,カテゴリ）を編集')
       .setStyle(TextInputStyle.Paragraph)
-      .setRequired(true)
+      .setRequired(false)
       .setMaxLength(4000)
       .setPlaceholder('例: 洗剤,3,日用品\n米,10,食品')
       .setValue(csvText);

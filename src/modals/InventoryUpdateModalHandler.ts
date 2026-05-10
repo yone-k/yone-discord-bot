@@ -4,16 +4,18 @@ import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler'
 import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
+import { InventoryMetadataManager } from '../services/InventoryMetadataManager';
 import { InventoryRepository } from '../services/InventoryRepository';
-import { InventoryService } from '../services/InventoryService';
+import { InventoryService, type ReferencedTask } from '../services/InventoryService';
 import { RemindTaskRefreshService, type RefreshOptions } from '../services/RemindTaskRefreshService';
-import { parseInventoryCsvText } from '../utils/InventoryParser';
+import { orderInventoryItemsForCsv, parseInventoryCsvText } from '../utils/InventoryParser';
 import { Logger } from '../utils/logger';
 
 interface InventoryServicePort {
   create(channelId: string, item: InventoryItem): Promise<{ success: boolean; message?: string }>;
   update(channelId: string, item: InventoryItem): Promise<{ success: boolean; message?: string }>;
   delete(channelId: string, id: string): Promise<void>;
+  findReferencingTasks(channelId: string, id: string): Promise<ReferencedTask[]>;
 }
 
 interface InventoryRepositoryPort {
@@ -61,7 +63,8 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
   }
 
   public shouldHandle(context: ModalHandlerContext): boolean {
-    return context.interaction.customId === InventoryUpdateModalHandler.customId;
+    return context.interaction.customId === InventoryUpdateModalHandler.customId
+      || context.interaction.customId.startsWith(`${InventoryUpdateModalHandler.customId}:`);
   }
 
   protected async executeAction(context: ModalHandlerContext): Promise<OperationResult> {
@@ -82,13 +85,36 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
     }
 
     const currentItems = await this.repository.fetchAll(channelId);
+    const defaultCategory = await this.resolveDefaultCategory(channelId);
+    const orderedCurrent = orderInventoryItemsForCsv(currentItems, defaultCategory);
     const currentByName = new Map(currentItems.map(item => [item.name, item]));
     const editedByName = new Map(editedItems.map(item => [item.name, item]));
     const deleteErrors: string[] = [];
 
+    const renames: Array<{ currentItem: InventoryItem; edited: typeof editedItems[number] }> = [];
+    const renamedIds = new Set<string>();
+    const renamedEditedNames = new Set<string>();
+    const pairLimit = Math.min(orderedCurrent.length, editedItems.length);
+    for (let i = 0; i < pairLimit; i++) {
+      const current = orderedCurrent[i];
+      const edited = editedItems[i];
+      if (editedByName.has(current.name) || currentByName.has(edited.name)) {
+        continue;
+      }
+      const references = await this.inventoryService.findReferencingTasks(channelId, current.id);
+      if (references.length === 0) {
+        continue;
+      }
+      renames.push({ currentItem: current, edited });
+      renamedIds.add(current.id);
+      renamedEditedNames.add(edited.name);
+    }
+
     for (const editedItem of editedItems) {
-      const currentItem = currentByName.get(editedItem.name);
-      if (currentItem) {
+      if (currentByName.has(editedItem.name)) {
+        continue;
+      }
+      if (renamedEditedNames.has(editedItem.name)) {
         continue;
       }
 
@@ -126,8 +152,24 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
       }
     }
 
+    for (const { currentItem, edited } of renames) {
+      const updateResult = await this.inventoryService.update(channelId, {
+        id: currentItem.id,
+        name: edited.name,
+        stock: edited.stock,
+        category: edited.category ?? ''
+      });
+
+      if (!updateResult.success) {
+        return { success: false, message: updateResult.message || `${edited.name}の更新に失敗しました` };
+      }
+    }
+
     for (const currentItem of currentItems) {
       if (editedByName.has(currentItem.name)) {
+        continue;
+      }
+      if (renamedIds.has(currentItem.id)) {
         continue;
       }
 
@@ -137,13 +179,6 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         deleteErrors.push(`${currentItem.name}: ${errorMessage}`);
       }
-    }
-
-    if (deleteErrors.length > 0) {
-      return {
-        success: false,
-        message: `削除できない在庫アイテムがあります。\n${deleteErrors.join('\n')}`
-      };
     }
 
     const items = await this.repository.fetchAll(channelId);
@@ -166,6 +201,13 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
       });
     }
 
+    if (deleteErrors.length > 0) {
+      return {
+        success: false,
+        message: `削除できない在庫アイテムがあります。\n${deleteErrors.join('\n')}`
+      };
+    }
+
     return { success: true };
   }
 
@@ -178,5 +220,21 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
 
   protected getSuccessMessage(): string {
     return '✅ 在庫アイテムを更新しました。';
+  }
+
+  private async resolveDefaultCategory(channelId: string): Promise<string | undefined> {
+    try {
+      const metadata = await InventoryMetadataManager.getInstance().getChannelMetadata(channelId);
+      const raw = metadata?.defaultCategory;
+      if (raw && raw.trim() !== '') {
+        return raw;
+      }
+    } catch (error) {
+      this.logger.warn('Failed to resolve default category for inventory update', {
+        channelId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+    return undefined;
   }
 }

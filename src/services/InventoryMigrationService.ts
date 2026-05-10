@@ -45,7 +45,7 @@ interface RemindMetadataReader {
 
 interface BackupSheetService {
   createSheetByName(sheetName: string): Promise<OperationResult>;
-  getSheetDataByName(sheetName: string): Promise<string[][]>;
+  getSheetDataByName(sheetName: string, options?: { skipCache?: boolean }): Promise<string[][]>;
   appendSheetData(sheetName: string, data: (string | number)[][]): Promise<OperationResult>;
 }
 

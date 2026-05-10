@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseInventoryInput,
+  parseCompletionInput,
   consumeInventory,
   getInsufficientInventoryItems,
   formatInventoryShortageNotice,
@@ -24,9 +25,21 @@ describe('RemindInventory', () => {
     ]);
   });
 
+  it('allows zero consume with stock and consume columns', () => {
+    expect(parseInventoryInput('アイテム名,5,0')).toEqual([
+      { name: 'アイテム名', stock: 5, consume: 0 }
+    ]);
+  });
+
   it('keeps two-column inventory input backward compatible', () => {
     expect(parseInventoryInput('米,1')).toEqual([
       { name: '米', stock: undefined, consume: 1 }
+    ]);
+  });
+
+  it('allows zero consume with two-column inventory input', () => {
+    expect(parseInventoryInput('アイテム名,0')).toEqual([
+      { name: 'アイテム名', stock: undefined, consume: 0 }
     ]);
   });
 
@@ -56,8 +69,8 @@ describe('RemindInventory', () => {
     ]);
   });
 
-  it('rejects when rounded consume becomes zero', () => {
-    expect(() => parseInventoryInput('フィルター,0.04')).toThrow('消費は0より大きい数値で入力してください');
+  it('rejects negative consume values', () => {
+    expect(() => parseInventoryInput('アイテム名,-1')).toThrow();
   });
 
   it('rejects invalid inventory format', () => {
@@ -108,5 +121,59 @@ describe('RemindInventory', () => {
     expect(formatInventoryShortageNotice(items)).toBe(
       '不足している在庫の詳細は以下の通りです\n牛乳 0.3個\n卵 3個'
     );
+  });
+
+  describe('parseCompletionInput', () => {
+    it('parses completion input lines with consume values', () => {
+      expect(parseCompletionInput('アイテムA,3\nアイテムB,1.5')).toEqual([
+        { name: 'アイテムA', consume: 3 },
+        { name: 'アイテムB', consume: 1.5 }
+      ]);
+    });
+
+    it('parses omitted consume as null when the consume column is empty', () => {
+      expect(parseCompletionInput('アイテムA,')).toEqual([
+        { name: 'アイテムA', consume: null }
+      ]);
+    });
+
+    it('allows zero consume values', () => {
+      expect(parseCompletionInput('アイテムA,0')).toEqual([
+        { name: 'アイテムA', consume: 0 }
+      ]);
+    });
+
+    it('skips blank and whitespace-only lines', () => {
+      expect(parseCompletionInput('\n  \nアイテムA,3\n\t\nアイテムB,1')).toEqual([
+        { name: 'アイテムA', consume: 3 },
+        { name: 'アイテムB', consume: 1 }
+      ]);
+    });
+
+    it('rejects input with three or more tokens', () => {
+      expect(() => parseCompletionInput('A,1,2')).toThrow();
+    });
+
+    it('allows item-name-only lines and parses consume as null', () => {
+      expect(parseCompletionInput('アイテムA')).toEqual([
+        { name: 'アイテムA', consume: null }
+      ]);
+    });
+
+    it('rejects duplicate item names', () => {
+      expect(() => parseCompletionInput('A,1\nA,2')).toThrow();
+    });
+
+    it('rejects negative consume values', () => {
+      expect(() => parseCompletionInput('A,-1')).toThrow();
+    });
+
+    it('rejects invalid consume numbers', () => {
+      expect(() => parseCompletionInput('A,abc')).toThrow();
+    });
+
+    it('returns an empty array for empty input', () => {
+      expect(parseCompletionInput('')).toEqual([]);
+    });
   });
 });

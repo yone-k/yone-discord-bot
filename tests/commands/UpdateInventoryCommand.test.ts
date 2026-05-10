@@ -70,6 +70,7 @@ describe('UpdateInventoryCommand', () => {
     expect(modalJson.custom_id).toBe('inventory_update_modal');
     expect(modalJson.title).toContain('在庫');
     expect(findTextInput(modalJson, 'items')?.value).toBe('洗剤,3,日用品');
+    expect(findTextInput(modalJson, 'items')?.required).toBe(false);
   });
 
   it('在庫0件でも空の更新モーダルを表示する', async () => {
@@ -86,6 +87,7 @@ describe('UpdateInventoryCommand', () => {
 
     const modalJson = interaction.showModal.mock.calls[0][0].toJSON();
     expect(findTextInput(modalJson, 'items')?.value).toBe('');
+    expect(findTextInput(modalJson, 'items')?.required).toBe(false);
   });
 
   it('コマンドオプションは持たない', () => {

@@ -79,6 +79,10 @@ export class GoogleSheetsService {
   private readonly maxRetries = 3;
   private readonly retryDelay = 1000;
   private readonly logger = LoggerManager.getLogger('GoogleSheetsService');
+  private readonly sheetCache = new Map<string, { data: string[][]; expiresAt: number }>();
+  private readonly cacheTtlMs = 5000; // 5 秒
+  private readonly writeThroughTtlMs = 60000; // 60 秒
+  private readonly inFlightRequests = new Map<string, Promise<string[][]>>();
   
   // Atomic操作用のロックメカニズム
   private readonly operationLocks = new Map<string, Promise<void>>();
@@ -309,6 +313,7 @@ export class GoogleSheetsService {
         }
       });
 
+      this.invalidateSheetCache(sheetName);
       return { success: true, sheetId: sheet.properties.sheetId };
     } catch (error) {
       return { success: false, message: (error as Error).message };
@@ -331,7 +336,35 @@ export class GoogleSheetsService {
     });
   }
 
-  public async getSheetDataByName(sheetName: string): Promise<string[][]> {
+  public async getSheetDataByName(
+    sheetName: string,
+    options?: { skipCache?: boolean }
+  ): Promise<string[][]> {
+    if (options?.skipCache) {
+      return this.fetchSheetDataByName(sheetName, false);
+    }
+
+    const cached = this.sheetCache.get(sheetName);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
+
+    const inFlightRequest = this.inFlightRequests.get(sheetName);
+    if (inFlightRequest) {
+      return inFlightRequest;
+    }
+
+    const request = this.fetchSheetDataByName(sheetName, true);
+    this.inFlightRequests.set(sheetName, request);
+
+    try {
+      return await request;
+    } finally {
+      this.inFlightRequests.delete(sheetName);
+    }
+  }
+
+  private async fetchSheetDataByName(sheetName: string, shouldCache: boolean): Promise<string[][]> {
     return this.executeWithRetry(async () => {
       await this.getAuthClient();
 
@@ -341,13 +374,21 @@ export class GoogleSheetsService {
           range: `${sheetName}!A:Z`
         });
 
+        const data = response.data.values || [];
+        if (shouldCache) {
+          this.sheetCache.set(sheetName, {
+            data,
+            expiresAt: Date.now() + this.cacheTtlMs
+          });
+        }
+
         this.logger.info('Sheet data retrieved successfully', 
           ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'getSheetDataByName', {
             sheetName,
-            dataLength: response.data.values?.length || 0
+            dataLength: data.length
           }));
 
-        return response.data.values || [];
+        return data;
       } catch (error) {
         const gaxiosError = error as { code?: number; status?: number; message: string };
         this.logger.error('Failed to get sheet data', 
@@ -360,9 +401,17 @@ export class GoogleSheetsService {
 
         // シートが存在しない場合（400エラー + "Unable to parse range"）は空配列を返す
         if (gaxiosError.code === 400 && gaxiosError.message.includes('Unable to parse range')) {
+          const data: string[][] = [];
+          if (shouldCache) {
+            this.sheetCache.set(sheetName, {
+              data,
+              expiresAt: Date.now() + this.cacheTtlMs
+            });
+          }
+
           this.logger.info('Sheet does not exist, returning empty array', 
             ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'getSheetDataByName', { sheetName }));
-          return [];
+          return data;
         }
 
         throw error;
@@ -375,11 +424,7 @@ export class GoogleSheetsService {
       await this.getAuthClient();
       // sheetNameOrChannelIdが既にシート名（'metadata'等）の場合はそのまま使用、
       // channelIDらしき場合はgetSheetNameForChannelを呼ぶ
-      const sheetName = sheetNameOrChannelId.includes('!') 
-        ? sheetNameOrChannelId.split('!')[0]
-        : this.isKnownSheetName(sheetNameOrChannelId)
-          ? sheetNameOrChannelId
-          : this.getSheetNameForChannel(sheetNameOrChannelId);
+      const sheetName = this.resolveSheetName(sheetNameOrChannelId);
       
       await this.sheets.spreadsheets.values.append({
         spreadsheetId: this.config.spreadsheetId,
@@ -395,6 +440,7 @@ export class GoogleSheetsService {
         await this.applyHeaderFormatting(sheetNameOrChannelId, data[0].length);
       }
 
+      this.invalidateSheetCache(sheetName);
       return { success: true };
     } catch (error) {
       return { success: false, message: (error as Error).message };
@@ -409,13 +455,9 @@ export class GoogleSheetsService {
     data: (string | number)[][], 
     range?: string
   ): Promise<OperationResult> {
+    const sheetName = this.resolveSheetName(sheetNameOrChannelId);
     try {
       await this.getAuthClient();
-      const sheetName = sheetNameOrChannelId.includes('!') 
-        ? sheetNameOrChannelId.split('!')[0]
-        : this.isKnownSheetName(sheetNameOrChannelId)
-          ? sheetNameOrChannelId
-          : this.getSheetNameForChannel(sheetNameOrChannelId);
       
       // 範囲が指定されている場合はその範囲のみ更新
       if (range) {
@@ -428,6 +470,8 @@ export class GoogleSheetsService {
             values: data
           }
         });
+
+        this.invalidateSheetCache(sheetName);
       } else {
         // 範囲が指定されていない場合は従来通りシート全体を更新
         const updateRange = `${sheetName}!A:Z`;
@@ -447,10 +491,24 @@ export class GoogleSheetsService {
             values: data
           }
         });
+
+        this.sheetCache.set(sheetName, {
+          data: data.map((row) => row.map((cell) => String(cell))),
+          expiresAt: Date.now() + this.writeThroughTtlMs
+        });
       }
 
       return { success: true };
     } catch (error) {
+      this.logger.error('Sheet data update failed',
+        ConsoleMigrationHelper.createMetadata('GoogleSheetsService', 'updateSheetData', {
+          spreadsheetId: this.config.spreadsheetId,
+          sheetName,
+          range,
+          dataLength: data.length,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          errorStack: error instanceof Error ? error.stack : undefined
+        }));
       return { success: false, message: (error as Error).message };
     }
   }
@@ -543,6 +601,7 @@ export class GoogleSheetsService {
         }
       });
 
+      this.invalidateSheetCache(sheetName);
       return true;
     } catch (error) {
       this.logger.error('Failed to rollback data for sheet', 
@@ -601,6 +660,7 @@ export class GoogleSheetsService {
         }
       });
 
+      this.invalidateSheetCache(sheetName);
       return { success: true };
     } catch (error) {
       return {
@@ -626,11 +686,7 @@ export class GoogleSheetsService {
 
     try {
       await this.getAuthClient();
-      const sheetName = sheetNameOrChannelId.includes('!') 
-        ? sheetNameOrChannelId.split('!')[0]
-        : this.isKnownSheetName(sheetNameOrChannelId)
-          ? sheetNameOrChannelId
-          : this.getSheetNameForChannel(sheetNameOrChannelId);
+      const sheetName = this.resolveSheetName(sheetNameOrChannelId);
 
       // ロックを取得してatomic操作を保証
       releaseLock = await this.acquireOperationLock(lockKey);
@@ -722,11 +778,7 @@ export class GoogleSheetsService {
       // ロールバックを試行
       if (operationStarted && backupData.length > 0) {
         try {
-          const sheetName = sheetNameOrChannelId.includes('!') 
-            ? sheetNameOrChannelId.split('!')[0]
-            : this.isKnownSheetName(sheetNameOrChannelId)
-              ? sheetNameOrChannelId
-              : this.getSheetNameForChannel(sheetNameOrChannelId);
+          const sheetName = this.resolveSheetName(sheetNameOrChannelId);
           
           const rollbackSuccess = await this.rollbackData(sheetName, backupData);
           if (rollbackSuccess) {
@@ -761,11 +813,7 @@ export class GoogleSheetsService {
       await this.getAuthClient();
       // sheetNameOrChannelIdが既にシート名（'metadata'等）の場合はそのまま使用、
       // channelIDらしき場合はgetSheetNameForChannelを呼ぶ
-      const sheetName = sheetNameOrChannelId.includes('!') 
-        ? sheetNameOrChannelId.split('!')[0]
-        : this.isKnownSheetName(sheetNameOrChannelId)
-          ? sheetNameOrChannelId
-          : this.getSheetNameForChannel(sheetNameOrChannelId);
+      const sheetName = this.resolveSheetName(sheetNameOrChannelId);
       
       // シート情報を取得してsheetIdを特定
       const spreadsheetResponse = await this.sheets.spreadsheets.get({
@@ -1011,6 +1059,18 @@ export class GoogleSheetsService {
     return /^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(str);
   }
 
+  private resolveSheetName(sheetNameOrChannelId: string): string {
+    return sheetNameOrChannelId.includes('!')
+      ? sheetNameOrChannelId.split('!')[0]
+      : this.isKnownSheetName(sheetNameOrChannelId)
+        ? sheetNameOrChannelId
+        : this.getSheetNameForChannel(sheetNameOrChannelId);
+  }
+
+  private invalidateSheetCache(sheetName: string): void {
+    this.sheetCache.delete(sheetName);
+  }
+
   private isKnownSheetName(sheetName: string): boolean {
     return (
       sheetName === 'metadata'
@@ -1203,6 +1263,7 @@ export class GoogleSheetsService {
         }
       });
       
+      this.invalidateSheetCache(sheetName);
       return { success: true };
     }
     
@@ -1260,6 +1321,7 @@ export class GoogleSheetsService {
       }
     });
     
+    this.invalidateSheetCache(sheetName);
     return { success: true };
   }
 

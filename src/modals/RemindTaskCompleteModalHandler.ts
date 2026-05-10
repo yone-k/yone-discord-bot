@@ -41,7 +41,7 @@ interface RefreshServicePort {
 export class RemindTaskCompleteModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
-  private inventoryService: Pick<InventoryService, 'consumeForTask' | 'getById'>;
+  private inventoryService: Pick<InventoryService, 'consumeForTask'>;
   private inventoryRepository?: InventoryRepositoryPort;
   private inventoryMessageManager?: InventoryMessageManagerPort;
   private refreshService?: RefreshServicePort;
@@ -52,7 +52,7 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
     messageManager?: RemindMessageManager,
-    inventoryService?: Pick<InventoryService, 'consumeForTask' | 'getById'>,
+    inventoryService?: Pick<InventoryService, 'consumeForTask'>,
     inventoryRepository?: InventoryRepositoryPort,
     inventoryMessageManager?: InventoryMessageManagerPort,
     refreshService?: RefreshServicePort
@@ -118,13 +118,18 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
       completionInput.map(item => [item.name, item.consume])
     );
     const tempInventoryItems: NewRemindInventoryItem[] = [];
+    const inventoryRepository = this.inventoryRepository ?? new InventoryRepository();
+    const inventoryItems = await inventoryRepository.fetchAll(linkedInventoryChannelId);
+    const inventoryItemMap = new Map<string, InventoryItem>(
+      inventoryItems.map(item => [item.id, item])
+    );
 
     for (const item of task.inventoryItems) {
       if (!isNewInventoryItem(item)) {
         continue;
       }
 
-      const inventoryItem = await this.inventoryService.getById(linkedInventoryChannelId, item.inventoryId);
+      const inventoryItem = inventoryItemMap.get(item.inventoryId);
       if (!inventoryItem) {
         if (item.consume > 0) {
           tempInventoryItems.push({ inventoryId: item.inventoryId, consume: item.consume });
@@ -260,7 +265,7 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
 
   private parseMessageId(customId: string): string | null {
     const parts = customId.split(':');
-    return parts.length === 2 ? parts[1] : null;
+    return parts.length >= 2 && parts[1] ? parts[1] : null;
   }
 
   private toBlockedResult(title: string, result: ConsumeForTaskResult): OperationResult | null {
@@ -271,6 +276,12 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
       return {
         success: false,
         message: '在庫移行が必要です。先に在庫移行を実行してください。'
+      };
+    }
+    if (result.kind === 'error') {
+      return {
+        success: false,
+        message: `在庫の更新に失敗しました: ${result.message}`
       };
     }
 

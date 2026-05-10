@@ -111,6 +111,7 @@ export class RemindTaskInventoryModalHandler extends BaseModalHandler {
           return { success: false, message: '在庫チャンネルが連携されていません' };
         }
         const parsedItems = parseInventoryInput(input);
+
         let stockUpdated = false;
         inventoryItems = [];
         for (const item of parsedItems) {
@@ -197,6 +198,6 @@ export class RemindTaskInventoryModalHandler extends BaseModalHandler {
 
   private parseMessageId(customId: string): string | null {
     const parts = customId.split(':');
-    return parts.length === 2 ? parts[1] : null;
+    return parts.length >= 2 && parts[1] ? parts[1] : null;
   }
 }

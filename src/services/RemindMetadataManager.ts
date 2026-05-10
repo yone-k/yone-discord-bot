@@ -112,7 +112,10 @@ export class RemindMetadataManager {
     channelId: string,
     updates: Partial<Omit<RemindChannelMetadata, 'channelId'>>
   ): Promise<RemindMetadataOperationResult> {
-    let sheetData = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+    let sheetData = await this.googleSheetsService.getSheetDataByName(
+      this.METADATA_SHEET_NAME,
+      { skipCache: true }
+    );
     if (sheetData.length <= 1) {
       return { success: false, message: 'metadataが見つかりません' };
     }

@@ -64,7 +64,7 @@ describe('RemindTaskInventoryModalHandler', () => {
     );
 
     const interaction = {
-      customId: 'remind-task-inventory-modal:msg-1',
+      customId: 'remind-task-inventory-modal:msg-1:1700000000000',
       user: { id: 'user-1' },
       channelId: 'channel-1',
       client: {} as any,
@@ -78,6 +78,7 @@ describe('RemindTaskInventoryModalHandler', () => {
 
     await handler.handle({ interaction } as any);
 
+    expect(mockRepository.findTaskByMessageId).toHaveBeenCalledWith('channel-1', 'msg-1');
     expect(mockMetadataManager.getChannelMetadata).toHaveBeenCalledWith('channel-1');
     expect(mockInventoryService.resolveByName).toHaveBeenCalledWith('inventory-channel-1', 'フィルター');
     expect(mockRepository.updateTask).toHaveBeenCalledWith(

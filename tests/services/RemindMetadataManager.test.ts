@@ -93,6 +93,10 @@ describe('RemindMetadataManager', () => {
     });
 
     expect(result.success).toBe(true);
+    expect(mockGoogleSheetsService.getSheetDataByName).toHaveBeenCalledWith(
+      'remind_metadata',
+      { skipCache: true }
+    );
     expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalled();
   });
 
@@ -168,6 +172,10 @@ describe('RemindMetadataManager', () => {
     // Then
     expect(result.success).toBe(true);
     expect((result.metadata as any)?.linkedInventoryChannelId).toBe('inventory-channel-2');
+    expect(mockGoogleSheetsService.getSheetDataByName).toHaveBeenCalledWith(
+      'remind_metadata',
+      { skipCache: true }
+    );
     expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
       'remind_metadata',
       expect.arrayContaining([
@@ -201,6 +209,10 @@ describe('RemindMetadataManager', () => {
     // Then
     expect(result.success).toBe(true);
     expect((result.metadata as any)?.linkedInventoryChannelId).toBeUndefined();
+    expect(mockGoogleSheetsService.getSheetDataByName).toHaveBeenCalledWith(
+      'remind_metadata',
+      { skipCache: true }
+    );
     expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalledWith(
       'remind_metadata',
       expect.arrayContaining([

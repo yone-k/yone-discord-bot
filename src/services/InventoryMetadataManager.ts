@@ -94,7 +94,10 @@ export class InventoryMetadataManager {
       lastSyncTime?: Date;
     }
   ): Promise<OperationResult> {
-    const sheetData = await this.googleSheetsService.getSheetDataByName(this.METADATA_SHEET_NAME);
+    const sheetData = await this.googleSheetsService.getSheetDataByName(
+      this.METADATA_SHEET_NAME,
+      { skipCache: true }
+    );
     if (sheetData.length <= 1) {
       return { success: false, message: 'metadataが見つかりません' };
     }

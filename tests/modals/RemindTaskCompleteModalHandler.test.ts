@@ -9,6 +9,52 @@ const linkedInventoryChannelId = 'inventory-channel-1';
 const messageId = 'message-1';
 const now = new Date('2026-01-05T10:00:00+09:00');
 
+type MockFn = ReturnType<typeof vi.fn>;
+
+type RemindTaskCompleteModalInteractionMock = {
+  customId: string;
+  user: { id: string };
+  guild: { id: string };
+  guildId: string;
+  channelId: string;
+  client: unknown;
+  fields: {
+    getTextInputValue: MockFn;
+  };
+  deferReply: MockFn;
+  editReply: MockFn;
+  deleteReply: MockFn;
+};
+
+type RemindTaskCompleteModalSubject = {
+  handler: RemindTaskCompleteModalHandler;
+  interaction: RemindTaskCompleteModalInteractionMock;
+  mockRepository: {
+    findTaskByMessageId: MockFn;
+    updateTask: MockFn;
+  };
+  mockMessageManager: {
+    updateTaskMessage: MockFn;
+    sendReminderToThread: MockFn;
+  };
+  mockMetadataManager: {
+    getChannelMetadata: MockFn;
+  };
+  mockInventoryService: {
+    consumeForTask: MockFn;
+    getById: MockFn;
+  };
+  mockInventoryRepository: {
+    fetchAll: MockFn;
+  };
+  mockInventoryMessageManager: {
+    createOrUpdateMessage: MockFn;
+  };
+  mockRefreshService: {
+    refreshTasksUsingInventory: MockFn;
+  };
+};
+
 const baseTaskInput = {
   id: 'task-1',
   messageId,
@@ -38,7 +84,7 @@ const createInventoryItem = (id: string, name: string): InventoryItem => ({
   category: ''
 });
 
-const createInteraction = (input: string) => ({
+const createInteraction = (input: string): RemindTaskCompleteModalInteractionMock => ({
   customId: `remind-task-complete-modal:${messageId}`,
   user: { id: 'user-1' },
   guild: { id: 'guild-1' },
@@ -59,8 +105,7 @@ function createSubject(options: {
   linkedInventoryChannelId?: string;
   inventoryItemsById?: Record<string, InventoryItem | null>;
   consumeResult?: unknown;
-  inventoryRepositoryItems?: InventoryItem[];
-}) {
+}): RemindTaskCompleteModalSubject {
   const linkedChannelId = Object.prototype.hasOwnProperty.call(options, 'linkedInventoryChannelId')
     ? options.linkedInventoryChannelId
     : linkedInventoryChannelId;
@@ -92,7 +137,9 @@ function createSubject(options: {
     })
   };
   const mockInventoryRepository = {
-    fetchAll: vi.fn().mockResolvedValue(options.inventoryRepositoryItems ?? [])
+    fetchAll: vi.fn().mockResolvedValue(
+      Object.values(options.inventoryItemsById ?? {}).filter((item): item is InventoryItem => item !== null)
+    )
   };
   const mockInventoryMessageManager = {
     createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true })
@@ -126,6 +173,14 @@ function createSubject(options: {
   };
 }
 
+const expectInventoryLookupViaFetchAll = (
+  mockInventoryRepository: { fetchAll: ReturnType<typeof vi.fn> },
+  mockInventoryService: { getById: ReturnType<typeof vi.fn> }
+): void => {
+  expect(mockInventoryRepository.fetchAll).toHaveBeenNthCalledWith(1, linkedInventoryChannelId);
+  expect(mockInventoryService.getById).not.toHaveBeenCalled();
+};
+
 describe('RemindTaskCompleteModalHandler', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -139,18 +194,20 @@ describe('RemindTaskCompleteModalHandler', () => {
 
   it('fixed のみのタスクで入力どおりに消費する（fixed上書き）', async () => {
     const task = createTask([{ inventoryId: 'A-id', consume: 1 }]);
-    const { handler, interaction, mockInventoryService } = createSubject({
+    const { handler, interaction, mockRepository, mockInventoryService, mockInventoryRepository } = createSubject({
       task,
       input: 'A,3',
       inventoryItemsById: {
         'A-id': createInventoryItem('A-id', 'A')
       }
     });
+    interaction.customId = `remind-task-complete-modal:${messageId}:1700000000000`;
 
     await handler.handle({ interaction } as never);
 
+    expect(mockRepository.findTaskByMessageId).toHaveBeenCalledWith(taskChannelId, messageId);
     expect(interaction.fields.getTextInputValue).toHaveBeenCalledWith('inventory-items');
-    expect(mockInventoryService.getById).toHaveBeenCalledWith(linkedInventoryChannelId, 'A-id');
+    expectInventoryLookupViaFetchAll(mockInventoryRepository, mockInventoryService);
     expect(mockInventoryService.consumeForTask).toHaveBeenCalledWith(
       taskChannelId,
       expect.objectContaining({
@@ -161,7 +218,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
   it('fixed のみのタスクで入力空欄/0 → 元の consume で消費', async () => {
     const task = createTask([{ inventoryId: 'A-id', consume: 2 }]);
-    const { handler, interaction, mockInventoryService } = createSubject({
+    const { handler, interaction, mockInventoryService, mockInventoryRepository } = createSubject({
       task,
       input: 'A,',
       inventoryItemsById: {
@@ -171,6 +228,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
     await handler.handle({ interaction } as never);
 
+    expectInventoryLookupViaFetchAll(mockInventoryRepository, mockInventoryService);
     expect(mockInventoryService.consumeForTask).toHaveBeenCalledWith(
       taskChannelId,
       expect.objectContaining({
@@ -191,6 +249,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
     await consumed.handler.handle({ interaction: consumed.interaction } as never);
 
+    expectInventoryLookupViaFetchAll(consumed.mockInventoryRepository, consumed.mockInventoryService);
     expect(consumed.mockInventoryService.consumeForTask).toHaveBeenCalledWith(
       taskChannelId,
       expect.objectContaining({
@@ -209,6 +268,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
     await skipped.handler.handle({ interaction: skipped.interaction } as never);
 
+    expectInventoryLookupViaFetchAll(skipped.mockInventoryRepository, skipped.mockInventoryService);
     expect(skipped.mockInventoryService.consumeForTask).not.toHaveBeenCalled();
     expect(skipped.mockRepository.updateTask).toHaveBeenCalled();
   });
@@ -218,7 +278,7 @@ describe('RemindTaskCompleteModalHandler', () => {
       { inventoryId: 'fixedA-id', consume: 1 },
       { inventoryId: 'variableB-id', consume: 0 }
     ]);
-    const { handler, interaction, mockInventoryService } = createSubject({
+    const { handler, interaction, mockInventoryService, mockInventoryRepository } = createSubject({
       task,
       input: 'fixedA,2\nvariableB,',
       inventoryItemsById: {
@@ -229,6 +289,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
     await handler.handle({ interaction } as never);
 
+    expectInventoryLookupViaFetchAll(mockInventoryRepository, mockInventoryService);
     expect(mockInventoryService.consumeForTask).toHaveBeenCalledWith(
       taskChannelId,
       expect.objectContaining({
@@ -263,6 +324,7 @@ describe('RemindTaskCompleteModalHandler', () => {
     await handler.handle({ interaction } as never);
 
     expect(mockInventoryService.consumeForTask).not.toHaveBeenCalled();
+    expectInventoryLookupViaFetchAll(mockInventoryRepository, mockInventoryService);
     expect(mockRepository.updateTask).toHaveBeenCalledWith(
       taskChannelId,
       expect.objectContaining({
@@ -270,7 +332,6 @@ describe('RemindTaskCompleteModalHandler', () => {
         nextDueAt: new Date('2026-01-12T09:00:00+09:00')
       })
     );
-    expect(mockInventoryRepository.fetchAll).not.toHaveBeenCalled();
     expect(mockInventoryMessageManager.createOrUpdateMessage).not.toHaveBeenCalled();
     expect(mockRefreshService.refreshTasksUsingInventory).not.toHaveBeenCalled();
     expect(mockMessageManager.sendReminderToThread).not.toHaveBeenCalled();
@@ -278,7 +339,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
   it('在庫不足時、shortage 結果でエラーメッセージを返し、タスクは更新されない', async () => {
     const task = createTask([{ inventoryId: 'A-id', consume: 1 }]);
-    const { handler, interaction, mockInventoryService, mockRepository, mockMessageManager } = createSubject({
+    const { handler, interaction, mockInventoryService, mockRepository, mockMessageManager, mockInventoryRepository } = createSubject({
       task,
       input: 'A,4',
       inventoryItemsById: {
@@ -292,6 +353,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
     await handler.handle({ interaction } as never);
 
+    expectInventoryLookupViaFetchAll(mockInventoryRepository, mockInventoryService);
     expect(mockInventoryService.consumeForTask).toHaveBeenCalledWith(
       taskChannelId,
       expect.objectContaining({
@@ -307,7 +369,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
   it('入力フォーマット不正時、parseCompletionInput のエラーメッセージを返す', async () => {
     const task = createTask([{ inventoryId: 'A-id', consume: 1 }]);
-    const { handler, interaction, mockInventoryService, mockRepository } = createSubject({
+    const { handler, interaction, mockInventoryService, mockRepository, mockInventoryRepository } = createSubject({
       task,
       input: 'A,1,2,3',
       inventoryItemsById: {
@@ -317,6 +379,8 @@ describe('RemindTaskCompleteModalHandler', () => {
 
     await handler.handle({ interaction } as never);
 
+    expect(mockInventoryRepository.fetchAll).not.toHaveBeenCalled();
+    expect(mockInventoryService.getById).not.toHaveBeenCalled();
     expect(mockInventoryService.consumeForTask).not.toHaveBeenCalled();
     expect(mockRepository.updateTask).not.toHaveBeenCalled();
     expect(interaction.editReply).toHaveBeenCalledWith(expect.objectContaining({
@@ -326,7 +390,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
   it('linkedInventoryChannelId が未設定の場合、エラーメッセージで返す', async () => {
     const task = createTask([{ inventoryId: 'A-id', consume: 1 }]);
-    const { handler, interaction, mockMetadataManager, mockInventoryService, mockRepository } = createSubject({
+    const { handler, interaction, mockMetadataManager, mockInventoryService, mockRepository, mockInventoryRepository } = createSubject({
       task,
       input: 'A,1',
       linkedInventoryChannelId: undefined
@@ -335,6 +399,8 @@ describe('RemindTaskCompleteModalHandler', () => {
     await handler.handle({ interaction } as never);
 
     expect(mockMetadataManager.getChannelMetadata).toHaveBeenCalledWith(taskChannelId);
+    expect(mockInventoryRepository.fetchAll).not.toHaveBeenCalled();
+    expect(mockInventoryService.getById).not.toHaveBeenCalled();
     expect(mockInventoryService.consumeForTask).not.toHaveBeenCalled();
     expect(mockRepository.updateTask).not.toHaveBeenCalled();
     expect(interaction.editReply).toHaveBeenCalledWith(expect.objectContaining({
@@ -344,7 +410,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
   it('タスクに存在しないアイテム名の行は無視される', async () => {
     const task = createTask([{ inventoryId: 'real-id', consume: 1 }]);
-    const { handler, interaction, mockInventoryService } = createSubject({
+    const { handler, interaction, mockInventoryService, mockInventoryRepository } = createSubject({
       task,
       input: '存在しないアイテム,3\n本物アイテム,1',
       inventoryItemsById: {
@@ -354,6 +420,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
     await handler.handle({ interaction } as never);
 
+    expectInventoryLookupViaFetchAll(mockInventoryRepository, mockInventoryService);
     expect(mockInventoryService.consumeForTask).toHaveBeenCalledWith(
       taskChannelId,
       expect.objectContaining({
@@ -365,7 +432,7 @@ describe('RemindTaskCompleteModalHandler', () => {
   it('シート保存時の inventoryItems は元の consume === 0 を維持している', async () => {
     const originalInventoryItems = [{ inventoryId: 'variable-id', consume: 0 }];
     const task = createTask(originalInventoryItems);
-    const { handler, interaction, mockRepository, mockInventoryService } = createSubject({
+    const { handler, interaction, mockRepository, mockInventoryService, mockInventoryRepository } = createSubject({
       task,
       input: 'Variable,6',
       inventoryItemsById: {
@@ -375,6 +442,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
     await handler.handle({ interaction } as never);
 
+    expectInventoryLookupViaFetchAll(mockInventoryRepository, mockInventoryService);
     expect(mockInventoryService.consumeForTask).toHaveBeenCalledWith(
       taskChannelId,
       expect.objectContaining({
@@ -398,7 +466,7 @@ describe('RemindTaskCompleteModalHandler', () => {
         lastOverdueNotifiedAt: new Date('2026-01-05T09:30:00+09:00')
       }
     );
-    const { handler, interaction, mockRepository, mockMessageManager } = createSubject({
+    const { handler, interaction, mockRepository, mockMessageManager, mockInventoryService, mockInventoryRepository } = createSubject({
       task,
       input: 'A,1',
       inventoryItemsById: {
@@ -408,6 +476,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
     await handler.handle({ interaction } as never);
 
+    expectInventoryLookupViaFetchAll(mockInventoryRepository, mockInventoryService);
     expect(mockRepository.updateTask).toHaveBeenCalledWith(
       taskChannelId,
       expect.objectContaining({
@@ -437,7 +506,7 @@ describe('RemindTaskCompleteModalHandler', () => {
       { inventoryId: 'variableB-id', consume: 0 },
       { inventoryId: 'fixedC-id', consume: 2 }
     ]);
-    const { handler, interaction, mockInventoryService } = createSubject({
+    const { handler, interaction, mockInventoryService, mockInventoryRepository } = createSubject({
       task,
       input: 'fixedA,0\nvariableB,0\nfixedC,4',
       inventoryItemsById: {
@@ -449,6 +518,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
     await handler.handle({ interaction } as never);
 
+    expectInventoryLookupViaFetchAll(mockInventoryRepository, mockInventoryService);
     expect(mockInventoryService.consumeForTask).toHaveBeenCalledWith(
       taskChannelId,
       expect.objectContaining({
@@ -460,9 +530,9 @@ describe('RemindTaskCompleteModalHandler', () => {
     );
   });
 
-  it('fixedアイテムの inventoryService.getById が null を返す場合、tempTask に元の {inventoryId, consume} を含めて consumeForTask に渡し、shortage 結果でエラー応答する', async () => {
+  it('fixedアイテムの fetchAll に該当アイテムが存在しない場合、tempTask に元の {inventoryId, consume} を含めて consumeForTask に渡し、shortage 結果でエラー応答する', async () => {
     const task = createTask([{ inventoryId: 'missing-fixed-id', consume: 2 }]);
-    const { handler, interaction, mockInventoryService, mockRepository } = createSubject({
+    const { handler, interaction, mockInventoryService, mockRepository, mockInventoryRepository } = createSubject({
       task,
       input: 'A,5',
       inventoryItemsById: {
@@ -476,7 +546,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
     await handler.handle({ interaction } as never);
 
-    expect(mockInventoryService.getById).toHaveBeenCalledWith(linkedInventoryChannelId, 'missing-fixed-id');
+    expectInventoryLookupViaFetchAll(mockInventoryRepository, mockInventoryService);
     expect(mockInventoryService.consumeForTask).toHaveBeenCalledWith(
       taskChannelId,
       expect.objectContaining({
@@ -489,7 +559,7 @@ describe('RemindTaskCompleteModalHandler', () => {
     }));
   });
 
-  it('variableアイテムの inventoryService.getById が null を返す場合、消費スキップしてタスク完了は成功する', async () => {
+  it('variableアイテムの fetchAll に該当アイテムが存在しない場合、消費スキップしてタスク完了は成功する', async () => {
     const task = createTask([{ inventoryId: 'missing-variable-id', consume: 0 }]);
     const { handler, interaction, mockInventoryService, mockRepository, mockInventoryRepository } = createSubject({
       task,
@@ -501,7 +571,7 @@ describe('RemindTaskCompleteModalHandler', () => {
 
     await handler.handle({ interaction } as never);
 
-    expect(mockInventoryService.getById).toHaveBeenCalledWith(linkedInventoryChannelId, 'missing-variable-id');
+    expectInventoryLookupViaFetchAll(mockInventoryRepository, mockInventoryService);
     expect(mockInventoryService.consumeForTask).not.toHaveBeenCalled();
     expect(mockRepository.updateTask).toHaveBeenCalledWith(
       taskChannelId,
@@ -510,7 +580,6 @@ describe('RemindTaskCompleteModalHandler', () => {
         lastDoneAt: now
       })
     );
-    expect(mockInventoryRepository.fetchAll).not.toHaveBeenCalled();
     expect(interaction.deleteReply).toHaveBeenCalled();
   });
 });

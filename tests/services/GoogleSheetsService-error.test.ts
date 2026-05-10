@@ -2,12 +2,18 @@ import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { GoogleSheetsService, GoogleSheetsError, GoogleSheetsErrorType } from '../../src/services/GoogleSheetsService';
 import { Config } from '../../src/utils/config';
 
+const resetGoogleSheetsServiceSingleton = (): void => {
+  const instance = (GoogleSheetsService as any).instance;
+  instance?.sheetCache?.clear?.();
+  (GoogleSheetsService as any).instance = undefined;
+};
+
 describe('GoogleSheetsService Error Handling Tests', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
     originalEnv = { ...process.env };
-    (GoogleSheetsService as any).instance = undefined;
+    resetGoogleSheetsServiceSingleton();
     (Config as any).instance = undefined;
     
     // Discord設定は正常に設定
@@ -17,7 +23,7 @@ describe('GoogleSheetsService Error Handling Tests', () => {
 
   afterEach(() => {
     process.env = originalEnv;
-    (GoogleSheetsService as any).instance = undefined;
+    resetGoogleSheetsServiceSingleton();
     (Config as any).instance = undefined;
     vi.restoreAllMocks();
   });

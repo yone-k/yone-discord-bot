@@ -61,7 +61,8 @@ export class InventoryUpdateModalHandler extends BaseModalHandler {
   }
 
   public shouldHandle(context: ModalHandlerContext): boolean {
-    return context.interaction.customId === InventoryUpdateModalHandler.customId;
+    return context.interaction.customId === InventoryUpdateModalHandler.customId
+      || context.interaction.customId.startsWith(`${InventoryUpdateModalHandler.customId}:`);
   }
 
   protected async executeAction(context: ModalHandlerContext): Promise<OperationResult> {

@@ -200,9 +200,12 @@ describe('InventoryUpdateModalHandler', () => {
     });
   });
 
-  it('customIdはinventory_update_modalのみ処理対象にする', () => {
+  it('customIdはinventory_update_modalとtimestamp付きのみ処理対象にする', () => {
     expect(handler.shouldHandle({
       interaction: { customId: 'inventory_update_modal' }
+    } as any)).toBe(true);
+    expect(handler.shouldHandle({
+      interaction: { customId: 'inventory_update_modal:1700000000000' }
     } as any)).toBe(true);
     expect(handler.shouldHandle({
       interaction: { customId: 'inventory_update_modal_inventory-1' }

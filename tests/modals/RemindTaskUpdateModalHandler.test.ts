@@ -35,7 +35,7 @@ describe('RemindTaskUpdateModalHandler', () => {
     );
 
     const interaction = {
-      customId: 'remind-task-update-modal:msg-1',
+      customId: 'remind-task-update-modal:msg-1:1700000000000',
       user: { id: 'user-1' },
       channelId: 'channel-1',
       client: {} as any,
@@ -56,6 +56,7 @@ describe('RemindTaskUpdateModalHandler', () => {
 
     await handler.handle({ interaction } as any);
 
+    expect(mockRepository.findTaskByMessageId).toHaveBeenCalledWith('channel-1', 'msg-1');
     expect(mockRepository.updateTask).toHaveBeenCalled();
     expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();
   });

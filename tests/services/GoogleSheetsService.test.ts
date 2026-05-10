@@ -34,6 +34,12 @@ type GoogleSheetsServiceWithPendingApi = GoogleSheetsService & {
   isKnownSheetName(sheetName: string): boolean;
 };
 
+const resetGoogleSheetsServiceSingleton = (): void => {
+  const instance = (GoogleSheetsService as any).instance;
+  instance?.sheetCache?.clear?.();
+  (GoogleSheetsService as any).instance = undefined;
+};
+
 describe('GoogleSheetsService', () => {
   let originalEnv: NodeJS.ProcessEnv;
   let mockSheets: any;
@@ -51,7 +57,7 @@ describe('GoogleSheetsService', () => {
 
     // シングルトンをリセット
     ;(Config as any).instance = undefined
-    ;(GoogleSheetsService as any).instance = undefined;
+    ;resetGoogleSheetsServiceSingleton();
 
     // モックを取得
     const { google } = await import('googleapis');
@@ -115,7 +121,7 @@ describe('GoogleSheetsService', () => {
   afterEach(() => {
     process.env = originalEnv
     ;(Config as any).instance = undefined
-    ;(GoogleSheetsService as any).instance = undefined;
+    ;resetGoogleSheetsServiceSingleton();
     vi.clearAllMocks();
   });
 
@@ -130,7 +136,7 @@ describe('GoogleSheetsService', () => {
       delete process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
       delete process.env.GOOGLE_PRIVATE_KEY
       ;(Config as any).instance = undefined
-      ;(GoogleSheetsService as any).instance = undefined;
+      ;resetGoogleSheetsServiceSingleton();
 
       expect(() => {
         GoogleSheetsService.getInstance();
@@ -159,7 +165,7 @@ describe('GoogleSheetsService', () => {
 
       process.env.GOOGLE_PRIVATE_KEY = 'invalid-key'
       ;(Config as any).instance = undefined
-      ;(GoogleSheetsService as any).instance = undefined;
+      ;resetGoogleSheetsServiceSingleton();
       
       const service = GoogleSheetsService.getInstance();
       await expect(service.getAuthClient()).rejects.toThrow(GoogleSheetsError);
@@ -213,13 +219,14 @@ describe('GoogleSheetsService', () => {
   });
 
   describe('シートデータ取得', () => {
-    it('キャッシュなしで毎回APIを呼び出す', async () => {
+    it('同じ sheetName はTTL内でキャッシュされAPIは1回だけ呼び出される', async () => {
       const service = GoogleSheetsService.getInstance();
 
-      await service.getSheetDataByName('inventory_x');
-      await service.getSheetDataByName('inventory_x');
+      const first = await service.getSheetDataByName('inventory_x');
+      const second = await service.getSheetDataByName('inventory_x');
 
-      expect(mockSheets.values.get).toHaveBeenCalledTimes(2);
+      expect(second).toEqual(first);
+      expect(mockSheets.values.get).toHaveBeenCalledTimes(1);
     });
   });
 

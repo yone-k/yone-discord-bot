@@ -2,6 +2,40 @@ import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskCompleteButtonHandler } from '../../src/buttons/RemindTaskCompleteButtonHandler';
 import { Logger } from '../../src/utils/logger';
 import { createRemindTask } from '../../src/models/RemindTask';
+import type { InventoryItem } from '../../src/models/InventoryItem';
+
+type MockFn = ReturnType<typeof vi.fn>;
+
+type VariableInventoryMocks = {
+  handler: RemindTaskCompleteButtonHandler;
+  mockRepository: {
+    findTaskByMessageId: MockFn;
+    updateTask: MockFn;
+  };
+  mockInventoryService: {
+    consumeForTask: MockFn;
+    getById: MockFn;
+  };
+  mockInventoryRepository: {
+    fetchAll: MockFn;
+  };
+  mockMetadataManager: {
+    getChannelMetadata: MockFn;
+  };
+};
+
+type RemindTaskCompleteInteractionMock = {
+  customId: string;
+  user: { id: string; bot: boolean };
+  channelId: string;
+  message: { id: string };
+  client: any;
+  deferReply: MockFn;
+  deleteReply: MockFn;
+  editReply: MockFn;
+  reply: MockFn;
+  showModal: MockFn;
+};
 
 describe('RemindTaskCompleteButtonHandler', () => {
   it('completes task and updates message', async () => {
@@ -456,7 +490,7 @@ describe('RemindTaskCompleteButtonHandler', () => {
     function createMocks(task: ReturnType<typeof createRemindTask>, options?: {
       linkedInventoryChannelId?: string;
       inventoryItemsById?: Record<string, { id: string; name: string; stock: number; category: string } | null>;
-    }) {
+    }): VariableInventoryMocks {
       const mockRepository = {
         findTaskByMessageId: vi.fn().mockResolvedValue(task),
         updateTask: vi.fn().mockResolvedValue({ success: true })
@@ -476,12 +510,13 @@ describe('RemindTaskCompleteButtonHandler', () => {
           kind: 'success',
           linkedInventoryChannelId: options?.linkedInventoryChannelId
         }),
-        getById: vi.fn().mockImplementation(async (_channelId: string, inventoryId: string) => {
-          return options?.inventoryItemsById?.[inventoryId] ?? null;
-        })
+        getById: vi.fn()
       };
       const mockInventoryRepository = {
-        fetchAll: vi.fn().mockResolvedValue([])
+        fetchAll: vi.fn().mockImplementation(async () => {
+          return Object.values(options?.inventoryItemsById ?? {})
+            .filter((item): item is InventoryItem => item !== null);
+        })
       };
       const mockInventoryMessageManager = {
         createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true })
@@ -505,11 +540,12 @@ describe('RemindTaskCompleteButtonHandler', () => {
         handler,
         mockRepository,
         mockInventoryService,
+        mockInventoryRepository,
         mockMetadataManager
       };
     }
 
-    function createInteraction() {
+    function createInteraction(): RemindTaskCompleteInteractionMock {
       return {
         customId: 'remind-task-complete',
         user: { id: 'user-1', bot: false },
@@ -532,7 +568,7 @@ describe('RemindTaskCompleteButtonHandler', () => {
           { inventoryId: 'inventory-2', consume: 1 }
         ]
       });
-      const { handler, mockInventoryService } = createMocks(task, {
+      const { handler, mockInventoryService, mockInventoryRepository } = createMocks(task, {
         linkedInventoryChannelId: 'inventory-channel-1',
         inventoryItemsById: {
           'inventory-1': { id: 'inventory-1', name: '洗剤', stock: 3, category: '' },
@@ -545,8 +581,10 @@ describe('RemindTaskCompleteButtonHandler', () => {
 
       expect(interaction.showModal).toHaveBeenCalledTimes(1);
       const modalJson = interaction.showModal.mock.calls[0][0].toJSON();
-      expect(modalJson.custom_id).toBe('remind-task-complete-modal:msg-1');
+      expect(modalJson.custom_id).toMatch(/^remind-task-complete-modal:msg-1:\d+$/);
       expect(modalJson.components[0].components[0].value).toBe('洗剤,\nスポンジ,1');
+      expect(mockInventoryRepository.fetchAll).toHaveBeenCalledTimes(1);
+      expect(mockInventoryService.getById).not.toHaveBeenCalled();
       expect(mockInventoryService.consumeForTask).not.toHaveBeenCalled();
       expect(interaction.deferReply).not.toHaveBeenCalled();
     });
@@ -608,7 +646,7 @@ describe('RemindTaskCompleteButtonHandler', () => {
         ...baseTaskInput,
         inventoryItems: [{ inventoryId: 'inventory-1', consume: 0 }]
       });
-      const { handler } = createMocks(task, {
+      const { handler, mockInventoryService, mockInventoryRepository } = createMocks(task, {
         linkedInventoryChannelId: 'inventory-channel-1',
         inventoryItemsById: {
           'inventory-1': { id: 'inventory-1', name: '洗剤', stock: 3, category: '' }
@@ -625,6 +663,8 @@ describe('RemindTaskCompleteButtonHandler', () => {
       expect(inputComponent.label).toBe('消費数(名前,数 の形式 / 空欄でスキップor固定値)');
       expect(inputComponent.placeholder).toBe('例: 洗剤,2.5');
       expect(inputComponent.required).toBe(false);
+      expect(mockInventoryRepository.fetchAll).toHaveBeenCalledTimes(1);
+      expect(mockInventoryService.getById).not.toHaveBeenCalled();
     });
 
     it('inventoryService.getById が一部の inventoryId で null を返す場合でも、初期値は "[不明な在庫:<idの先頭8桁>]" のフォールバック表記でモーダルを表示する', async () => {
@@ -635,7 +675,7 @@ describe('RemindTaskCompleteButtonHandler', () => {
           { inventoryId: 'missing-inventory-2', consume: 0 }
         ]
       });
-      const { handler, mockInventoryService } = createMocks(task, {
+      const { handler, mockInventoryService, mockInventoryRepository } = createMocks(task, {
         linkedInventoryChannelId: 'inventory-channel-1',
         inventoryItemsById: {
           'inventory-1': { id: 'inventory-1', name: '洗剤', stock: 3, category: '' },
@@ -646,12 +686,12 @@ describe('RemindTaskCompleteButtonHandler', () => {
 
       await handler.handle({ interaction } as any);
 
-      expect(mockInventoryService.getById).toHaveBeenCalledWith('inventory-channel-1', 'inventory-1');
-      expect(mockInventoryService.getById).toHaveBeenCalledWith('inventory-channel-1', 'missing-inventory-2');
       expect(interaction.showModal).toHaveBeenCalledTimes(1);
       const modalJson = interaction.showModal.mock.calls[0][0].toJSON();
-      expect(modalJson.custom_id).toBe('remind-task-complete-modal:msg-1');
+      expect(modalJson.custom_id).toMatch(/^remind-task-complete-modal:msg-1:\d+$/);
       expect(modalJson.components[0].components[0].value).toBe('洗剤,\n[不明な在庫:missing-],');
+      expect(mockInventoryRepository.fetchAll).toHaveBeenCalledTimes(1);
+      expect(mockInventoryService.getById).not.toHaveBeenCalled();
       expect(mockInventoryService.consumeForTask).not.toHaveBeenCalled();
       expect(interaction.deferReply).not.toHaveBeenCalled();
     });

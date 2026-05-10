@@ -210,7 +210,7 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
 
     const prefill = await this.buildVariableConsumptionPrefill(linkedInventoryChannelId, task);
     const modal = new ModalBuilder()
-      .setCustomId(`remind-task-complete-modal:${messageId}`)
+      .setCustomId(`remind-task-complete-modal:${messageId}:${Date.now()}`)
       .setTitle('完了時の消費数入力');
 
     const inventoryInput = new TextInputBuilder()
@@ -231,15 +231,19 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
   }
 
   private async buildVariableConsumptionPrefill(linkedInventoryChannelId: string, task: RemindTask): Promise<string> {
-    const lines = await Promise.all(task.inventoryItems.map(async (item) => {
+    const inventoryRepository = this.inventoryRepository ?? new InventoryRepository();
+    const inventoryItems = await inventoryRepository.fetchAll(linkedInventoryChannelId);
+    const inventoryItemsById = new Map(inventoryItems.map(inventoryItem => [inventoryItem.id, inventoryItem]));
+
+    const lines = task.inventoryItems.map((item) => {
       if (!isNewInventoryItem(item)) {
         return this.formatInventoryPrefillLine(item.name, item.consume);
       }
 
-      const inventoryItem = await this.inventoryService?.getById(linkedInventoryChannelId, item.inventoryId);
+      const inventoryItem = inventoryItemsById.get(item.inventoryId);
       const name = inventoryItem?.name ?? `[不明な在庫:${item.inventoryId.slice(0, 8)}]`;
       return this.formatInventoryPrefillLine(name, item.consume);
-    }));
+    });
     return lines.join('\n');
   }
 
@@ -320,6 +324,9 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
     }
     if (result.kind === 'migration_required') {
       return '在庫移行が必要です。先に在庫移行を実行してください。';
+    }
+    if (result.kind === 'error') {
+      return `在庫の更新に失敗しました: ${result.message}`;
     }
 
     const shortageNotice = formatInventoryShortageNotice(result.items as never);

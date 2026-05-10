@@ -69,7 +69,7 @@ export class InventoryUpdateButtonHandler extends BaseButtonHandler {
 
   private buildModal(csvText: string): ModalBuilder {
     const modal = new ModalBuilder()
-      .setCustomId('inventory_update_modal')
+      .setCustomId(`inventory_update_modal:${Date.now()}`)
       .setTitle('在庫を更新');
 
     const itemsInput = new TextInputBuilder()

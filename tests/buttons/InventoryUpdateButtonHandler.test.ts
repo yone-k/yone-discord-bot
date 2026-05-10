@@ -18,6 +18,8 @@ describe('InventoryUpdateButtonHandler', () => {
 
   it('ボタン押下時、全在庫をCSV化して一括編集モーダルを表示する', async () => {
     // Given
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
+
     const items: InventoryItem[] = [
       { id: 'inventory-1', name: '洗剤', stock: 3, category: '日用品' },
       { id: 'inventory-2', name: '米', stock: 10.5, category: '食品' }
@@ -45,7 +47,7 @@ describe('InventoryUpdateButtonHandler', () => {
     expect(interaction.update).not.toHaveBeenCalled();
 
     const modalJson = interaction.showModal.mock.calls[0][0].toJSON();
-    expect(modalJson.custom_id).toBe('inventory_update_modal');
+    expect(modalJson.custom_id).toBe('inventory_update_modal:1700000000000');
     expect(modalJson.title).toContain('在庫');
 
     const input = findTextInput(modalJson, 'items');

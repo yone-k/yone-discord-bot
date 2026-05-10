@@ -117,7 +117,7 @@ export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
 
   private parseMessageId(customId: string): string | null {
     const parts = customId.split(':');
-    return parts.length === 2 ? parts[1] : null;
+    return parts.length >= 2 && parts[1] ? parts[1] : null;
   }
 
   private parseOverrideDate(input: string, fallbackTimeOfDay: string, label: string): Date | undefined {

@@ -29,7 +29,7 @@ export type ConsumeForTaskResult =
   | { kind: 'migration_required' }
   | { kind: 'error'; message: string };
 
-interface ReferencedTask {
+export interface ReferencedTask {
   channelId: string;
   title: string;
 }
@@ -121,6 +121,17 @@ export class InventoryService {
   }
 
   public async delete(channelId: string, id: string): Promise<void> {
+    const references = await this.findReferencingTasks(channelId, id);
+
+    if (references.length > 0) {
+      const referenceLines = references.map(reference => `- ${reference.channelId}: ${reference.title}`).join('\n');
+      throw new Error(`在庫アイテムを削除できません: 参照中のタスクがあります\n${referenceLines}`);
+    }
+
+    await this.inventoryRepository.delete(channelId, id);
+  }
+
+  public async findReferencingTasks(channelId: string, id: string): Promise<ReferencedTask[]> {
     const taskChannelIds = await this.remindMetadataManager.findChannelsLinkedToInventory(channelId);
     const references: ReferencedTask[] = [];
 
@@ -129,12 +140,7 @@ export class InventoryService {
       references.push(...this.findReferencedTasks(taskChannelId, tasks, id));
     }
 
-    if (references.length > 0) {
-      const referenceLines = references.map(reference => `- ${reference.channelId}: ${reference.title}`).join('\n');
-      throw new Error(`在庫アイテムを削除できません: 参照中のタスクがあります\n${referenceLines}`);
-    }
-
-    await this.inventoryRepository.delete(channelId, id);
+    return references;
   }
 
   public async consumeForTask(taskChannelId: string, task: RemindTask): Promise<ConsumeForTaskResult> {

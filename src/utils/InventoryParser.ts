@@ -53,22 +53,20 @@ export const parseInventoryCsvText = (text: string): InventoryCsvItem[] => {
   });
 };
 
-export const formatInventoryCsvText = (
-  items: Pick<InventoryItem, 'name' | 'stock' | 'category'>[],
+export const orderInventoryItemsForCsv = <T extends Pick<InventoryItem, 'name' | 'stock' | 'category'>>(
+  items: T[],
   defaultCategory?: string
-): string => {
-  const enriched = items.map(item => ({
-    ...item,
-    category: item.category && item.category.trim() !== '' ? item.category : (defaultCategory ?? '')
-  }));
-
-  const grouped = new Map<string, typeof enriched>();
-  for (const item of enriched) {
-    const cat = item.category || DEFAULT_CATEGORY;
-    if (!grouped.has(cat)) {
-      grouped.set(cat, []);
+): T[] => {
+  const grouped = new Map<string, T[]>();
+  for (const item of items) {
+    const effective = item.category && item.category.trim() !== ''
+      ? item.category
+      : (defaultCategory ?? '');
+    const groupKey = effective || DEFAULT_CATEGORY;
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, []);
     }
-    grouped.get(cat)!.push(item);
+    grouped.get(groupKey)!.push(item);
   }
 
   const sortedCategories = [...grouped.keys()].sort((a, b) => {
@@ -81,13 +79,26 @@ export const formatInventoryCsvText = (
     return a.localeCompare(b, 'ja');
   });
 
-  const lines: string[] = [];
+  const ordered: T[] = [];
   for (const cat of sortedCategories) {
-    for (const item of grouped.get(cat)!) {
-      const stockStr = formatStock(item.stock);
-      const category = item.category && item.category.trim() !== '' ? item.category : undefined;
-      lines.push(category ? `${item.name},${stockStr},${category}` : `${item.name},${stockStr}`);
-    }
+    ordered.push(...grouped.get(cat)!);
+  }
+  return ordered;
+};
+
+export const formatInventoryCsvText = (
+  items: Pick<InventoryItem, 'name' | 'stock' | 'category'>[],
+  defaultCategory?: string
+): string => {
+  const ordered = orderInventoryItemsForCsv(items, defaultCategory);
+
+  const lines: string[] = [];
+  for (const item of ordered) {
+    const stockStr = formatStock(item.stock);
+    const effective = item.category && item.category.trim() !== ''
+      ? item.category
+      : (defaultCategory ?? '');
+    lines.push(effective ? `${item.name},${stockStr},${effective}` : `${item.name},${stockStr}`);
   }
 
   return lines.join('\n');

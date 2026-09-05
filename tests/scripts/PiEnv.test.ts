@@ -4,39 +4,39 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-function metadata(): { metadata: { items: { key: string; value: string }[] } } {
+function metadata(): Record<string, string> {
   const values: Record<string, string> = {
     DISCORD_BOT_TOKEN: 'dummy-$TOKEN-"quoted"-\\backslash', CLIENT_ID: '123456',
-    GOOGLE_SERVICE_ACCOUNT_EMAIL: 'dummy@example.invalid', GOOGLE_SHEETS_SPREADSHEET_ID: 'dummy-sheet',
-    GOOGLE_PRIVATE_KEY_B64: Buffer.from('-----BEGIN PRIVATE KEY-----\nDUMMY\n-----END PRIVATE KEY-----\n').toString('base64'),
+    DATABASE_URL: 'postgresql://bot:dummy@db/discord_bot',
     NODE_ENV: 'production'
   };
-  return { metadata: { items: Object.entries(values).map(([key, value]) => ({ key: `env-${key}`, value })) } };
+  return values;
 }
 function convert(input: unknown): ReturnType<typeof spawnSync> {
   return spawnSync(process.execPath, ['scripts/pi-env.mjs'], { input: JSON.stringify(input), encoding: 'utf8' });
 }
-it('generates six Compose variables and escapes interpolation, quotes and backslashes', () => {
+it('generates four DB Bot variables and escapes interpolation, quotes and backslashes', () => {
   const result = convert(metadata());
   expect(result.status).toBe(0);
-  expect(String(result.stdout).trim().split('\n')).toHaveLength(6);
+  expect(String(result.stdout).trim().split('\n')).toHaveLength(4);
   expect(result.stdout).toContain('DISCORD_BOT_TOKEN="dummy-$$TOKEN-\\"quoted\\"-\\\\backslash"');
-  expect(result.stdout).toContain('GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\\\nDUMMY\\\\n-----END PRIVATE KEY-----\\\\n"');
+  expect(result.stdout).toContain('DATABASE_URL="postgresql://bot:dummy@db/discord_bot"');
+  expect(result.stdout).not.toContain('GOOGLE_');
   expect(result.stderr).toBe('');
 });
-it.each(['missing', 'duplicate', 'base64', 'newline'])('rejects %s input without partial output or leaked values', kind => {
+it.each(['missing', 'admin', 'url', 'newline'])('rejects %s input without partial output or leaked values', kind => {
   const input = metadata();
-  if (kind === 'missing') input.metadata.items.pop();
-  if (kind === 'duplicate') input.metadata.items.push(input.metadata.items[0]);
-  if (kind === 'base64') input.metadata.items[4].value = 'SECRET-INVALID-BASE64';
-  if (kind === 'newline') input.metadata.items[0].value = 'SECRET\nINJECTED=value';
+  if (kind === 'missing') delete input.DATABASE_URL;
+  if (kind === 'admin') input.DATABASE_ADMIN_URL = 'SECRET';
+  if (kind === 'url') input.DATABASE_URL = 'SECRET';
+  if (kind === 'newline') input.DISCORD_BOT_TOKEN = 'SECRET\nINJECTED=value';
   const result = convert(input);
   expect(result.status).not.toBe(0);
   expect(result.stdout).toBe('');
   expect(String(result.stderr)).not.toMatch(/SECRET|dummy/);
 });
 
-it('preserves dummy values through real Compose parsing and Config newline restoration', () => {
+it('preserves dummy values through real Compose parsing without admin credentials on Bot', () => {
   const dir = mkdtempSync(join(tmpdir(), 'compose-env-'));
   try {
     const envFile = join(dir, '.env');
@@ -44,11 +44,12 @@ it('preserves dummy values through real Compose parsing and Config newline resto
     const converted = convert(input);
     expect(converted.status).toBe(0);
     writeFileSync(envFile, String(converted.stdout));
+    writeFileSync(join(dir, '.env.db-admin'), 'POSTGRES_PASSWORD=dummy-admin\n');
     // Compose startup can exceed the unit-test timeout on shared CI runners.
     // Bound the subprocess separately so a hung CLI cannot block the worker.
     const result = spawnSync('docker', ['compose', '--env-file', envFile, '-f', 'docker-compose.yml', 'config', '--format', 'json'], {
       encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL',
-      env: { ...process.env, BOT_ENV_FILE: envFile,
+      env: { ...process.env, BOT_ENV_FILE: envFile, DB_ADMIN_ENV_FILE: join(dir, '.env.db-admin'), STORAGE_UUID: 'synthetic-uuid',
         BOT_IMAGE: `ghcr.io/yone-k/yone-discord-bot@sha256:${'a'.repeat(64)}` }
     });
     expect(result.error, 'Docker Compose must complete within 20 seconds').toBeUndefined();
@@ -57,8 +58,10 @@ it('preserves dummy values through real Compose parsing and Config newline resto
     const env = config.services.bot.environment;
     // `config` serializes literal dollars as $$ so the output can be reused as
     // Compose input. Runtime delivery of the dummy value is verified separately.
-    expect(env.DISCORD_BOT_TOKEN.replace(/\$\$/g, '$')).toBe(input.metadata.items[0].value);
-    expect(env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n')).toBe(Buffer.from(input.metadata.items[4].value, 'base64').toString('utf8'));
+    expect(env.DISCORD_BOT_TOKEN.replace(/\$\$/g, '$')).toBe(input.DISCORD_BOT_TOKEN);
+    expect(env.DATABASE_URL).toBe(input.DATABASE_URL);
+    expect(env.POSTGRES_PASSWORD).toBeUndefined();
+    expect(config.services.db.ports).toBeUndefined();
     expect(config.name).toBe('discord-bot');
     expect(config.services.bot.restart).toBe('unless-stopped');
     expect(config.services.bot.ports[0].host_ip).toBe('127.0.0.1');

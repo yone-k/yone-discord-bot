@@ -32,6 +32,7 @@ RUN npm ci --only=production && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/db ./db
 
 # Change ownership to non-root user
 RUN chown -R discord-bot:nodejs /app

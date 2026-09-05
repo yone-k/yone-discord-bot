@@ -97,7 +97,7 @@ function createItem(id: string, name: string): InventoryItem {
   return {
     id,
     name,
-    stock: 1,
+    stock: '1',
     category: '日用品'
   };
 }

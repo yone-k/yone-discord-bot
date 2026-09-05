@@ -1,232 +1,81 @@
-# Raspberry Pi 5 運用手順
+# Raspberry Pi 5 運用
 
-## 構成
-
-本番BotをGCEから `ras-pi`（yone@192.168.1.245）へ移す。OSはDebian 13 / aarch64、既存のDocker 26.1.5・Compose 2.26.1とHome Assistantを維持する。ホストにNode.js/npmは不要。管理端末はNode.js 24、Git、gcloud、SSHを使用する。
+Botは `ras-pi` の `/home/yone/discord-bot`、Compose project `discord-bot` で稼働する。PostgreSQLを唯一の保存先とし、外付けHDDとGoogle Driveの論理バックアップを使う。[PostgreSQL運用](postgres-operations.md) と [Sheetsからの切替](postgres-migration.md) に従う。#35のGCE→Pi移行は先行作業として完了している必要がある。
 
 | 項目 | 設定 |
 |---|---|
-| 配置先 / Compose project / service | `/home/yone/discord-bot` / `discord-bot` / `bot` |
-| 配布元 | public GHCR `ghcr.io/yone-k/yone-discord-bot`、Piは匿名pull |
-| 起動イメージ | `BOT_IMAGE=ghcr.io/yone-k/yone-discord-bot@sha256:<64桁>` を明示 |
-| 設定 | `.env`、所有者yone、600。Git・イメージに入れない |
-| 更新状態 | `.deploy-state/state`、秘密情報なし。手動でsourceしない |
-| 自動起動 / ログ | `unless-stopped` / json-file、10m × 3 |
-| health | `127.0.0.1:3000:3000`、HTTP成功かつJSONの `bot.ready === true` |
-| Bot専用DNS | `192.168.1.1`（LANルーター）、`1.1.1.1`。ホストのDNS設定は変更しない |
+| 配布 | public GHCR `ghcr.io/yone-k/yone-discord-bot`、ARM64、匿名pull |
+| 起動 | `BOT_IMAGE=ghcr.io/yone-k/yone-discord-bot@sha256:<64桁>` |
+| health | `127.0.0.1:3000:3000`。HTTP200かつ `bot.ready === true`（Discord・DB・schema/移行状態を含む） |
+| Bot DNS | `192.168.1.1`、`1.1.1.1`。ホスト設定は変更しない |
+| 更新状態 | `.deploy-state/state`。データとして読み、shellへsourceしない |
+| 更新経路 | CI公開後のTailscale/OpenSSH push、起動5分後と毎日05:00のtimer（#39） |
+| ログ | Bot・DBともjson-file、10m×3 |
 
-日常のhealth確認はSSH経由で行う。Docker 28未満で同一LANから到達する場合も許容し、LAN遮断のためのDocker更新・ファイアウォール追加は行わない。インターネット向けの受信経路は新設しない。
+Home Assistant、Docker root、OS、既存Tailscale構成を保持する。Docker 28未満でloopback公開が同一LANから到達する場合も、LAN遮断のためのDocker更新やfirewall追加は行わない。インターネット向けの受信経路は新設しない。
 
-`deploy.yml` はmainのpushまたはmainへのworkflow_dispatchで、npm ci → check → test → ARM64ビルド・architecture検査 → GHCR公開 → Pi更新を行う。SHAタグとmainタグは同じ成果物を指す。実行ID・再実行番号のラベルにより同じコミットの再ビルドも別ダイジェストになる。workflow全体を直列化し、公開直前にmainと一致しないコミットは公開・Pi接続をスキップする。
+## 配置と検証
 
-公開成功時だけGitHub-hosted runnerをTailscaleへ一時接続し、制限付きOpenSSH鍵で更新serviceを起動する。CI成功は公開したダイジェストがPiでhealthyになったことを意味する。接続失敗・更新失敗・切戻し・ダイジェスト不一致はCI失敗にする。
+フェーズAでコード・DB・移行・backup/restore・ARM64・独立レビューを完了する。個人利用のためDB準備中の停止を許容し、自動更新を停止せずCI成功後にmainへ先行マージする。DBや設定が未整備なら配布後の起動・更新は失敗し得る。実際のDB整備・データ移行は [切替手順](postgres-migration.md) に従って別途実施する。
 
-## 1. 切替準備
-
-初回PRをレビュー・マージし、CI成功後にGHCRのパッケージ設定でvisibilityをpublicへ変更する。マージ・公開設定・Piへの配置・GCE停止は対象を確認して承認後に実行する。
-
-事前に次を記録する。秘密値は記録しない。
-
-- 現行GCEのproject・zone・instance、ブートディスク、サービスアカウント、稼働イメージのダイジェスト、旧コミット、Artifact Registry参照。
-- GCEメタデータに `startup-script` と必要な `env-*` が存在すること。現在の `env-NODE_ENV` はproductionであることを照合する。
-- 旧GCEデプロイジョブの待機・実行・再実行が残っていないこと。旧イメージを消すジョブやArtifact Registryの削除ポリシーを停止・除外し、7日間保護すること。
-- 既存のリマインド1件とその予定時刻・対応するSheetsの行。切替後に実際の通知を確認できる日程を選ぶ。
-
-PiではDockerの自動起動、yoneのdockerグループ、Compose v2、bash・flock・curl、NTP、空き容量、3000番の空き、外向きGHCR/GitHub/Discord/Google API接続を確認する。Home AssistantのコンテナIDと稼働状態を記録する。既存OS/Dockerの再インストールや全体pruneはしない。不足ツールがある場合のみ対象パッケージを追加する。
-
-管理端末で、レビュー済みの**実際の40桁コミットSHA**を `deploy_commit` に設定して以下を実行する。可変のブランチ名を配置元にしない。
+管理端末でレビュー済みの実コミットを `deploy_commit` に設定する。以下はフェーズBのホストファイル配置であり、Botを起動しない。
 
 ```bash
-ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ras-pi \
-  'install -d -m 700 /home/yone/discord-bot'
-git archive "$deploy_commit" docker-compose.yml scripts/pi-update.sh scripts/pi-ci-deploy.sh scripts/install-pi-env.sh deploy/systemd \
+git archive "$deploy_commit" docker-compose.yml scripts/pi-update.sh scripts/pi-ci-deploy.sh \
+  scripts/pi-db-preflight.sh scripts/pi-db-init.sh scripts/pi-start.sh scripts/pi-backup.sh \
+  scripts/pi-restore.sh scripts/install-pi-env.sh deploy \
   | ssh ras-pi 'tar -xf - -C /home/yone/discord-bot'
-ssh ras-pi 'sudo install -m 644 /home/yone/discord-bot/deploy/systemd/discord-bot-update.* /etc/systemd/system/ && sudo systemctl daemon-reload'
+ssh ras-pi 'sudo install -m 644 /home/yone/discord-bot/deploy/systemd/discord-bot-* /etc/systemd/system/ && sudo systemctl daemon-reload'
 ```
 
-unitの `systemd-analyze verify` を実施し、timerとserviceを無効・停止のままにする。新規unitなので未起動であることを確認する。すでに存在する場合は `sudo systemctl disable --now discord-bot-update.timer`、`sudo systemctl stop discord-bot-update.service` を実行して停止を確認する。Botはまだ起動しない。
+Piでunitを `systemd-analyze verify` し、設定600、Compose `config --quiet`、UUID/ext4/write、匿名pullのlinux/arm64を確認する。CLIはイメージ内の `node dist/scripts/db-migrate.js` と `node dist/scripts/migrate-sheets-to-postgres.js` を専用Compose serviceで実行する。PiホストにNode/npmは不要。bash/flock/findmnt/python3/rcloneとDocker Composeは必要。
 
-認証を使わない一時Docker設定で、Piからイメージを事前取得する。以下はPi上で実行する。
+ホストファイルはイメージ更新では変わらない。変更時はCI・timerを停止し、レビュー済みコミットから再配置する。可変mainのシェルを定期処理で取得・実行しない。
 
-```bash
-anonymous_config=$(mktemp -d)
-docker --config "$anonymous_config" pull --platform linux/arm64 ghcr.io/yone-k/yone-discord-bot:main
-rm -r "$anonymous_config"
-docker image inspect --format '{{.Os}}/{{.Architecture}} {{json .RepoDigests}}' ghcr.io/yone-k/yone-discord-bot:main
-```
+## CIと通常更新
 
-出力がlinux/arm64であることを確認し、GHCRのダイジェストと対応するCIコミットを記録する。以降、Piのシェルでは `export BOT_IMAGE='ghcr.io/yone-k/yone-discord-bot@sha256:実際の64桁'` を設定する。例示文字列は実際の値に置換する。初期化フラグは立てない。
+PRのCIは `npm ci → check → test → test:db → build-only`。main公開workflowはDB検証後、ARM64イメージを一度ビルドし、architecture・pg読込・CLI/DDL同梱・Google設定なしの起動検査・秘密ファイル非混入を確認してからSHA/mainタグを公開する。公開直前に現mainと一致しないコミットは公開・Pi接続をスキップする。公開処理を直列化し、古いコミットによるmainタグ上書きを防ぐ。
 
-## 2. 既存の認証情報を移送する
+CIは公開成功後だけTailscaleへ一時接続し、制限付きOpenSSH鍵で `discord-bot-update.service` を同期起動する。CI成功は公開したダイジェストがPiでhealthyになったことを意味する。取りこぼしは起動時・日次timerで確認する。5分ごとのポーリングには戻さない。
 
-取得元はGCEインスタンスメタデータ。Google Sheets用サービスアカウント・鍵・Botトークンを継続し、新規発行しない。GitHub Secretsの読み出しは不要。
+updaterはflockで排他し、pull・構文・HDD・候補と現在版のschema互換を確認してからBotだけを入れ替える。schema変更やSheets版への切戻しは自動実行しない。通常更新失敗時は候補を停止し、直前の互換DB版へ戻す。各health期限は5分。失敗ダイジェストを記録して再適用を抑止する。切戻し失敗・停止失敗・中断・状態不一致はblockedを永続化する。同じダイジェストがunhealthyになっただけでは自動再起動しない。
 
-| GCE metadata key | Pi変数 |
+| state | 意味 |
 |---|---|
-| env-DISCORD_BOT_TOKEN | DISCORD_BOT_TOKEN |
-| env-CLIENT_ID | CLIENT_ID |
-| env-GOOGLE_SERVICE_ACCOUNT_EMAIL | GOOGLE_SERVICE_ACCOUNT_EMAIL |
-| env-GOOGLE_SHEETS_SPREADSHEET_ID | GOOGLE_SHEETS_SPREADSHEET_ID |
-| env-GOOGLE_PRIVATE_KEY_B64 | デコードしてGOOGLE_PRIVATE_KEY |
-| env-NODE_ENV | 照合後、productionを設定 |
+| current / previous | 最後の正常DB版 / 直前の正常DB版 |
+| rejected | 自動再試行しない失敗ダイジェスト |
+| blocked | 運用者が復旧するまで更新停止 |
+| pending | 更新未完了。次回は推測せずブロック |
+| initialized | 全受入後の初期登録完了 |
 
-管理端末のリポジトリで `gce_project`・`gce_zone`・`gce_instance` と `BOT_IMAGE` を照合済みの実値に設定する。次のブロックはbashで実行する。`set -x` は使わない。
+正常版と直前正常版を保持し、自動pruneは行わない。障害調査は `pi-update.sh --status`、必要項目だけのinspect、journal、アプリログを使う。展開済みenvやDocker inspect全体を共有しない。
 
-```bash
-(
-  set -euo pipefail
-  set +x
-  config=$(gcloud compute instances describe "$gce_instance" \
-    --project "$gce_project" --zone "$gce_zone" --format=json \
-    | node scripts/pi-env.mjs)
-  printf '%s\n' "$config" | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ras-pi \
-    "BOT_IMAGE='$BOT_IMAGE' bash /home/yone/discord-bot/scripts/install-pi-env.sh"
-)
-```
+## CI接続設定
 
-変換は必須項目・Base64・鍵のヘッダーを検証してから出力する。秘密値はSSHの標準入力だけに渡り、コマンド引数や履歴に載らない。鍵は1行の `\n` 表現にし、Composeの補間文字・引用符・バックスラッシュをエスケープする。既存Configが実改行へ戻す。Pi側は600の一時ファイルを完全性・Compose構文検証後に置換し、失敗時は既存.envを保持する。
+既存 #39 の設定を維持する。
 
-`stat -c '%U %a' /home/yone/discord-bot/.env` で `yone 600` を確認する。内容や `docker compose config` の全出力、全項目の `docker inspect` はログへ出さない。検証は `docker compose config --quiet` を使う。`BOT_ENV_FILE` は検証時の一時.env指定用で、通常運用では未設定にする。
+- PiのTailscaleは `--accept-dns=false`、`tag:discord-bot-pi`。OpenSSHを使い、Tailscale SSH/Funnel/subnet routeは有効にしない。
+- tailnetの `deploy/tailscale/policy.hujson` は既存他用途を保って適用し、CIからPiのTCP22だけを許可する。
+- OIDC issuerは `https://token.actions.githubusercontent.com`、subjectは `repo:yone-k/yone-discord-bot:ref:refs/heads/main`、custom claimは `workflow_ref=yone-k/yone-discord-bot/.github/workflows/deploy.yml@refs/heads/main`、scope `auth_keys` write、tag `tag:discord-bot-ci`。
+- GitHub Secretsは `TS_OAUTH_CLIENT_ID`、`TS_AUDIENCE`、`PI_DEPLOY_SSH_KEY`。Variablesは `PI_TAILSCALE_HOST` と既存管理接続で照合済みの `PI_SSH_KNOWN_HOSTS`。
+- yoneのauthorized_keysはCI鍵に `restrict,command="/bin/bash /home/yone/discord-bot/scripts/pi-ci-deploy.sh"` を付ける。任意コマンド・転送・鍵自動受入を許可しない。
+- 入口は `deploy sha256:<64桁>` だけを受け、service完了後に `--verify` で実ダイジェスト・healthy・状態を照合する。
 
-## 3. GCE停止 → Pi起動 → 受入
-
-停止対象と時間を承認後、管理端末で実行する。数分の停止を許容する。
-
-```bash
-gcloud compute instances stop "$gce_instance" --project "$gce_project" --zone "$gce_zone"
-gcloud compute instances describe "$gce_instance" --project "$gce_project" --zone "$gce_zone" --format='value(status)'
-```
-
-**TERMINATEDを確認してから**Piを起動する。HTTP疎通不可だけでは停止確認としない。Pi上で:
+## 手動復旧と停止
 
 ```bash
 cd /home/yone/discord-bot
-docker compose -p discord-bot config --quiet
-docker compose -p discord-bot up -d --no-build --pull never bot
-curl --fail --silent http://localhost:3000/health
-docker inspect --format '{{.Config.Image}} {{.State.Health.Status}}' "$(docker compose -p discord-bot ps -q bot)"
-```
-
-起動から最大5分以内に `bot.ready: true` とhealthyを確認する。運用者が同じ本番BotでSheetsアクセス、`/ping`応答、事前選定したリマインドの実送信とSheetsの通知状態更新を確認する。対象・予定時刻・送信・更新の結果を記録する。リマインド予定時刻までの待機は5分の起動期限とは別。確認用Botや追加リマインドを作らない。
-
-すべての受入が成功してから、Pi上で実際の正常ダイジェストを登録する。登録はコンテナを再作成しない。
-
-```bash
-bash scripts/pi-update.sh --initialize "$BOT_IMAGE"
-bash scripts/pi-update.sh --status
-sudo systemctl enable --now discord-bot-update.timer
-systemctl list-timers discord-bot-update.timer
-journalctl -u discord-bot-update.service --since today --no-pager
-```
-
-初期登録失敗時はtimerを有効にしない。定期実行の正常動作を確認し、全受入とtimer有効化の成功時刻を記録する。この時刻を7日間保持の起点とする。
-
-## 4. 通常更新とPi内復旧
-
-通常はCIから更新する。取りこぼし確認のtimerはPi起動5分後と毎日05:00（ホストのタイムゾーン）に実行する。日次予定中に停止していた場合もPersistent=trueで復帰時に実行する。5分ごとのポーリングは行わない。PiがオフラインでCIの接続が失敗した場合は、復帰時・日次確認、または公開workflowの再実行で追従する。
-
-CIとtimerは同じsystemd serviceを使い、flockでも更新を排他する。ネットワーク・pull失敗は稼働中Botを維持する。mainが同じダイジェストなら再作成しない。変更時だけ最大5分でhealthを確認する。失敗時は候補を停止し、直前の正常版へ戻して最大5分検証する。停止失敗・切戻し失敗・中断・実体との不一致では自動更新をブロックする。
-
-### CI接続の設定
-
-- Pi: Tailscaleをインストールし、`--accept-dns=false`で登録。`tag:discord-bot-pi`を付与する。通常のOpenSSHを利用し、Tailscale SSH・Funnel・サブネットルートは有効にしない。
-- tailnet: `deploy/tailscale/policy.hujson`を新規個人tailnetへ適用。既存tailnetは他用途のルールを保ったまま統合し、CIタグに全許可が及ばないことを確認する。CIからはPiのTCP 22だけ許可。
-- OpenID Connect: issuer `https://token.actions.githubusercontent.com`、subject `repo:yone-k/yone-discord-bot:ref:refs/heads/main`、custom claim `workflow_ref=yone-k/yone-discord-bot/.github/workflows/deploy.yml@refs/heads/main`、scope `auth_keys` write、tag `tag:discord-bot-ci`。
-- GitHub Secrets: `TS_OAUTH_CLIENT_ID`、`TS_AUDIENCE`、CI専用の`PI_DEPLOY_SSH_KEY`。OIDCのClient IDとAudienceは秘密ではないが認証設定としてSecretsに保管する。
-- GitHub Variables: `PI_TAILSCALE_HOST`（PiのTailscale IPv4）、`PI_SSH_KNOWN_HOSTS`（そのIPに対応する、LANの既存SSH接続で取得・照合したホスト公開鍵）。接続時の鍵自動受入はしない。
-- Piのyoneのauthorized_keysにCI公開鍵を`restrict,command="/bin/bash /home/yone/discord-bot/scripts/pi-ci-deploy.sh"`付きで登録。既存管理鍵は維持する。CI入口は`deploy sha256:<64桁>`のみ受け付け、シェル・転送は許可しない。
-- `pi-ci-deploy.sh`は同期的にserviceを起動後、`pi-update.sh --verify IMAGE@sha256:DIGEST`で状態・実コンテナ・healthを照合する。未初期化・blocked・pending・ロック競合も検証失敗とする。
-
-Tailscaleへの接続はビルド終了後のdeploy job内だけに限定する。無料Personalプランの一時リソース枠（月1,000分、2026-09確認）は接続時間に注意する。CI用キーのローテーション時は新しい制限付き公開鍵とGitHub Secretを配置・検証してから旧公開鍵だけを削除する。
-
-導入時は先にPiへ`pi-update.sh`と`pi-ci-deploy.sh`を配置し、制限付き鍵で任意コマンドの拒否・正常ダイジェストの検証を確認する。CIからの実更新に成功してから日次timerへ切り替える。
-
-| 状態項目 | 意味 |
-|---|---|
-| current / previous | 最後に正常確認した版 / その直前の正常版 |
-| rejected | 起動に失敗し、以後自動適用しないダイジェスト |
-| blocked | 1なら運用者の復旧まで自動更新停止 |
-| pending | 1なら置換処理が未完了。次回は推測せずブロック |
-| initialized | 全初期受入後に1として登録済み |
-
-正常版と直前の正常版のローカルイメージを保持する。自動pruneは行わない。容量整理時もこの2版は削除しない。同じ版の稼働中Botがunhealthyになっても、自動再起動する監視機構は追加していない。
-
-障害調査は `--status`、journal、必要項目だけのinspect、アプリログを使う。Dockerエラーの全出力は秘密値を含み得るため、更新処理は分類名だけをjournalに記録する。
-
-稼働中Botを維持したまま更新だけを固定する場合は `bash scripts/pi-update.sh --block` を使う。再開時は正常ダイジェストの `--recover` でhealthを確認して解除する。
-
-手動復旧・設定変更の前は`.deploy-state/ci-disabled`を作成してCI入口を停止し、進行中のdeploy jobがないことを確認してからtimer・serviceを停止する。service停止により更新が中断した場合もpendingで検出する。作業完了後にci-disabledを削除してCI入口を再開する。
-
-```bash
-touch /home/yone/discord-bot/.deploy-state/ci-disabled
+touch .deploy-state/ci-disabled
 sudo systemctl disable --now discord-bot-update.timer
-sudo systemctl stop discord-bot-update.service
-bash scripts/pi-update.sh --status
-# currentまたはpreviousから、保持済みの正常ダイジェストをBOT_IMAGEへ設定
-bash scripts/pi-update.sh --recover "$BOT_IMAGE"
+bash scripts/pi-update.sh --block
+systemctl is-active discord-bot-update.service
+flock -n .deploy-state/lock true
 ```
 
-`--recover` はブロック中も利用可能。現在のBotを停止後、指定版を再作成してhealthyを確認し、成功時だけブロックを解除する。失敗時は停止のまま調査し、別版を同時起動しない。成功後にDiscord/Sheetsを確認してtimerを再有効化する。
+`--block` の非0を無視しない。serviceが完了してから再実行し、blocked=1とlock解放を確認する。設定変更・復元ではbackup timerも停止する。
 
-CI入口も再開する場合は`rm /home/yone/discord-bot/.deploy-state/ci-disabled`を実行する。GCEへ切り戻している間は削除しない。
+修正・再検証した**schema互換DB版**を明示して `bash scripts/pi-update.sh --recover "$BOT_IMAGE"` を実行する。成功時だけブロックを解除する。Sheets版やschema不一致は起動前に拒否する。失敗時はDBを保全してDB版の復旧を続ける。
 
-失敗版を再試行する場合は原因修正後、非ブロック状態で `bash scripts/pi-update.sh --retry '失敗したGHCRダイジェスト'` を実行する。rejectedと一致する指定だけを解除し、その時点のmainを再評価する。mainが既に別版なら別版が対象になる。ブロック中はまず `--recover` を使う。
+受入後にci-disabledを削除してtimerを再開する。失敗版の再試行は `--retry <失敗ダイジェスト>` でrejectedを解除し、その時点のmainを再評価する。状態破損時はCI/timer停止を維持し、記録と実コンテナを照合して状態を退避し、既存正常DB版の `--initialize` で再登録する。状態削除だけで更新を再開しない。
 
-設定変更は同じ移送手順で.envを更新し、`--recover "$BOT_IMAGE"` で現在の正常版を明示的に再作成する。ホストのCompose/script/unit更新もtimer・service停止後、レビュー済みコミットから「切替準備」の配置手順で再配置し、daemon-reload・unit検証を行う。イメージ更新だけではホストファイルは変わらない。
-
-状態ファイルが破損して読み込めない場合はtimerを停止したまま、記録したダイジェストと実コンテナを照合する。状態を退避し、明示ダイジェストのComposeで稼働・healthy・Discord/Sheetsを確認した後に `--initialize` で登録し直す。状態を削除しただけでtimerを再開しない。
-
-## 5. GCEへの切戻し（保持期間中のみ）
-
-初回受入失敗や移行不具合時、CI入口を上記のci-disabledで停止し、進行中のdeploy jobがないことを確認する。**Piを確実に停止してから**GCEを再起動する。Pi上で:
-
-```bash
-sudo systemctl disable --now discord-bot-update.timer
-sudo systemctl stop discord-bot-update.service
-cd /home/yone/discord-bot
-docker compose -p discord-bot down
-docker compose -p discord-bot ps -a -q
-```
-
-downの成功とコンテナが残っていないことを確認する。これによりPi再起動でもBotは復帰しない。停止が確認できなければGCEを起動しない。その後、管理端末でGCEをstartし、旧BotのDiscord/Sheets・healthを確認する。
-
-```bash
-gcloud compute instances start "$gce_instance" --project "$gce_project" --zone "$gce_zone"
-```
-
-旧 `gce-startup-script.sh` と `scripts/local-deploy.sh` は保持期間中に残すが、Piへ流用しない。旧スクリプトのログには秘密情報が含まれ得るため、全ログを共有しない。再度Piへ切替成功した時点から7日間を取り直す。
-
-## 6. 7日保持・更新確認・GCP撤去
-
-停止GCE・ブートディスク・startup/envメタデータ・旧Artifact Registryイメージ・必要な実行権限を成功時刻から7日以上保持する。停止中もディスクの費用は残る。
-
-保持期間中に、Discord/Sheets・既存通知と状態更新・Home Assistantの継続稼働を記録する。timerで同じ版ならコンテナIDが変わらないことを確認する。次に承認を得てmainのworkflow_dispatchを1回実行し、公開後のCIからPi更新が起動して、新ダイジェストを正常版に記録することを確認する。同じコードでもビルド実行ラベルによりダイジェストが変わるため、#36や追加コード変更を待つ必要はない。
-
-7日経過・通常更新成功・未解決の移行不具合なしを確認した後、Bot専用と確認できた対象の削除一覧を提示し、承認後に撤去する。
-
-| 候補 | 判定 |
-|---|---|
-| GCE instance / boot disk / 固定IP / firewall | 実在とBot専用性を個別照合 |
-| Artifact Registry discord-bot-repo | 共有イメージがないことを確認 |
-| 旧デプロイ用サービスアカウントと鍵 | Sheetsと共用なら維持 |
-| GitHub Secrets GCP_PROJECT_ID / GCP_SERVICE_ACCOUNT_KEY | 他workflowとの共有がなければ削除 |
-
-Google Sheets用サービスアカウント・鍵・API、GCPプロジェクト自体、共有リソース、GitHubの `GOOGLE_*`・`DISCORD_BOT_TOKEN`・`CLIENT_ID`・`GUILD_ID` は維持する。各候補を「削除」「共有のため維持」「存在なし」「保留」に分類し、保留のまま撤去完了としない。削除後はAPIで不存在とSheets継続を確認する。
-
-撤去後、別の後片付けPRで旧GCEスクリプト2件を削除し、この文書の現行復旧案内をPi内復旧へ揃える。初回PRだけでIssue完了としない。
-
-## ローカル検証
-
-```bash
-npm ci
-npm run check
-npm test
-npm run build-only
-bash -n scripts/pi-update.sh scripts/install-pi-env.sh scripts/publish-image.sh
-docker buildx build --platform linux/arm64 --load -t discord-bot:check .
-docker image inspect --format '{{.Os}}/{{.Architecture}} {{.Config.User}} {{json .Config.Healthcheck}}' discord-bot:check
-```
-
-テストにはDocker Compose CLIが必要（env解析だけなのでデーモンは不要）。Linuxでは実flockの競合も検証する。macOSでは `/bin/bash` のBash 3.2で更新処理を実行し、flock競合だけLinux CIへ委ねる。`npm run build` / `npm run dev` はDiscordコマンド登録を伴うため、この検証では実行しない。
-
-参考: [Dockerのポート公開](https://docs.docker.com/engine/network/port-publishing/)、[Composeの補間](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/)、[GHCR](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)、[Tailscale GitHub Action](https://tailscale.com/docs/integrations/github/github-action)、[Tailscale OIDC](https://tailscale.com/docs/features/workload-identity-federation)、[Tailscale料金](https://tailscale.com/pricing?plan=personal)。
+DB版Botの初回起動指示後はSheets/GCEへ復帰しない。#35のGCE初回移行・7日保持・専用リソース撤去の記録は [DB移行前の手順](https://github.com/yone-k/yone-discord-bot/blob/46c9073/docs/raspberry-pi-deployment.md) とIssue #35を参照する。未完了なら本DB移行より先に完了する。

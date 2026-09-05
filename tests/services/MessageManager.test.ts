@@ -28,8 +28,8 @@ const mockMessage = {
 };
 
 // モックのモジュール
-vi.mock('../../src/services/MetadataManager', () => ({
-  MetadataManager: {
+vi.mock('../../src/services/ListChannelStore', () => ({
+  ListChannelStore: {
     getInstance: vi.fn().mockReturnValue({
       getChannelMetadata: vi.fn().mockResolvedValue({ success: false }),
       createChannelMetadata: vi.fn().mockResolvedValue({ success: true }),
@@ -218,7 +218,7 @@ describe('MessageManager', () => {
       // Arrange
       mockMessage.pinned = false;
       const operationLogThreadId = 'operation-thread-456';
-      const mockMetadataManager = messageManager['metadataManager'];
+      const mockListChannelStore = messageManager['metadataManager'];
 
       // Act
       await messageManager.createOrUpdateMessageWithMetadata(
@@ -232,7 +232,7 @@ describe('MessageManager', () => {
       );
 
       // Assert
-      expect(mockMetadataManager.createChannelMetadata).toHaveBeenCalledWith(
+      expect(mockListChannelStore.createChannelMetadata).toHaveBeenCalledWith(
         'test-channel-123',
         expect.objectContaining({
           operationLogThreadId: 'operation-thread-456'
@@ -257,7 +257,7 @@ describe('MessageManager', () => {
       expect(mockChannel.send).toHaveBeenCalled();
     });
 
-    it('既存メタデータ更新時にoperationLogThreadIdが保持される', async () => {
+    it('描画引数が異なっても既存ログ設定を書き換えない', async () => {
       // Arrange
       mockMessage.pinned = false;
       const operationLogThreadId = 'operation-thread-789';
@@ -270,8 +270,8 @@ describe('MessageManager', () => {
         operationLogThreadId: 'old-thread-id'
       };
       
-      const mockMetadataManager = messageManager['metadataManager'];
-      mockMetadataManager.getChannelMetadata.mockResolvedValue({
+      const mockListChannelStore = messageManager['metadataManager'];
+      mockListChannelStore.getChannelMetadata.mockResolvedValue({
         success: true,
         metadata: existingMetadata
       });
@@ -288,15 +288,13 @@ describe('MessageManager', () => {
       );
 
       // Assert
-      expect(mockMetadataManager.updateChannelMetadata).toHaveBeenCalledWith(
+      expect(mockListChannelStore.updateChannelMetadata).toHaveBeenCalledWith(
         'test-channel-123',
-        expect.objectContaining({
-          operationLogThreadId: 'operation-thread-789'
-        })
+        { messageId: 'test-message-456' }
       );
     });
 
-    it('operationLogThreadIdが空文字列の場合、既存のoperationLogThreadIdを削除する', async () => {
+    it('描画引数の空文字列で既存ログ設定を削除しない', async () => {
       // Arrange
       mockMessage.pinned = false;
       const operationLogThreadId = ''; // 空文字列で削除指示
@@ -309,8 +307,8 @@ describe('MessageManager', () => {
         operationLogThreadId: 'existing-thread-id'
       };
       
-      const mockMetadataManager = messageManager['metadataManager'];
-      mockMetadataManager.getChannelMetadata.mockResolvedValue({
+      const mockListChannelStore = messageManager['metadataManager'];
+      mockListChannelStore.getChannelMetadata.mockResolvedValue({
         success: true,
         metadata: existingMetadata
       });
@@ -327,11 +325,9 @@ describe('MessageManager', () => {
       );
 
       // Assert
-      expect(mockMetadataManager.updateChannelMetadata).toHaveBeenCalledWith(
+      expect(mockListChannelStore.updateChannelMetadata).toHaveBeenCalledWith(
         'test-channel-123',
-        expect.not.objectContaining({
-          operationLogThreadId: expect.anything()
-        })
+        { messageId: 'test-message-456' }
       );
     });
 
@@ -340,8 +336,8 @@ describe('MessageManager', () => {
       mockMessage.pinned = false;
       const operationLogThreadId = ''; // 空文字列
       
-      const mockMetadataManager = messageManager['metadataManager'];
-      mockMetadataManager.getChannelMetadata.mockResolvedValue({
+      const mockListChannelStore = messageManager['metadataManager'];
+      mockListChannelStore.getChannelMetadata.mockResolvedValue({
         success: false,
         metadata: null
       });
@@ -358,7 +354,7 @@ describe('MessageManager', () => {
       );
 
       // Assert
-      expect(mockMetadataManager.createChannelMetadata).toHaveBeenCalledWith(
+      expect(mockListChannelStore.createChannelMetadata).toHaveBeenCalledWith(
         'test-channel-123',
         expect.not.objectContaining({
           operationLogThreadId: expect.anything()
@@ -434,7 +430,7 @@ describe('MessageManager', () => {
       // Arrange
       mockMessage.pinned = false;
       mockMessage.startThread = vi.fn().mockResolvedValue(mockThreadChannel);
-      const mockMetadataManager = messageManager['metadataManager'];
+      const mockListChannelStore = messageManager['metadataManager'];
 
       // Act
       await messageManager.createOrUpdateMessageWithMetadata(
@@ -449,7 +445,7 @@ describe('MessageManager', () => {
       );
 
       // Assert
-      expect(mockMetadataManager.createChannelMetadata).toHaveBeenCalledWith(
+      expect(mockListChannelStore.createChannelMetadata).toHaveBeenCalledWith(
         'test-channel-123',
         expect.objectContaining({
           operationLogThreadId: 'thread-123'
@@ -501,5 +497,39 @@ describe('MessageManager', () => {
       expect(result.success).toBe(true);
       expect(mockMessage.startThread).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('DB描画結果とチャンネル直列化', () => {
+  function fixture(): {manager:MessageManager;metadata:any;client:any;message:any} {
+    const metadata = {getChannelMetadata:vi.fn().mockResolvedValue({success:true,metadata:{channelId:'1',messageId:'9',listTitle:'新タイトル',defaultCategory:'食品',operationLogThreadId:'8'}}),updateChannelMetadata:vi.fn().mockResolvedValue({success:true})};
+    const message:any = {id:'9',pinned:true,edit:vi.fn()};
+    message.edit.mockResolvedValue(message);
+    const client = {channels:{fetch:vi.fn().mockResolvedValue({type:ChannelType.GuildText,messages:{fetch:vi.fn().mockResolvedValue(message)},send:vi.fn().mockResolvedValue(message)})}};
+    return {manager:new MessageManager(metadata),metadata,client,message};
+  }
+  it('古い描画値で最新業務設定を書き戻さずIDのみ保存する',async()=>{
+    const {manager,metadata,client}=fixture();
+    await manager.createOrUpdateMessageWithMetadataV2('1',[],'旧タイトル',client,'list','旧カテゴリ','旧スレッド');
+    expect(metadata.updateChannelMetadata).toHaveBeenCalledWith('1',{messageId:'9'});
+  });
+  it.each(['v2','embed'])('DB保存失敗を公開%sメソッドで失敗結果にする',async format=>{
+    const {manager,metadata,client}=fixture();metadata.updateChannelMetadata.mockRejectedValue(new Error('DB write failed'));
+    const result=format==='v2'?await manager.createOrUpdateMessageWithMetadataV2('1',[],'新タイトル',client):await manager.createOrUpdateMessageWithMetadata('1',new EmbedBuilder(), '新タイトル',client);
+    expect(result.success).toBe(false);expect(result.errorMessage).toContain('DB write failed');
+  });
+  it('別インスタンスを含む3操作を受付順に直列化する',async()=>{
+    const {manager,metadata,client,message}=fixture();const other=new MessageManager(metadata);
+    let releaseFirst!:()=>void, releaseSecond!:()=>void;
+    const firstGate=new Promise<void>(resolve=>{releaseFirst=resolve;});const secondGate=new Promise<void>(resolve=>{releaseSecond=resolve;});
+    let active=0,maxActive=0,starts=0;
+    message.edit.mockImplementation(async()=>{const index=starts++;active++;maxActive=Math.max(maxActive,active);if(index===0)await firstGate;if(index===1)await secondGate;active--;return message;});
+    const first=manager.createOrUpdateMessageWithMetadataV2('1',[],'A',client);
+    const second=manager.createOrUpdateMessageWithMetadataV2('1',[],'B',client);
+    const third=other.createOrUpdateMessageWithMetadataV2('1',[],'C',client);
+    await new Promise(resolve=>setImmediate(resolve));
+    const startsBeforeFirst=starts;releaseFirst();await first;await new Promise(resolve=>setImmediate(resolve));
+    const startsBeforeSecond=starts;releaseSecond();await Promise.all([second,third]);
+    expect(startsBeforeFirst).toBe(1);expect(startsBeforeSecond).toBe(2);expect(maxActive).toBe(1);expect(starts).toBe(3);
   });
 });

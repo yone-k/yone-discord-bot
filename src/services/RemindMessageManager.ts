@@ -17,11 +17,11 @@ import type {
   APIMessageTopLevelComponent,
   APITextDisplayComponent
 } from 'discord-api-types/v10';
-import { GoogleSheetsService, OperationResult } from './GoogleSheetsService';
+import type { OperationResult } from '../repositories/contracts';
 import { RemindTask } from '../models/RemindTask';
 import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
 import { InventoryService } from './InventoryService';
-import { RemindMetadataManager } from './RemindMetadataManager';
+import { RemindChannelStore } from './RemindChannelStore';
 
 export interface RemindMessageResult extends OperationResult {
   messageId?: string;
@@ -33,20 +33,17 @@ export interface RemindThreadResult extends OperationResult {
 }
 
 export interface RemindMessageManagerOptions {
-  sheetUrlResolver?: (channelId: string) => Promise<string>;
   inventoryService?: Pick<InventoryService, 'getById'>;
-  metadataManager?: Pick<RemindMetadataManager, 'getChannelMetadata'>;
+  metadataManager?: Pick<RemindChannelStore, 'getChannelMetadata'>;
 }
 
 export class RemindMessageManager {
-  private sheetUrlResolver: (channelId: string) => Promise<string>;
   private inventoryService?: Pick<InventoryService, 'getById'>;
-  private metadataManager?: Pick<RemindMetadataManager, 'getChannelMetadata'>;
+  private metadataManager?: Pick<RemindChannelStore, 'getChannelMetadata'>;
 
   constructor(options: RemindMessageManagerOptions = {}) {
-    this.sheetUrlResolver = options.sheetUrlResolver ?? this.resolveSheetUrl.bind(this);
-    this.inventoryService = options.inventoryService ?? (process.env.NODE_ENV === 'test' ? undefined : InventoryService.getInstance());
-    this.metadataManager = options.metadataManager ?? (process.env.NODE_ENV === 'test' ? undefined : RemindMetadataManager.getInstance());
+    this.inventoryService = options.inventoryService;
+    this.metadataManager = options.metadataManager;
   }
 
   public async sendReminderToThread(
@@ -273,7 +270,7 @@ export class RemindMessageManager {
     const hasV2Flag = typeof parentMessage.flags?.has === 'function'
       ? parentMessage.flags.has(MessageFlags.IsComponentsV2)
       : false;
-    if (hasAddButton && hasTitle && hasSheetLink && hasV2Flag) {
+    if (hasAddButton && hasTitle && !hasSheetLink && hasV2Flag) {
       return;
     }
 
@@ -290,16 +287,10 @@ export class RemindMessageManager {
     });
   }
 
-  private async buildNoticeMessageComponents(channelId: string): Promise<APIMessageTopLevelComponent[]> {
-    const spreadsheetUrl = await this.sheetUrlResolver(channelId);
+  private async buildNoticeMessageComponents(_channelId: string): Promise<APIMessageTopLevelComponent[]> {
     const containerComponents: APIComponentInContainer[] = [
       this.buildTextDisplay('### 通知用スレッド')
     ];
-
-    if (spreadsheetUrl) {
-      containerComponents.push(this.buildTextDisplay(`[スプレッドシートを開く](${spreadsheetUrl})`));
-    }
-
     containerComponents.push(this.buildNoticeActionRow().toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>);
 
     return [{
@@ -348,35 +339,6 @@ export class RemindMessageManager {
     return texts;
   }
 
-  private async resolveSheetUrl(channelId: string): Promise<string> {
-    if (process.env.NODE_ENV === 'test') {
-      return 'https://docs.google.com/spreadsheets/d/test-spreadsheet-id/edit#gid=0';
-    }
-
-    try {
-      const googleSheetsService = GoogleSheetsService.getInstance();
-      const spreadsheetId = (googleSheetsService as unknown as { config?: { spreadsheetId: string } }).config?.spreadsheetId;
-      if (!spreadsheetId) {
-        return '';
-      }
-
-      const sheetName = `remind_list_${channelId}`;
-      try {
-        const sheetMetadata = await googleSheetsService.getSheetMetadataByName(sheetName);
-        return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetMetadata.sheetId}`;
-      } catch {
-        return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('Missing required environment variables')) {
-        return '';
-      }
-    }
-
-    return '';
-  }
-
   private async buildMessageComponents(
     task: RemindTask,
     now: Date,
@@ -396,7 +358,7 @@ export class RemindMessageManager {
     actionRows: APIActionRowComponent<APIComponentInMessageActionRow>[],
     channelId?: string
   ): Promise<APIMessageTopLevelComponent[]> {
-    const inventoryResolver = channelId ? await this.buildInventoryResolver(channelId) : undefined;
+    const inventoryResolver = channelId && task.inventoryItems.length > 0 ? await this.buildInventoryResolver(channelId) : undefined;
     const summary = inventoryResolver
       ? await RemindTaskFormatter.formatSummaryText(task, now, inventoryResolver)
       : RemindTaskFormatter.formatSummaryText(task, now);
@@ -420,19 +382,15 @@ export class RemindMessageManager {
 
   private async buildInventoryResolver(
     channelId: string
-  ): Promise<((inventoryId: string) => Promise<{ name: string; stock: number } | null>) | undefined> {
-    if (!this.inventoryService || !this.metadataManager) {
-      return undefined;
-    }
-
-    const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
+  ): Promise<((inventoryId: string) => Promise<{ name: string; stock: string } | null>) | undefined> {
+    const metadataResult = await (this.metadataManager ?? RemindChannelStore.getInstance()).getChannelMetadata(channelId);
     const linkedInventoryChannelId = metadataResult.metadata?.linkedInventoryChannelId;
     if (!linkedInventoryChannelId) {
       return undefined;
     }
 
-    return async (inventoryId: string): Promise<{ name: string; stock: number } | null> => {
-      const item = await this.inventoryService?.getById(linkedInventoryChannelId, inventoryId);
+    return async (inventoryId: string): Promise<{ name: string; stock: string } | null> => {
+      const item = await (this.inventoryService ?? InventoryService.getInstance()).getById(linkedInventoryChannelId, inventoryId);
       return item ? { name: item.name, stock: item.stock } : null;
     };
   }

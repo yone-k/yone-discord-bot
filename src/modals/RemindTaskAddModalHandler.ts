@@ -52,7 +52,7 @@ export class RemindTaskAddModalHandler extends BaseModalHandler {
       return { success: false, message: 'タスク名を入力してください' };
     }
 
-    if (!Number.isFinite(intervalDays) || intervalDays < 1) {
+    if (!Number.isInteger(intervalDays) || intervalDays < 1) {
       return { success: false, message: '周期は1以上を指定してください' };
     }
 

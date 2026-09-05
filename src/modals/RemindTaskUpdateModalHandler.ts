@@ -52,6 +52,8 @@ export class RemindTaskUpdateModalHandler extends BaseModalHandler {
     if (!task) {
       return { success: false, message: 'タスクが見つかりません' };
     }
+    if (context.interaction.customId.split(':')[2] !== task.revision) return { success: false, message: 'タスクが変更されました。開き直してください。' };
+
 
     const title = context.interaction.fields.getTextInputValue('title').trim();
     const description = context.interaction.fields.getTextInputValue('description').trim();
@@ -67,7 +69,7 @@ export class RemindTaskUpdateModalHandler extends BaseModalHandler {
       }
     }
 
-    if (!Number.isFinite(intervalDays) || intervalDays < 1) {
+    if (!Number.isInteger(intervalDays) || intervalDays < 1) {
       return { success: false, message: '周期は1以上を指定してください' };
     }
 
@@ -97,7 +99,7 @@ export class RemindTaskUpdateModalHandler extends BaseModalHandler {
       updatedAt: now
     };
 
-    const updateResult = await this.repository.updateTask(channelId, updatedTask);
+    const updateResult = await this.repository.patchTask(channelId, task, { title, description: description || null, intervalDays, timeOfDay, remindBeforeMinutes, startAt });
     if (!updateResult.success) {
       return { success: false, message: updateResult.message };
     }

@@ -51,6 +51,8 @@ export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
     if (!task) {
       return { success: false, message: 'タスクが見つかりません' };
     }
+    if (context.interaction.customId.split(':')[2] !== task.revision) return { success: false, message: 'タスクが変更されました。開き直してください。' };
+
 
     let lastDoneAt: Date | undefined;
     let nextDueAt: Date | undefined;
@@ -105,7 +107,10 @@ export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
       updatedAt: now
     };
 
-    const updateResult = await this.repository.updateTask(channelId, updatedTask);
+    const updateResult = await this.repository.patchTask(channelId, task, {
+      lastDoneAt: resolvedLastDoneAt, nextDueAt: resolvedNextDueAt, overdueNotifyLimit: overdueNotifyLimit ?? null,
+      ...(shouldResetNotifications ? { lastRemindDueAt: null, overdueNotifyCount: 0, lastOverdueNotifiedAt: null } : {})
+    });
     if (!updateResult.success) {
       return { success: false, message: updateResult.message };
     }

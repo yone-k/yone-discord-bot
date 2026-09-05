@@ -6,6 +6,7 @@ umask 077
 repository=ghcr.io/yone-k/yone-discord-bot
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
+if [ -f "$root/.env.storage" ]; then set -a; . "$root/.env.storage"; set +a; fi
 state_dir=$root/.deploy-state
 mkdir -p "$state_dir"
 exec 9>"$state_dir/lock"
@@ -13,7 +14,7 @@ lock_status=0
 flock -n 9 || lock_status=$?
 if [ "$lock_status" = 1 ]; then
   printf '%s\n' 'update: already-running'
-  [ "${1:-}" != --verify ] || exit 1
+  case "${1:-}" in --verify|--block|--recover|--initialize) exit 1 ;; esac
   exit 0
 fi
 [ "$lock_status" = 0 ] || { printf '%s\n' 'update: lock-failed' >&2; exit 1; }
@@ -98,7 +99,12 @@ wait_healthy() {
   return 1
 }
 start_image() {
+  bash "$root/scripts/pi-db-preflight.sh" || return 1
   compose "$1" up -d --no-deps --force-recreate --no-build --pull never bot >/dev/null 2>&1
+}
+schema_compatible() {
+  bash "$root/scripts/pi-db-preflight.sh" >/dev/null 2>&1 &&
+    compose "$1" --profile ops run --rm --no-deps ops --check >/dev/null 2>&1
 }
 
 action=${1:---update}
@@ -126,6 +132,7 @@ fi
 if [ "$action" = --initialize ]; then
   [ "$initialized" = 0 ] || fail already-initialized
   image_available "$2" && healthy "$2" || fail initial-digest-not-healthy
+  schema_compatible "$2" || fail initial-schema-incompatible
   current=$2 initialized=1
   write_state
   log initialized
@@ -149,6 +156,7 @@ fi
 if [ "$action" = --recover ]; then
   image_available "$2" || fail recovery-image-unavailable
   compose "$2" config --quiet >/dev/null 2>&1 || fail recovery-config-invalid
+  schema_compatible "$2" || fail recovery-schema-incompatible
   blocked=1 pending=1
   write_state
   compose "$current" stop bot >/dev/null 2>&1 || fail recovery-stop-failed
@@ -186,6 +194,8 @@ if [ "$candidate" = "$rejected" ]; then log rejected-version; exit 0; fi
 image_available "$candidate" || fail invalid-platform
 image_available "$current" || fail rollback-image-unavailable
 compose "$candidate" config --quiet >/dev/null 2>&1 || fail config-invalid
+schema_compatible "$candidate" || fail candidate-schema-incompatible
+schema_compatible "$current" || fail rollback-schema-incompatible
 
 pending=1
 write_state

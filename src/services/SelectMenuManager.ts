@@ -2,18 +2,18 @@ import { StringSelectMenuInteraction } from 'discord.js';
 import { BaseSelectMenuHandler, SelectMenuHandlerContext } from '../base/BaseSelectMenuHandler';
 import { Logger } from '../utils/logger';
 import { OperationLogService } from './OperationLogService';
-import { MetadataManager } from './MetadataManager';
+import { ListChannelStore } from './ListChannelStore';
 
 export class SelectMenuManager {
   private handlers: Map<string, BaseSelectMenuHandler> = new Map();
   private logger: Logger;
   private operationLogService?: OperationLogService;
-  private metadataManager?: MetadataManager;
+  private metadataManager?: ListChannelStore;
 
   constructor(
     logger: Logger,
     operationLogService?: OperationLogService,
-    metadataManager?: MetadataManager
+    metadataManager?: ListChannelStore
   ) {
     this.logger = logger;
     this.operationLogService = operationLogService;
@@ -43,7 +43,7 @@ export class SelectMenuManager {
     return this.operationLogService;
   }
 
-  public getMetadataManager(): MetadataManager | undefined {
+  public getMetadataManager(): ListChannelStore | undefined {
     return this.metadataManager;
   }
 

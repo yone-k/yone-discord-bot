@@ -11,7 +11,7 @@ describe('InventoryDeleteSelectMenuHandler', () => {
         findById: vi.fn().mockResolvedValue({
           id: 'inventory-1',
           name: '洗剤',
-          stock: 5,
+          stock: '5',
           category: '日用品'
         })
       };

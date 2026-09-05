@@ -5,11 +5,12 @@ import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import type { MetadataProvider } from '../services/MetadataProvider';
 import type { OperationLogService } from '../services/OperationLogService';
-import { InventoryMetadataManager } from '../services/InventoryMetadataManager';
-import type { InventoryChannelMetadata } from '../services/InventoryMetadataManager';
+import { InventoryChannelStore } from '../services/InventoryChannelStore';
+import type { InventoryChannelMetadata } from '../services/InventoryChannelStore';
 import { InventoryRepository } from '../services/InventoryRepository';
-import { formatInventoryCsvText } from '../utils/InventoryParser';
+import { formatInventoryEditCsv } from '../utils/InventoryParser';
 import { Logger } from '../utils/logger';
+import { InventoryEditSession } from '../utils/InventoryEditSession';
 
 interface InventoryRepositoryPort {
   fetchAll(channelId: string): Promise<InventoryItem[]>;
@@ -54,9 +55,11 @@ export class InventoryUpdateButtonHandler extends BaseButtonHandler {
     const channelId = context.interaction.channelId;
     const items = await this.repository.fetchAll(channelId);
     const defaultCategory = await this.getDefaultCategory(channelId);
-    const csvText = formatInventoryCsvText(items, defaultCategory);
+    const csvText = formatInventoryEditCsv(items, defaultCategory);
 
-    await context.interaction.showModal(this.buildModal(csvText));
+    if(csvText.length>4000) throw new Error('編集できる文字数の上限4000文字を超えています');
+    const token=InventoryEditSession.shared.open(channelId,context.interaction.user.id,items);
+    await context.interaction.showModal(this.buildModal(csvText,token));
     return { success: true, message: '在庫更新モーダルを表示しました', affectedItems: items.length };
   }
 
@@ -67,19 +70,20 @@ export class InventoryUpdateButtonHandler extends BaseButtonHandler {
     };
   }
 
-  private buildModal(csvText: string): ModalBuilder {
+  private buildModal(csvText: string, token: string): ModalBuilder {
     const modal = new ModalBuilder()
-      .setCustomId(`inventory_update_modal:${Date.now()}`)
+      .setCustomId(`inventory_update_modal:${token}`)
       .setTitle('在庫を更新');
 
     const itemsInput = new TextInputBuilder()
       .setCustomId('items')
-      .setLabel('在庫一覧（名前,在庫数,カテゴリ）を編集')
+      .setLabel('行番号,名前,在庫数,カテゴリ（番号は変更しない）')
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(false)
       .setMaxLength(4000)
-      .setPlaceholder('例: 洗剤,3,日用品\n米,10,食品')
-      .setValue(csvText);
+      .setPlaceholder('既存の行番号はそのまま。新規行は番号を空欄にします。\n,新しい品名,3,食品')
+;
+    if(csvText) itemsInput.setValue(csvText);
 
     return modal.addComponents(
       new ActionRowBuilder<TextInputBuilder>().addComponents(itemsInput)
@@ -99,7 +103,6 @@ export class InventoryUpdateButtonHandler extends BaseButtonHandler {
             channelId,
             messageId: result.metadata.messageId ?? '',
             listTitle: result.metadata.listTitle ?? '',
-            lastSyncTime: new Date(),
             defaultCategory: result.metadata.defaultCategory ?? '',
             operationLogThreadId: result.metadata.operationLogThreadId ?? undefined
           };
@@ -109,7 +112,7 @@ export class InventoryUpdateButtonHandler extends BaseButtonHandler {
 
     return {
       getChannelMetadata: (channelId: string): Promise<InventoryChannelMetadata | null> => {
-        return InventoryMetadataManager.getInstance().getChannelMetadata(channelId);
+        return InventoryChannelStore.getInstance().getChannelMetadata(channelId);
       }
     };
   }

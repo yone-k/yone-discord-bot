@@ -3,7 +3,7 @@ import { Client } from 'discord.js';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { InventoryMetadataManager } from '../services/InventoryMetadataManager';
+import { InventoryChannelStore } from '../services/InventoryChannelStore';
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryService } from '../services/InventoryService';
@@ -40,7 +40,7 @@ export class InventoryAddModalHandler extends BaseModalHandler {
   constructor(
     logger: Logger,
     inventoryService: InventoryServicePort = InventoryService.getInstance(),
-    metadataReader: InventoryMetadataReaderPort = InventoryMetadataManager.getInstance(),
+    metadataReader: InventoryMetadataReaderPort = InventoryChannelStore.getInstance(),
     repository: InventoryRepositoryPort = new InventoryRepository(),
     messageManager: InventoryMessageManagerPort = InventoryMessageManager.getInstance()
   ) {
@@ -60,7 +60,7 @@ export class InventoryAddModalHandler extends BaseModalHandler {
 
     const itemsText = context.interaction.fields.getTextInputValue('items');
     const categoryInput = context.interaction.fields.getTextInputValue('category');
-    let parsed: { name: string; stock: number }[];
+    let parsed: { name: string; stock: string }[];
     try {
       parsed = parseInventoryAddCsvText(itemsText);
     } catch (error) {

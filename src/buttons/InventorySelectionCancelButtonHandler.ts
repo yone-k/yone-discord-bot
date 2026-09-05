@@ -5,7 +5,7 @@ import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import type { MetadataProvider } from '../services/MetadataProvider';
 import type { OperationLogService } from '../services/OperationLogService';
-import { InventoryMetadataManager } from '../services/InventoryMetadataManager';
+import { InventoryChannelStore } from '../services/InventoryChannelStore';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryFormatter } from '../ui/InventoryFormatter';
 import { Logger } from '../utils/logger';
@@ -70,7 +70,7 @@ export class InventorySelectionCancelButtonHandler extends BaseButtonHandler {
   }
 
   private async getInventoryMetadata(channelId: string): Promise<InventoryChannelMetadata | null> {
-    const metadataManager = this.inventoryMetadataManager ?? InventoryMetadataManager.getInstance();
+    const metadataManager = this.inventoryMetadataManager ?? InventoryChannelStore.getInstance();
     return metadataManager.getChannelMetadata(channelId);
   }
 }

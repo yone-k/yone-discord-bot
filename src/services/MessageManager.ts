@@ -1,6 +1,6 @@
 import { EmbedBuilder, TextChannel, Message, ChannelType, Client, ActionRowBuilder, ButtonBuilder, ComponentType, MessageFlags } from 'discord.js';
 import type { APIActionRowComponent, APIComponentInContainer, APIComponentInMessageActionRow, APIMessageTopLevelComponent } from 'discord.js';
-import { MetadataManager, MetadataOperationResult } from './MetadataManager';
+import { ListChannelStore, MetadataOperationResult } from './ListChannelStore';
 import { ChannelMetadata } from '../models/ChannelMetadata';
 import { ButtonConfigManager } from './ButtonConfigManager';
 import { DEFAULT_CATEGORY } from '../models/CategoryType';
@@ -61,15 +61,14 @@ export interface MessageOperationResult {
 }
 
 export class MessageManager {
-  private metadataManager: MetadataManager;
+  private metadataManager: ListChannelStore;
   private buttonConfigManager: ButtonConfigManager;
   private logger = LoggerManager.getLogger('MessageManager');
   // チャンネル単位での並行処理制御用のロックMap
-  private readonly channelLocks = new Map<string, Promise<unknown>>();
-  private readonly lockTimeout = 30000; // 30秒のタイムアウト
+  private static readonly channelQueues = new Map<string, Promise<unknown>>();
 
-  constructor() {
-    this.metadataManager = MetadataManager.getInstance();
+  constructor(metadataManager: ListChannelStore = ListChannelStore.getInstance()) {
+    this.metadataManager = metadataManager;
     this.buttonConfigManager = ButtonConfigManager.getInstance();
   }
 
@@ -80,33 +79,16 @@ export class MessageManager {
     channelId: string,
     operation: () => Promise<T>
   ): Promise<T> {
-    const lockKey = `channel:${channelId}`;
-    
-    // 既存のロックがある場合は待機
-    if (this.channelLocks.has(lockKey)) {
-      try {
-        await this.channelLocks.get(lockKey);
-      } catch {
-        // エラーは無視して続行
-      }
-    }
-    
-    // 新しい操作を実行
-    const operationPromise = operation();
-    this.channelLocks.set(lockKey, operationPromise);
-    
+    const previous = MessageManager.channelQueues.get(channelId) || Promise.resolve();
+    // 受付時に列へ連結し、すべてのMessageManagerから同じチャンネルを直列化する。
+    const queued = previous.catch(() => undefined).then(operation);
+    MessageManager.channelQueues.set(channelId, queued);
     try {
-      const result = await Promise.race([
-        operationPromise,
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Operation timeout')), this.lockTimeout)
-        )
-      ]);
-      
-      return result;
+      return await queued;
     } finally {
-      // ロックを削除
-      this.channelLocks.delete(lockKey);
+      if (MessageManager.channelQueues.get(channelId) === queued) {
+        MessageManager.channelQueues.delete(channelId);
+      }
     }
   }
 
@@ -487,35 +469,14 @@ export class MessageManager {
   ): Promise<MetadataOperationResult> {
     try {
       if (existingMetadata) {
-        // メタデータが存在する場合は更新
-        const updatedMetadata: ChannelMetadata = {
-          ...existingMetadata,
-          messageId,
-          listTitle,
-          lastSyncTime: new Date(),
-          ...(defaultCategory && { defaultCategory })
-        };
-
-        // operationLogThreadIdの処理
-        if (operationLogThreadId !== undefined) {
-          if (operationLogThreadId === '') {
-            // 空文字列の場合は削除（undefinedを設定して既存値を削除）
-            delete updatedMetadata.operationLogThreadId;
-          } else {
-            // 空文字列以外の場合は設定
-            updatedMetadata.operationLogThreadId = operationLogThreadId;
-          }
-        }
-        // operationLogThreadIdがundefinedの場合は既存値を保持
-        
-        return await this.metadataManager.updateChannelMetadata(channelId, updatedMetadata);
+        // 業務設定は初期化・設定操作が保存済み。描画元の古い値を書き戻さない。
+        return await this.metadataManager.updateChannelMetadata(channelId, { messageId });
       } else {
         // メタデータが存在しない場合は新規作成
         const newMetadata: ChannelMetadata = {
           channelId,
           messageId,
           listTitle,
-          lastSyncTime: new Date(),
           defaultCategory: defaultCategory || DEFAULT_CATEGORY
         };
 
@@ -641,8 +602,7 @@ export class MessageManager {
         );
         
         if (!metadataUpdateResult.success) {
-          this.logger.warn(`Failed to update metadata: ${metadataUpdateResult.message}`);
-          // メッセージ作成は成功しているので、警告のみ出力して処理は継続
+          return { success: false, errorMessage: metadataUpdateResult.message || '表示メッセージIDの保存に失敗しました' };
         }
         
         // ステップ6: メッセージのピン留めを確認・実行
@@ -760,7 +720,7 @@ export class MessageManager {
         );
         
         if (!metadataUpdateResult.success) {
-          this.logger.warn(`Failed to update metadata: ${metadataUpdateResult.message}`);
+          return { success: false, errorMessage: metadataUpdateResult.message || '表示メッセージIDの保存に失敗しました' };
         }
         
         const pinResult = await this.ensureMessagePinned(

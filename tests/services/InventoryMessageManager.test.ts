@@ -28,8 +28,8 @@ const mockInventoryFormatter = vi.hoisted(() => ({
   buildInventoryComponents: vi.fn()
 }));
 
-vi.mock('../../src/services/InventoryMetadataManager', () => ({
-  InventoryMetadataManager: {
+vi.mock('../../src/services/InventoryChannelStore', () => ({
+  InventoryChannelStore: {
     getInstance: vi.fn(() => mockMetadataManager)
   }
 }));
@@ -40,7 +40,7 @@ vi.mock('../../src/ui/InventoryFormatter', () => ({
 
 describe('InventoryMessageManager', () => {
   const items: InventoryItem[] = [
-    { id: 'item-1', name: '米', stock: 5, category: '食品' }
+    { id: 'item-1', name: '米', stock: '5', category: '食品' }
   ];
 
   const mockCreatedMessage = {
@@ -84,6 +84,18 @@ describe('InventoryMessageManager', () => {
     mockInventoryFormatter.buildInventoryComponents.mockReturnValue(mockRenderedComponents);
   });
 
+  it('redraws the stored title and patches only the display ID after concurrent settings changes', async () => {
+    mockMetadataManager.getChannelMetadata.mockResolvedValue({ channelId: 'channel-1', messageId: 'existing-message-id', listTitle: '食品在庫', defaultCategory: '食品' });
+    mockExistingMessage.edit.mockImplementation(async () => {
+      // Another operation may change settings while Discord responds.
+      mockMetadataManager.getChannelMetadata.mockResolvedValue({ channelId: 'channel-1', messageId: 'existing-message-id', listTitle: '新しい食品在庫', defaultCategory: '常温' });
+      return mockExistingMessage;
+    });
+    await InventoryMessageManager.getInstance().createOrUpdateMessage('channel-1', items, '在庫リスト', mockClient as any);
+    expect(mockInventoryFormatter.formatDataContent).toHaveBeenCalledWith(items, '食品在庫', 'channel-1', '食品');
+    expect(mockMetadataManager.updateChannelMetadata).toHaveBeenCalledWith('channel-1', { messageId: 'existing-message-id' });
+  });
+
   it('Given items are empty and no existing metadata When createOrUpdateMessage is called Then sends Components V2 message and creates metadata', async () => {
     // Given
     mockMetadataManager.getChannelMetadata.mockResolvedValue(null);
@@ -113,8 +125,7 @@ describe('InventoryMessageManager', () => {
     expect(mockMetadataManager.createChannelMetadata).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        messageId: 'created-message-id',
-        listTitle: '在庫リスト'
+        messageId: 'created-message-id'
       })
     );
   });
@@ -141,7 +152,7 @@ describe('InventoryMessageManager', () => {
     expect(result.success).toBe(true);
     expect(mockInventoryFormatter.formatDataContent).toHaveBeenCalledWith(
       items,
-      '在庫リスト',
+      '古い在庫リスト',
       'channel-1',
       'その他'
     );
@@ -158,8 +169,7 @@ describe('InventoryMessageManager', () => {
     expect(mockMetadataManager.updateChannelMetadata).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        messageId: 'existing-message-id',
-        listTitle: '在庫リスト'
+        messageId: 'existing-message-id'
       })
     );
   });
@@ -193,8 +203,7 @@ describe('InventoryMessageManager', () => {
     expect(mockMetadataManager.updateChannelMetadata).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        messageId: 'created-message-id',
-        listTitle: '在庫リスト'
+        messageId: 'created-message-id'
       })
     );
   });
@@ -234,8 +243,7 @@ describe('InventoryMessageManager', () => {
     expect(mockMetadataManager.updateChannelMetadata).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        messageId: 'created-message-id',
-        listTitle: '在庫リスト'
+        messageId: 'created-message-id'
       })
     );
   });

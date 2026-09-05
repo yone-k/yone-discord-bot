@@ -9,6 +9,7 @@ describe('RemindTaskRefreshService', () => {
   };
   let repository: {
     fetchTasks: ReturnType<typeof vi.fn>;
+    referencingInventory: ReturnType<typeof vi.fn>;
   };
   let messageManager: {
     updateTaskMessage: ReturnType<typeof vi.fn>;
@@ -42,7 +43,8 @@ describe('RemindTaskRefreshService', () => {
       findChannelsLinkedToInventory: vi.fn()
     };
     repository = {
-      fetchTasks: vi.fn()
+      fetchTasks: vi.fn(),
+      referencingInventory: vi.fn()
     };
     messageManager = {
       updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
@@ -63,16 +65,14 @@ describe('RemindTaskRefreshService', () => {
   });
 
   it('inventoryId指定時は該当inventoryIdを含むタスクのみupdateTaskMessageが呼ばれる', async () => {
-    const matchingTask = createTask('task-1', 'msg-1', [{ inventoryId: 'inventory-1', consume: 1 }]);
-    const otherInventoryTask = createTask('task-2', 'msg-2', [{ inventoryId: 'inventory-2', consume: 1 }]);
-    const legacyTask = createTask('task-3', 'msg-3', [{ name: 'Legacy', stock: 1, consume: 1 }]);
-    metadataManager.findChannelsLinkedToInventory.mockResolvedValue(['task-channel-1']);
-    repository.fetchTasks.mockResolvedValue([matchingTask, otherInventoryTask, legacyTask]);
+    const matchingTask = { ...createTask('task-1', 'msg-1', [{ inventoryId: 'inventory-1', consume: '1' }]), channelId: 'task-channel-1' };
+    repository.referencingInventory.mockResolvedValue([matchingTask]);
 
     await service.refreshTasksUsingInventory('inventory-channel-1', client, { inventoryId: 'inventory-1' });
 
-    expect(metadataManager.findChannelsLinkedToInventory).toHaveBeenCalledWith('inventory-channel-1');
-    expect(repository.fetchTasks).toHaveBeenCalledWith('task-channel-1');
+    expect(repository.referencingInventory).toHaveBeenCalledWith('inventory-channel-1', 'inventory-1');
+    expect(metadataManager.findChannelsLinkedToInventory).not.toHaveBeenCalled();
+    expect(repository.fetchTasks).not.toHaveBeenCalled();
     expect(messageManager.updateTaskMessage).toHaveBeenCalledTimes(1);
     expect(messageManager.updateTaskMessage).toHaveBeenCalledWith(
       'task-channel-1',
@@ -84,7 +84,7 @@ describe('RemindTaskRefreshService', () => {
   });
 
   it('inventoryId未指定時はタスクチャンネルの全タスクでupdateTaskMessageが呼ばれる', async () => {
-    const task1 = createTask('task-1', 'msg-1', [{ inventoryId: 'inventory-1', consume: 1 }]);
+    const task1 = createTask('task-1', 'msg-1', [{ inventoryId: 'inventory-1', consume: '1' }]);
     const task2 = createTask('task-2', 'msg-2');
     metadataManager.findChannelsLinkedToInventory.mockResolvedValue(['task-channel-1', 'task-channel-2']);
     repository.fetchTasks
@@ -116,10 +116,9 @@ describe('RemindTaskRefreshService', () => {
   });
 
   it('excludeMessageId指定時は除外タスクのupdateTaskMessageは呼ばれない', async () => {
-    const excludedTask = createTask('task-1', 'msg-1', [{ inventoryId: 'inventory-1', consume: 1 }]);
-    const refreshedTask = createTask('task-2', 'msg-2', [{ inventoryId: 'inventory-1', consume: 1 }]);
-    metadataManager.findChannelsLinkedToInventory.mockResolvedValue(['task-channel-1']);
-    repository.fetchTasks.mockResolvedValue([excludedTask, refreshedTask]);
+    const excludedTask = { ...createTask('task-1', 'msg-1', [{ inventoryId: 'inventory-1', consume: '1' }]), channelId: 'task-channel-1' };
+    const refreshedTask = { ...createTask('task-2', 'msg-2', [{ inventoryId: 'inventory-1', consume: '1' }]), channelId: 'task-channel-1' };
+    repository.referencingInventory.mockResolvedValue([excludedTask, refreshedTask]);
 
     await service.refreshTasksUsingInventory('inventory-channel-1', client, {
       inventoryId: 'inventory-1',
@@ -137,10 +136,9 @@ describe('RemindTaskRefreshService', () => {
   });
 
   it('updateTaskMessage失敗時はwarnログを出すが他タスクは継続処理する', async () => {
-    const failingTask = createTask('task-1', 'msg-1', [{ inventoryId: 'inventory-1', consume: 1 }]);
-    const succeedingTask = createTask('task-2', 'msg-2', [{ inventoryId: 'inventory-1', consume: 1 }]);
-    metadataManager.findChannelsLinkedToInventory.mockResolvedValue(['task-channel-1']);
-    repository.fetchTasks.mockResolvedValue([failingTask, succeedingTask]);
+    const failingTask = { ...createTask('task-1', 'msg-1', [{ inventoryId: 'inventory-1', consume: '1' }]), channelId: 'task-channel-1' };
+    const succeedingTask = { ...createTask('task-2', 'msg-2', [{ inventoryId: 'inventory-1', consume: '1' }]), channelId: 'task-channel-2' };
+    repository.referencingInventory.mockResolvedValue([failingTask, succeedingTask]);
     messageManager.updateTaskMessage
       .mockRejectedValueOnce(new Error('Discord edit failed'))
       .mockResolvedValueOnce({ success: true });

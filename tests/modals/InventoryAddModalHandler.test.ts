@@ -94,13 +94,13 @@ describe('InventoryAddModalHandler', () => {
       {
         id: 'inventory-1',
         name: '洗剤',
-        stock: 5,
+        stock: '5',
         category: '日用品'
       },
       {
         id: 'inventory-2',
         name: 'パン',
-        stock: 3,
+        stock: '3',
         category: '日用品'
       }
     ];
@@ -118,13 +118,13 @@ describe('InventoryAddModalHandler', () => {
     expect(inventoryService.create).toHaveBeenNthCalledWith(1, 'channel-1', {
       id: '00000000-0000-4000-8000-000000000029',
       name: '洗剤',
-      stock: 5,
+      stock: '5',
       category: '日用品'
     });
     expect(inventoryService.create).toHaveBeenNthCalledWith(2, 'channel-1', {
       id: '00000000-0000-4000-8000-000000000029',
       name: 'パン',
-      stock: 3,
+      stock: '3',
       category: '日用品'
     });
     expect(repository.fetchAll).toHaveBeenCalledWith('channel-1');
@@ -149,7 +149,7 @@ describe('InventoryAddModalHandler', () => {
     expect(inventoryService.create).toHaveBeenCalledWith('channel-1', {
       id: '00000000-0000-4000-8000-000000000029',
       name: '歯磨き粉',
-      stock: 2,
+      stock: '2',
       category: '未分類'
     });
     expect(interaction.fields.getTextInputValue).toHaveBeenCalledWith('category');
@@ -168,7 +168,7 @@ describe('InventoryAddModalHandler', () => {
     expect(inventoryService.create).toHaveBeenCalledWith('channel-1', {
       id: '00000000-0000-4000-8000-000000000029',
       name: '歯磨き粉',
-      stock: 2,
+      stock: '2',
       category: ''
     });
     expect(interaction.fields.getTextInputValue).toHaveBeenCalledWith('category');
@@ -222,13 +222,13 @@ describe('InventoryAddModalHandler', () => {
     expect(inventoryService.create).toHaveBeenNthCalledWith(1, 'channel-1', {
       id: '00000000-0000-4000-8000-000000000029',
       name: '洗剤',
-      stock: 5,
+      stock: '5',
       category: '日用品'
     });
     expect(inventoryService.create).toHaveBeenNthCalledWith(2, 'channel-1', {
       id: '00000000-0000-4000-8000-000000000029',
       name: 'パン',
-      stock: 3,
+      stock: '3',
       category: '日用品'
     });
     expect(interaction.fields.getTextInputValue).toHaveBeenCalledWith('category');

@@ -3,13 +3,13 @@ import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandl
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
-import { MetadataManager } from '../services/MetadataManager';
+import { ListChannelStore } from '../services/ListChannelStore';
 
 export class AddListButtonHandler extends BaseButtonHandler {
   constructor(
     logger: Logger, 
     operationLogService?: OperationLogService,
-    metadataManager?: MetadataManager
+    metadataManager?: ListChannelStore
   ) {
     super('add-list-button', logger, operationLogService, metadataManager);
     this.ephemeral = true;

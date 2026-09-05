@@ -1,147 +1,20 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskRepository } from '../../src/services/RemindTaskRepository';
-import { GoogleSheetsService } from '../../src/services/GoogleSheetsService';
 import { createRemindTask } from '../../src/models/RemindTask';
-import { getRemindSheetHeaders } from '../../src/utils/RemindSheetMapper';
-
-vi.mock('../../src/services/GoogleSheetsService');
-
+import type { RemindTaskRepository as Port } from '../../src/repositories/contracts';
 describe('RemindTaskRepository', () => {
-  let mockGoogleSheetsService: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  let repository: RemindTaskRepository;
-
-  beforeEach(() => {
-    mockGoogleSheetsService = {
-      getSheetDataByName: vi.fn(),
-      updateSheetData: vi.fn(),
-      appendSheetData: vi.fn(),
-      validateData: vi.fn(),
-      normalizeData: vi.fn()
-    };
-
-    vi.mocked(GoogleSheetsService.getInstance).mockReturnValue(mockGoogleSheetsService);
-    repository = new RemindTaskRepository();
+  it('preserves channel identity when adapting inventory JOIN results', async () => {
+    const db = { referencingInventory: vi.fn().mockResolvedValue([{ channelId: '123', title: 'Task', messageId: null, description: null, overdueNotifyLimit: null }]) };
+    const tasks = await new RemindTaskRepository(db as unknown as Port).referencingInventory('456', 'item');
+    expect(db.referencingInventory).toHaveBeenCalledWith('456', 'item');
+    expect(tasks[0]).toMatchObject({ channelId: '123', title: 'Task', messageId: undefined });
   });
-
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('fetches tasks from sheet', async () => {
-    mockGoogleSheetsService.getSheetDataByName.mockResolvedValue([
-      getRemindSheetHeaders(),
-      [
-        'task-1',
-        'msg-1',
-        '掃除',
-        '',
-        '7',
-        '09:00',
-        '1440',
-        '2025-12-29T09:00:00+09:00',
-        '2026-01-05T09:00:00+09:00',
-        '',
-        '',
-        '0',
-        '',
-        '0',
-        '2025-12-29T09:00:00+09:00',
-        '2025-12-29T09:00:00+09:00'
-      ]
-    ]);
-
-    const tasks = await repository.fetchTasks('123');
-
-    expect(tasks).toHaveLength(1);
-    expect(tasks[0].id).toBe('task-1');
-  });
-
-  it('updates task row by id', async () => {
-    const task = createRemindTask({
-      id: 'task-1',
-      messageId: 'msg-1',
-      title: '掃除',
-      intervalDays: 7,
-      timeOfDay: '09:00',
-      remindBeforeMinutes: 1440,
-      startAt: new Date('2025-12-29T09:00:00+09:00'),
-      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
-      createdAt: new Date('2025-12-29T09:00:00+09:00'),
-      updatedAt: new Date('2025-12-29T09:00:00+09:00')
-    });
-
-    mockGoogleSheetsService.getSheetDataByName.mockResolvedValue([
-      getRemindSheetHeaders(),
-      [
-        'task-1',
-        'msg-1',
-        '掃除',
-        '',
-        '7',
-        '09:00',
-        '1440',
-        '2025-12-29T09:00:00+09:00',
-        '2026-01-05T09:00:00+09:00',
-        '',
-        '',
-        '0',
-        '',
-        '0',
-        '2025-12-29T09:00:00+09:00',
-        '2025-12-29T09:00:00+09:00'
-      ]
-    ]);
-    mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
-
-    const result = await repository.updateTask('123', task);
-
-    expect(result.success).toBe(true);
-    expect(mockGoogleSheetsService.getSheetDataByName).toHaveBeenCalledWith(
-      'remind_list_123',
-      { skipCache: true }
-    );
-    expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalled();
-  });
-
-  it('finds task by message id', async () => {
-    mockGoogleSheetsService.getSheetDataByName.mockResolvedValue([
-      getRemindSheetHeaders(),
-      [
-        'task-1',
-        'msg-1',
-        '掃除',
-        '',
-        '7',
-        '09:00',
-        '1440',
-        '2025-12-29T09:00:00+09:00',
-        '2026-01-05T09:00:00+09:00',
-        '',
-        '',
-        '0',
-        '',
-        '0',
-        '2025-12-29T09:00:00+09:00',
-        '2025-12-29T09:00:00+09:00'
-      ]
-    ]);
-
-    const task = await repository.findTaskByMessageId('123', 'msg-1');
-
-    expect(task).not.toBeNull();
-    expect(task?.id).toBe('task-1');
-  });
-
-  it('deletes task by id', async () => {
-    mockGoogleSheetsService.getSheetDataByName.mockResolvedValue([
-      getRemindSheetHeaders(),
-      ['task-1', 'msg-1']
-    ]);
-    mockGoogleSheetsService.updateSheetData.mockResolvedValue({ success: true });
-
-    const result = await repository.deleteTask('123', 'task-1');
-
-    expect(result.success).toBe(true);
-    expect(mockGoogleSheetsService.updateSheetData).toHaveBeenCalled();
+  it('keeps loaded revision and decimal quantities', async () => {
+    const now = new Date('2026-01-01T00:00:00Z');
+    const task = { ...createRemindTask({ id: 'x', revision: '99', title: '米', intervalDays: 1, timeOfDay: '09:00', remindBeforeMinutes: 0, startAt: now, nextDueAt: now, createdAt: now, updatedAt: now }), channelId: '123', position: 0, messageId: null, description: null, overdueNotifyLimit: null, inventoryItems: [{ inventoryId: 'i', consume: '0.1234567890123456789' }] };
+    const db = { fetchTasks: vi.fn().mockResolvedValue([task]) };
+    const [loaded] = await new RemindTaskRepository(db as unknown as Port).fetchTasks('123');
+    expect(loaded.revision).toBe('99');
+    expect(loaded.inventoryItems[0].consume).toBe('0.1234567890123456789');
   });
 });

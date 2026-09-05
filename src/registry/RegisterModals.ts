@@ -15,18 +15,18 @@ import { DeleteAllMessageLogic } from '../services/DeleteAllMessageLogic';
 import { Logger } from '../utils/logger';
 import { TextChannel } from 'discord.js';
 import { OperationLogService } from '../services/OperationLogService';
-import { MetadataManager } from '../services/MetadataManager';
-import { RemindMetadataManager } from '../services/RemindMetadataManager';
+import { ListChannelStore } from '../services/ListChannelStore';
+import { RemindChannelStore } from '../services/RemindChannelStore';
 
 export function registerAllModals(modalManager: ModalManager, logger: Logger): void {
   // 操作ログ関連のサービスを初期化
-  const metadataManager = MetadataManager.getInstance();
+  const metadataManager = ListChannelStore.getInstance();
   const operationLogService = new OperationLogService(logger, metadataManager);
   
   // EditListModalHandlerを明示的に登録（操作ログサービス付き）
   const editListModalHandler = new EditListModalHandler(
     logger,
-    undefined, // GoogleSheetsService (default)
+    undefined, // ListRepository (default)
     undefined, // MessageManager (default)
     metadataManager,
     operationLogService
@@ -36,7 +36,7 @@ export function registerAllModals(modalManager: ModalManager, logger: Logger): v
   // AddListModalHandlerを明示的に登録（操作ログサービス付き）
   const addListModalHandler = new AddListModalHandler(
     logger,
-    undefined, // GoogleSheetsService (default)
+    undefined, // ListRepository (default)
     undefined, // MessageManager (default)
     metadataManager,
     operationLogService
@@ -66,32 +66,32 @@ export function registerAllModals(modalManager: ModalManager, logger: Logger): v
   modalManager.registerHandler(confirmationModalHandler);
 
   // Remind用のOperationLogService
-  const remindMetadataManager = RemindMetadataManager.getInstance();
-  const remindOperationLogService = new OperationLogService(logger, remindMetadataManager);
+  const remindChannelStore = RemindChannelStore.getInstance();
+  const remindOperationLogService = new OperationLogService(logger, remindChannelStore);
 
-  const remindUpdateModalHandler = new RemindTaskUpdateModalHandler(logger, remindOperationLogService, remindMetadataManager);
+  const remindUpdateModalHandler = new RemindTaskUpdateModalHandler(logger, remindOperationLogService, remindChannelStore);
   modalManager.registerHandler(remindUpdateModalHandler);
 
   const remindUpdateOverrideModalHandler = new RemindTaskUpdateOverrideModalHandler(
     logger,
     remindOperationLogService,
-    remindMetadataManager
+    remindChannelStore
   );
   modalManager.registerHandler(remindUpdateOverrideModalHandler);
 
-  const remindCompleteModalHandler = new RemindTaskCompleteModalHandler(logger, remindOperationLogService, remindMetadataManager);
+  const remindCompleteModalHandler = new RemindTaskCompleteModalHandler(logger, remindOperationLogService, remindChannelStore);
   modalManager.registerHandler(remindCompleteModalHandler);
 
-  const remindDeleteModalHandler = new RemindTaskDeleteModalHandler(logger, remindOperationLogService, remindMetadataManager);
+  const remindDeleteModalHandler = new RemindTaskDeleteModalHandler(logger, remindOperationLogService, remindChannelStore);
   modalManager.registerHandler(remindDeleteModalHandler);
 
-  const remindAddModalHandler = new RemindTaskAddModalHandler(logger, remindOperationLogService, remindMetadataManager);
+  const remindAddModalHandler = new RemindTaskAddModalHandler(logger, remindOperationLogService, remindChannelStore);
   modalManager.registerHandler(remindAddModalHandler);
 
   const remindInventoryModalHandler = new RemindTaskInventoryModalHandler(
     logger,
     remindOperationLogService,
-    remindMetadataManager
+    remindChannelStore
   );
   modalManager.registerHandler(remindInventoryModalHandler);
 

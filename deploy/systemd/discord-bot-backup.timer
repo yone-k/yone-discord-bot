@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Discord Bot database backup
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 Asia/Tokyo
+Persistent=true
+Unit=discord-bot-backup.service
+
+[Install]
+WantedBy=timers.target

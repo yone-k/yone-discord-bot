@@ -15,6 +15,7 @@ export function parseRemindBeforeInput(input: string): number {
     throw new Error(INVALID_FORMAT_MESSAGE);
   }
 
+  if (parts.some(part => !/^\d+$/.test(part))) throw new Error(INVALID_FORMAT_MESSAGE);
   const numbers = parts.map((part) => Number(part));
   if (numbers.some((value) => !Number.isInteger(value) || value < 0)) {
     throw new Error(INVALID_FORMAT_MESSAGE);

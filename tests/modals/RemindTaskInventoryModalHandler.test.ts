@@ -3,462 +3,54 @@ import { RemindTaskInventoryModalHandler } from '../../src/modals/RemindTaskInve
 import { Logger } from '../../src/utils/logger';
 import { createRemindTask } from '../../src/models/RemindTask';
 
+class Handler extends RemindTaskInventoryModalHandler { execute = this.executeAction.bind(this); }
+function setup(input = '米,1.234,0.0123'): any {
+  const task = createRemindTask({ id: 'task', revision: '7', messageId: '456', title: '料理', intervalDays: 1, timeOfDay: '09:00', startAt: new Date(), nextDueAt: new Date(), createdAt: new Date(), updatedAt: new Date(), inventoryItems: [{ inventoryId: 'rice', consume: '0.0123' }] });
+  const repository = { findTaskByMessageId: vi.fn().mockResolvedValue(task), editInventorySettings: vi.fn().mockResolvedValue({ task: { ...task, revision: '8' }, inventoryChannelId: '2', stockChanged: false }) };
+  const messages = { updateTaskMessage: vi.fn().mockResolvedValue({ success: true }) };
+  const inventory = { fetchAll: vi.fn().mockResolvedValue([]) };
+  const inventoryMessages = { createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true }) };
+  const refresh = { refreshTasksUsingInventory: vi.fn().mockResolvedValue(undefined) };
+  const handler = new Handler(new Logger(), undefined, undefined, repository as any, messages as any, inventory, inventoryMessages, refresh);
+  const interaction = { customId: 'remind-task-inventory-modal:456:7', channelId: '3', client: {}, fields: { getTextInputValue: (): string => input } };
+  return { task, repository, messages, inventoryMessages, refresh, handler, interaction };
+}
 describe('RemindTaskInventoryModalHandler', () => {
-  it('updates inventory items and task message', async () => {
-    const task = createRemindTask({
-      id: 'task-1',
-      messageId: 'msg-1',
-      title: '補充チェック',
-      intervalDays: 7,
-      timeOfDay: '09:00',
-      remindBeforeMinutes: 1440,
-      startAt: new Date('2025-12-29T09:00:00+09:00'),
-      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
-      createdAt: new Date('2025-12-29T09:00:00+09:00'),
-      updatedAt: new Date('2025-12-29T09:00:00+09:00')
-    });
-
-    const mockRepository = {
-      findTaskByMessageId: vi.fn().mockResolvedValue(task),
-      updateTask: vi.fn().mockResolvedValue({ success: true })
-    };
-    const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
-    };
-    const mockMetadataManager = {
-      getChannelMetadata: vi.fn().mockResolvedValue({
-        success: true,
-        metadata: { linkedInventoryChannelId: 'inventory-channel-1' }
-      })
-    };
-    const mockInventoryService = {
-      resolveByName: vi.fn().mockResolvedValue({
-        id: 'inventory-1',
-        name: 'フィルター',
-        stock: 0,
-        category: ''
-      }),
-      update: vi.fn(),
-      getById: vi.fn()
-    };
-    const mockInventoryRepository = {
-      fetchAll: vi.fn()
-    };
-    const mockInventoryMessageManager = {
-      createOrUpdateMessage: vi.fn()
-    };
-    const refreshService = {
-      refreshTasksUsingInventory: vi.fn().mockResolvedValue(undefined)
-    };
-
-    const handler = new RemindTaskInventoryModalHandler(
-      new Logger(),
-      undefined,
-      mockMetadataManager as any,
-      mockRepository as any,
-      mockMessageManager as any,
-      mockInventoryService as any,
-      mockInventoryRepository as any,
-      mockInventoryMessageManager as any,
-      refreshService
-    );
-
-    const interaction = {
-      customId: 'remind-task-inventory-modal:msg-1:1700000000000',
-      user: { id: 'user-1' },
-      channelId: 'channel-1',
-      client: {} as any,
-      fields: {
-        getTextInputValue: vi.fn().mockReturnValue('フィルター,1')
-      },
-      deferReply: vi.fn(),
-      editReply: vi.fn(),
-      deleteReply: vi.fn()
-    };
-
-    await handler.handle({ interaction } as any);
-
-    expect(mockRepository.findTaskByMessageId).toHaveBeenCalledWith('channel-1', 'msg-1');
-    expect(mockMetadataManager.getChannelMetadata).toHaveBeenCalledWith('channel-1');
-    expect(mockInventoryService.resolveByName).toHaveBeenCalledWith('inventory-channel-1', 'フィルター');
-    expect(mockRepository.updateTask).toHaveBeenCalledWith(
-      'channel-1',
-      expect.objectContaining({
-        inventoryItems: [{ inventoryId: 'inventory-1', consume: 1 }]
-      })
-    );
-    expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();
+  it('sends all raw quantities together and renders the committed task', async () => {
+    const x = setup();
+    expect((await x.handler.execute({ interaction: x.interaction })).success).toBe(true);
+    expect(x.repository.editInventorySettings).toHaveBeenCalledWith('3', x.task, [{ name: '米', stock: '1.234', consume: '0.0123' }]);
+    expect(x.messages.updateTaskMessage).toHaveBeenCalledWith('3', '456', expect.objectContaining({ revision: '8' }), {}, expect.any(Date));
+    expect(x.inventoryMessages.createOrUpdateMessage).not.toHaveBeenCalled();
   });
-
-  it('updates inventory sheet and refreshes inventory message when stock is provided', async () => {
-    const task = createRemindTask({
-      id: 'task-1',
-      messageId: 'msg-1',
-      title: '補充チェック',
-      intervalDays: 7,
-      timeOfDay: '09:00',
-      remindBeforeMinutes: 1440,
-      startAt: new Date('2025-12-29T09:00:00+09:00'),
-      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
-      createdAt: new Date('2025-12-29T09:00:00+09:00'),
-      updatedAt: new Date('2025-12-29T09:00:00+09:00')
-    });
-    const inventoryItem = {
-      id: 'inventory-1',
-      name: '米',
-      stock: 0,
-      category: ''
-    };
-    const allItems = [
-      {
-        ...inventoryItem,
-        stock: 5
-      }
-    ];
-    const mockRepository = {
-      findTaskByMessageId: vi.fn().mockResolvedValue(task),
-      updateTask: vi.fn().mockResolvedValue({ success: true })
-    };
-    const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
-    };
-    const mockMetadataManager = {
-      getChannelMetadata: vi.fn().mockResolvedValue({
-        success: true,
-        metadata: { linkedInventoryChannelId: 'inventory-channel-1' }
-      })
-    };
-    const mockInventoryService = {
-      resolveByName: vi.fn().mockResolvedValue(inventoryItem),
-      update: vi.fn().mockResolvedValue({ success: true }),
-      getById: vi.fn()
-    };
-    const mockInventoryRepository = {
-      fetchAll: vi.fn().mockResolvedValue(allItems)
-    };
-    const mockInventoryMessageManager = {
-      createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true })
-    };
-    const refreshService = {
-      refreshTasksUsingInventory: vi.fn().mockResolvedValue(undefined)
-    };
-
-    const handler = new (RemindTaskInventoryModalHandler as any)(
-      new Logger(),
-      undefined,
-      mockMetadataManager,
-      mockRepository,
-      mockMessageManager,
-      mockInventoryService,
-      mockInventoryRepository,
-      mockInventoryMessageManager,
-      refreshService
-    );
-
-    const interaction = {
-      customId: 'remind-task-inventory-modal:msg-1',
-      user: { id: 'user-1' },
-      channelId: 'channel-1',
-      client: {} as any,
-      fields: {
-        getTextInputValue: vi.fn().mockReturnValue('米,5,1')
-      },
-      deferReply: vi.fn(),
-      editReply: vi.fn(),
-      deleteReply: vi.fn()
-    };
-
-    await handler.handle({ interaction } as any);
-
-    expect(mockInventoryService.resolveByName).toHaveBeenCalledWith('inventory-channel-1', '米');
-    expect(mockInventoryService.update).toHaveBeenCalledWith('inventory-channel-1', {
-      ...inventoryItem,
-      stock: 5
-    });
-    expect(mockInventoryRepository.fetchAll).toHaveBeenCalledWith('inventory-channel-1');
-    expect(mockInventoryMessageManager.createOrUpdateMessage).toHaveBeenCalledWith(
-      'inventory-channel-1',
-      allItems,
-      expect.any(String),
-      interaction.client
-    );
-    expect(refreshService.refreshTasksUsingInventory).toHaveBeenCalledWith('inventory-channel-1', interaction.client, {
-      excludeMessageId: 'msg-1'
-    });
-    expect(mockRepository.updateTask).toHaveBeenCalledWith(
-      'channel-1',
-      expect.objectContaining({
-        inventoryItems: [{ inventoryId: 'inventory-1', consume: 1 }]
-      })
-    );
+  it('does not call Discord while the transaction is pending or after failure', async () => {
+    const x = setup();
+    let reject!: (error: Error) => void;
+    x.repository.editInventorySettings.mockReturnValue(new Promise((_resolve, fail) => { reject = fail; }));
+    const result = x.handler.execute({ interaction: x.interaction });
+    await vi.waitFor(() => expect(x.repository.editInventorySettings).toHaveBeenCalled());
+    expect(x.messages.updateTaskMessage).not.toHaveBeenCalled();
+    expect(x.inventoryMessages.createOrUpdateMessage).not.toHaveBeenCalled();
+    reject(new Error('conflict'));
+    expect((await result).success).toBe(false);
+    expect(x.messages.updateTaskMessage).not.toHaveBeenCalled();
   });
-
-  it('アイテム名,5,0 のように消費=0 を入力すると variable モードのアイテムとしてタスクに設定できる', async () => {
-    const task = createRemindTask({
-      id: 'task-1',
-      messageId: 'msg-1',
-      title: '補充チェック',
-      intervalDays: 7,
-      timeOfDay: '09:00',
-      remindBeforeMinutes: 1440,
-      startAt: new Date('2025-12-29T09:00:00+09:00'),
-      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
-      createdAt: new Date('2025-12-29T09:00:00+09:00'),
-      updatedAt: new Date('2025-12-29T09:00:00+09:00')
-    });
-    const inventoryItem = {
-      id: 'inventory-1',
-      name: 'アイテム名',
-      stock: 0,
-      category: ''
-    };
-    const allItems = [
-      {
-        ...inventoryItem,
-        stock: 5
-      }
-    ];
-    const mockRepository = {
-      findTaskByMessageId: vi.fn().mockResolvedValue(task),
-      updateTask: vi.fn().mockResolvedValue({ success: true })
-    };
-    const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
-    };
-    const mockMetadataManager = {
-      getChannelMetadata: vi.fn().mockResolvedValue({
-        success: true,
-        metadata: { linkedInventoryChannelId: 'inventory-channel-1' }
-      })
-    };
-    const mockInventoryService = {
-      resolveByName: vi.fn().mockResolvedValue(inventoryItem),
-      update: vi.fn().mockResolvedValue({ success: true }),
-      getById: vi.fn()
-    };
-    const mockInventoryRepository = {
-      fetchAll: vi.fn().mockResolvedValue(allItems)
-    };
-    const mockInventoryMessageManager = {
-      createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true })
-    };
-    const refreshService = {
-      refreshTasksUsingInventory: vi.fn().mockResolvedValue(undefined)
-    };
-    const handler = new (RemindTaskInventoryModalHandler as any)(
-      new Logger(),
-      undefined,
-      mockMetadataManager,
-      mockRepository,
-      mockMessageManager,
-      mockInventoryService,
-      mockInventoryRepository,
-      mockInventoryMessageManager,
-      refreshService
-    );
-    const interaction = {
-      customId: 'remind-task-inventory-modal:msg-1',
-      user: { id: 'user-1' },
-      channelId: 'channel-1',
-      client: {} as any,
-      fields: {
-        getTextInputValue: vi.fn().mockReturnValue('アイテム名,5,0')
-      },
-      deferReply: vi.fn(),
-      editReply: vi.fn(),
-      deleteReply: vi.fn()
-    };
-
-    await handler.handle({ interaction } as any);
-
-    expect(mockInventoryService.resolveByName).toHaveBeenCalledWith('inventory-channel-1', 'アイテム名');
-    expect(mockInventoryService.update).toHaveBeenCalledWith('inventory-channel-1', {
-      ...inventoryItem,
-      stock: 5
-    });
-    expect(mockRepository.updateTask).toHaveBeenCalledWith(
-      'channel-1',
-      expect.objectContaining({
-        inventoryItems: [{ inventoryId: 'inventory-1', consume: 0 }]
-      })
-    );
+  it('refreshes inventory and referencing tasks only after stock changes commit', async () => {
+    const x = setup('米,5,0\n新規,1');
+    x.repository.editInventorySettings.mockResolvedValue({ task: x.task, inventoryChannelId: '2', stockChanged: true });
+    expect((await x.handler.execute({ interaction: x.interaction })).success).toBe(true);
+    expect(x.repository.editInventorySettings).toHaveBeenCalledWith('3', x.task, [{ name: '米', stock: '5', consume: '0' }, { name: '新規', stock: undefined, consume: '1' }]);
+    expect(x.inventoryMessages.createOrUpdateMessage).toHaveBeenCalled();
+    expect(x.refresh.refreshTasksUsingInventory).toHaveBeenCalledWith('2', {}, { excludeMessageId: '456' });
   });
-
-  it('does not update inventory sheet or refresh inventory message when stock is omitted', async () => {
-    const task = createRemindTask({
-      id: 'task-1',
-      messageId: 'msg-1',
-      title: '補充チェック',
-      intervalDays: 7,
-      timeOfDay: '09:00',
-      remindBeforeMinutes: 1440,
-      startAt: new Date('2025-12-29T09:00:00+09:00'),
-      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
-      createdAt: new Date('2025-12-29T09:00:00+09:00'),
-      updatedAt: new Date('2025-12-29T09:00:00+09:00')
-    });
-    const mockRepository = {
-      findTaskByMessageId: vi.fn().mockResolvedValue(task),
-      updateTask: vi.fn().mockResolvedValue({ success: true })
-    };
-    const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
-    };
-    const mockMetadataManager = {
-      getChannelMetadata: vi.fn().mockResolvedValue({
-        success: true,
-        metadata: { linkedInventoryChannelId: 'inventory-channel-1' }
-      })
-    };
-    const mockInventoryService = {
-      resolveByName: vi.fn().mockResolvedValue({
-        id: 'inventory-1',
-        name: '米',
-        stock: 9,
-        category: ''
-      }),
-      update: vi.fn(),
-      getById: vi.fn()
-    };
-    const mockInventoryRepository = {
-      fetchAll: vi.fn()
-    };
-    const mockInventoryMessageManager = {
-      createOrUpdateMessage: vi.fn()
-    };
-    const refreshService = {
-      refreshTasksUsingInventory: vi.fn().mockResolvedValue(undefined)
-    };
-    const handler = new (RemindTaskInventoryModalHandler as any)(
-      new Logger(),
-      undefined,
-      mockMetadataManager,
-      mockRepository,
-      mockMessageManager,
-      mockInventoryService,
-      mockInventoryRepository,
-      mockInventoryMessageManager,
-      refreshService
-    );
-    const interaction = {
-      customId: 'remind-task-inventory-modal:msg-1',
-      user: { id: 'user-1' },
-      channelId: 'channel-1',
-      client: {} as any,
-      fields: {
-        getTextInputValue: vi.fn().mockReturnValue('米,1')
-      },
-      deferReply: vi.fn(),
-      editReply: vi.fn(),
-      deleteReply: vi.fn()
-    };
-
-    await handler.handle({ interaction } as any);
-
-    expect(mockInventoryService.resolveByName).toHaveBeenCalledWith('inventory-channel-1', '米');
-    expect(mockInventoryService.update).not.toHaveBeenCalled();
-    expect(mockInventoryRepository.fetchAll).not.toHaveBeenCalled();
-    expect(mockInventoryMessageManager.createOrUpdateMessage).not.toHaveBeenCalled();
-    expect(refreshService.refreshTasksUsingInventory).not.toHaveBeenCalled();
-    expect(mockRepository.updateTask).toHaveBeenCalledWith(
-      'channel-1',
-      expect.objectContaining({
-        inventoryItems: [{ inventoryId: 'inventory-1', consume: 1 }]
-      })
-    );
+  it('clears consumption atomically for empty input', async () => {
+    const x = setup('');
+    expect((await x.handler.execute({ interaction: x.interaction })).success).toBe(true);
+    expect(x.repository.editInventorySettings).toHaveBeenCalledWith('3', x.task, []);
   });
-
-  it('複数アイテムを逐次処理する（race condition回避）', async () => {
-    const task = createRemindTask({
-      id: 'task-1',
-      messageId: 'msg-1',
-      title: '補充チェック',
-      intervalDays: 7,
-      timeOfDay: '09:00',
-      remindBeforeMinutes: 1440,
-      startAt: new Date('2025-12-29T09:00:00+09:00'),
-      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
-      createdAt: new Date('2025-12-29T09:00:00+09:00'),
-      updatedAt: new Date('2025-12-29T09:00:00+09:00')
-    });
-    const callOrder: string[] = [];
-    let resolveFirstUpdate: (() => void) | undefined;
-    const firstUpdatePending = new Promise<void>((resolve) => {
-      resolveFirstUpdate = resolve;
-    });
-    const mockRepository = {
-      findTaskByMessageId: vi.fn().mockResolvedValue(task),
-      updateTask: vi.fn().mockResolvedValue({ success: true })
-    };
-    const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
-    };
-    const mockMetadataManager = {
-      getChannelMetadata: vi.fn().mockResolvedValue({
-        success: true,
-        metadata: { linkedInventoryChannelId: 'inventory-channel-1' }
-      })
-    };
-    const mockInventoryService = {
-      resolveByName: vi.fn().mockImplementation(async (_channelId: string, name: string) => {
-        callOrder.push(`resolveByName:${name}`);
-        return { id: `id-${name}`, name, stock: 0, category: '' };
-      }),
-      update: vi.fn().mockImplementation(async (_channelId: string, item: { name: string }) => {
-        callOrder.push(`update:${item.name}`);
-        if (item.name === '米') {
-          await firstUpdatePending;
-        }
-        return { success: true };
-      }),
-      getById: vi.fn()
-    };
-    const mockInventoryRepository = {
-      fetchAll: vi.fn().mockResolvedValue([])
-    };
-    const mockInventoryMessageManager = {
-      createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true })
-    };
-    const refreshService = {
-      refreshTasksUsingInventory: vi.fn().mockResolvedValue(undefined)
-    };
-    const handler = new (RemindTaskInventoryModalHandler as any)(
-      new Logger(),
-      undefined,
-      mockMetadataManager,
-      mockRepository,
-      mockMessageManager,
-      mockInventoryService,
-      mockInventoryRepository,
-      mockInventoryMessageManager,
-      refreshService
-    );
-    const interaction = {
-      customId: 'remind-task-inventory-modal:msg-1',
-      user: { id: 'user-1' },
-      channelId: 'channel-1',
-      client: {} as any,
-      fields: {
-        getTextInputValue: vi.fn().mockReturnValue('米,5,1\nパン,10,2')
-      },
-      deferReply: vi.fn(),
-      editReply: vi.fn(),
-      deleteReply: vi.fn()
-    };
-
-    const handlePromise = handler.handle({ interaction } as any);
-    await vi.waitFor(() => {
-      expect(mockInventoryService.update).toHaveBeenCalledWith(
-        'inventory-channel-1',
-        expect.objectContaining({ name: '米', stock: 5 })
-      );
-    });
-
-    expect(mockInventoryService.resolveByName).not.toHaveBeenCalledWith('inventory-channel-1', 'パン');
-
-    resolveFirstUpdate?.();
-    await handlePromise;
-
-    expect(callOrder).toEqual(['resolveByName:米', 'update:米', 'resolveByName:パン', 'update:パン']);
+  it('rejects stale modal before invoking persistence', async () => {
+    const x = setup(); x.interaction.customId = 'remind-task-inventory-modal:456:6';
+    expect((await x.handler.execute({ interaction: x.interaction })).success).toBe(false);
+    expect(x.repository.editInventorySettings).not.toHaveBeenCalled();
   });
 });

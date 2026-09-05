@@ -1,16 +1,10 @@
-export interface GoogleSheetsConfig {
-  spreadsheetId: string
-  serviceAccountEmail: string
-  privateKey: string
-}
-
 export interface BotConfig {
   discordToken: string
   clientId: string
   guildId?: string
   nodeEnv: string
   logLevel: string
-  googleSheets?: GoogleSheetsConfig
+  databaseUrl: string
 }
 
 export class ConfigError extends Error {
@@ -36,7 +30,7 @@ export class Config {
   }
 
   private loadConfig(): BotConfig {
-    const requiredEnvVars = ['DISCORD_BOT_TOKEN', 'CLIENT_ID'];
+    const requiredEnvVars = ['DISCORD_BOT_TOKEN', 'CLIENT_ID', 'DATABASE_URL'];
     const missingVars: string[] = [];
 
     for (const envVar of requiredEnvVars) {
@@ -58,8 +52,13 @@ export class Config {
     const nodeEnv = process.env.NODE_ENV || 'development';
     const logLevel = process.env.LOG_LEVEL || 'info';
 
-    // Google Sheets設定の読み込み（オプショナル）
-    const googleSheetsConfig = this.loadGoogleSheetsConfig();
+    const databaseUrl = process.env.DATABASE_URL!.trim();
+    try {
+      const parsed = new URL(databaseUrl);
+      if (!['postgresql:', 'postgres:'].includes(parsed.protocol) || !parsed.hostname || parsed.pathname.length < 2) throw new Error();
+    } catch {
+      throw new ConfigError('DATABASE_URL must use postgresql:// or postgres:// with a host and database name');
+    }
 
     return {
       discordToken,
@@ -67,7 +66,7 @@ export class Config {
       guildId,
       nodeEnv,
       logLevel,
-      googleSheets: googleSheetsConfig
+      databaseUrl
     };
   }
 
@@ -103,25 +102,5 @@ export class Config {
     return this.config.nodeEnv === 'production';
   }
 
-  private loadGoogleSheetsConfig(): GoogleSheetsConfig | undefined {
-    const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
-    const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY;
-
-    // いずれかが未設定または空文字の場合はundefinedを返す
-    if (!spreadsheetId || !serviceAccountEmail || !privateKey ||
-        spreadsheetId.trim() === '' || serviceAccountEmail.trim() === '' || privateKey.trim() === '') {
-      return undefined;
-    }
-
-    return {
-      spreadsheetId: spreadsheetId.trim(),
-      serviceAccountEmail: serviceAccountEmail.trim(),
-      privateKey: privateKey.replace(/\\n/g, '\n')
-    };
-  }
-
-  public getGoogleSheetsConfig(): GoogleSheetsConfig | undefined {
-    return this.config.googleSheets;
-  }
+  public getDatabaseUrl(): string { return this.config.databaseUrl; }
 }

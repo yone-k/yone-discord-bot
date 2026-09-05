@@ -7,6 +7,8 @@ import { OperationLogService } from '../services/OperationLogService';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
+import { InventoryRepository } from '../services/InventoryRepository';
+import { RemindChannelStore } from '../services/RemindChannelStore';
 
 export class RemindTaskDetailButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
@@ -15,7 +17,8 @@ export class RemindTaskDetailButtonHandler extends BaseButtonHandler {
     logger: Logger,
     operationLogService?: OperationLogService,
     metadataManager?: MetadataProvider,
-    repository?: RemindTaskRepository
+    repository?: RemindTaskRepository,
+    private inventoryRepository?: Pick<InventoryRepository, 'findById'>
   ) {
     super('remind-task-detail', logger, operationLogService, metadataManager);
     this.ephemeral = true;
@@ -64,7 +67,13 @@ export class RemindTaskDetailButtonHandler extends BaseButtonHandler {
     const now = new Date();
     const summary = RemindTaskFormatter.formatSummaryText(task, now);
     const progressBlock = `\`\`\`\n${summary.progressBar}\n\`\`\``;
-    const detailText = RemindTaskFormatter.formatDetailText(task, now);
+    const metadata = task.inventoryItems.length
+      ? await (this.metadataManager ?? RemindChannelStore.getInstance()).getChannelMetadata(channelId)
+      : undefined;
+    const linkedChannelId = metadata?.metadata?.linkedInventoryChannelId;
+    const detailText = await RemindTaskFormatter.formatResolvedDetailText(task, async id => linkedChannelId
+      ? (this.inventoryRepository ?? new InventoryRepository()).findById(linkedChannelId, id)
+      : null);
     const descriptionText = task.description?.trim() || '（なし）';
 
     const components = this.buildTextContainer([

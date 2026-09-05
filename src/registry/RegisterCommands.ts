@@ -10,7 +10,6 @@ import { AddInventoryCommand } from '../commands/AddInventoryCommand';
 import { DeleteInventoryCommand } from '../commands/DeleteInventoryCommand';
 import { LinkInventoryCommand } from '../commands/LinkInventoryCommand';
 import { UnlinkInventoryCommand } from '../commands/UnlinkInventoryCommand';
-import { MigrateInventoryCommand } from '../commands/MigrateInventoryCommand';
 import { UpdateInventoryCommand } from '../commands/UpdateInventoryCommand';
 import { Logger } from '../utils/logger';
 
@@ -51,9 +50,6 @@ export function registerAllCommands(commandManager: CommandManager, logger: Logg
 
   const unlinkInventoryCommand = new UnlinkInventoryCommand(logger);
   commandManager.register(unlinkInventoryCommand);
-
-  const migrateInventoryCommand = new MigrateInventoryCommand(logger);
-  commandManager.register(migrateInventoryCommand);
 
   const updateInventoryCommand = new UpdateInventoryCommand(logger);
   commandManager.register(updateInventoryCommand);

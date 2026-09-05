@@ -2,6 +2,7 @@ import { afterEach, describe, it, expect, vi } from 'vitest';
 import { Logger } from '../../src/utils/logger';
 import { createRemindTask } from '../../src/models/RemindTask';
 import { RemindTaskUpdateSelectMenuHandler } from '../../src/selectmenus/RemindTaskUpdateSelectMenuHandler';
+import { parseInventoryInput } from '../../src/utils/RemindInventory';
 
 describe('RemindTaskUpdateSelectMenuHandler', () => {
   afterEach(() => {
@@ -9,9 +10,9 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
   });
 
   it.each([
-    { value: 'basic', expectedCustomId: 'remind-task-update-modal:msg-1:1700000000000' },
-    { value: 'advanced', expectedCustomId: 'remind-task-update-override-modal:msg-1:1700000000000' },
-    { value: 'inventory', expectedCustomId: 'remind-task-inventory-modal:msg-1:1700000000000' }
+    { value: 'basic', expectedCustomId: 'remind-task-update-modal:msg-1:0' },
+    { value: 'advanced', expectedCustomId: 'remind-task-update-override-modal:msg-1:0' },
+    { value: 'inventory', expectedCustomId: 'remind-task-inventory-modal:msg-1:0' }
   ])('restores task message before showing modal for %s selection', async ({ value, expectedCustomId }) => {
     vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
 
@@ -69,7 +70,7 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
     expect(updateOrder).toBeLessThan(modalOrder);
   });
 
-  it('prefills inventory modal by resolving new inventory item ids to names', async () => {
+  it.each(['牛乳', ' milk ', 'a,b', 'a"b', 'a\nb', 'a;b'])('prefills exact CSV inventory name %j', async name => {
     const task = createRemindTask({
       id: 'task-1',
       messageId: 'msg-1',
@@ -77,7 +78,7 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
       intervalDays: 7,
       timeOfDay: '09:00',
       remindBeforeMinutes: 1440,
-      inventoryItems: [{ inventoryId: 'inventory-1', consume: 2 }],
+      inventoryItems: [{ inventoryId: 'inventory-1', consume: '2' }],
       startAt: new Date('2025-12-29T09:00:00+09:00'),
       nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
       createdAt: new Date('2025-12-29T09:00:00+09:00'),
@@ -98,8 +99,8 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
     const mockInventoryService = {
       getById: vi.fn().mockResolvedValue({
         id: 'inventory-1',
-        name: '牛乳',
-        stock: 5,
+        name,
+        stock: '5',
         category: ''
       })
     };
@@ -126,8 +127,7 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
     expect(mockInventoryService.getById).toHaveBeenCalledWith('inventory-channel-1', 'inventory-1');
     const modal = interaction.showModal.mock.calls[0][0];
     const modalJson = modal.toJSON();
-    expect(modalJson.components[0].components[0].label).toBe('在庫詳細(名前,在庫数,消費数 の形式。小数は1.5)');
-    expect(modalJson.components[0].components[0].placeholder).toBe('例: フィルター,5,1.5');
-    expect(modalJson.components[0].components[0].value).toBe('牛乳,5,2');
+    expect(modalJson.components[0].components[0].label).toBe('在庫CSV（名前,在庫数,消費数。1行1件）');
+    expect(parseInventoryInput(modalJson.components[0].components[0].value)).toEqual([{ name, stock: '5', consume: '2' }]);
   });
 });

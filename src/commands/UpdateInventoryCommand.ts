@@ -2,8 +2,9 @@ import { ActionRowBuilder, ModalBuilder, SlashCommandBuilder, TextInputBuilder, 
 import { BaseCommand, CommandExecutionContext } from '../base/BaseCommand';
 import type { InventoryItem } from '../models/InventoryItem';
 import { InventoryRepository } from '../services/InventoryRepository';
-import { formatInventoryCsvText } from '../utils/InventoryParser';
+import { formatInventoryEditCsv } from '../utils/InventoryParser';
 import { Logger } from '../utils/logger';
+import { InventoryEditSession } from '../utils/InventoryEditSession';
 
 interface InventoryRepositoryPort {
   fetchAll(channelId: string): Promise<InventoryItem[]>;
@@ -40,22 +41,26 @@ export class UpdateInventoryCommand extends BaseCommand {
     }
 
     const items = await this.repository.fetchAll(context.channelId);
-    await context.interaction.showModal(this.buildModal(items));
+    const csv=formatInventoryEditCsv(items);
+    if(csv.length>4000) throw new Error('編集できる文字数の上限4000文字を超えています');
+    const token=InventoryEditSession.shared.open(context.channelId,context.interaction.user.id,items);
+    await context.interaction.showModal(this.buildModal(csv,token));
   }
 
-  private buildModal(items: InventoryItem[]): ModalBuilder {
+  private buildModal(csv:string,token:string): ModalBuilder {
     const modal = new ModalBuilder()
-      .setCustomId('inventory_update_modal')
+      .setCustomId(`inventory_update_modal:${token}`)
       .setTitle('在庫を更新');
 
     const itemsInput = new TextInputBuilder()
       .setCustomId('items')
-      .setLabel('在庫一覧（名前,在庫数,カテゴリ）を編集')
+      .setLabel('行番号,名前,在庫数,カテゴリ（番号は変更しない）')
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(false)
       .setMaxLength(4000)
-      .setPlaceholder('例: 洗剤,3,日用品\n米,10,食品')
-      .setValue(formatInventoryCsvText(items));
+      .setPlaceholder('既存の行番号はそのまま。新規行は番号を空欄にします。\n,新しい品名,3,食品')
+;
+    if(csv) itemsInput.setValue(csv);
 
     modal.addComponents(
       new ActionRowBuilder<TextInputBuilder>().addComponents(itemsInput)

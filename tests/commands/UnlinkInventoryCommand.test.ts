@@ -13,7 +13,7 @@ class MockLogger {
 describe('UnlinkInventoryCommand', () => {
   let command: UnlinkInventoryCommand;
   let mockLogger: MockLogger;
-  let mockRemindMetadataManager: any;
+  let mockRemindChannelStore: any;
   let mockInteraction: any;
   let context: CommandExecutionContext;
 
@@ -21,7 +21,7 @@ describe('UnlinkInventoryCommand', () => {
     vi.clearAllMocks();
 
     mockLogger = new MockLogger();
-    mockRemindMetadataManager = {
+    mockRemindChannelStore = {
       getChannelMetadata: vi.fn().mockResolvedValue({
         success: true,
         metadata: {
@@ -47,13 +47,13 @@ describe('UnlinkInventoryCommand', () => {
 
     command = new UnlinkInventoryCommand(
       mockLogger as unknown as Logger,
-      mockRemindMetadataManager
+      mockRemindChannelStore
     );
   });
 
   it('自チャンネルの linkedInventoryChannelId が設定されていれば clear する updateChannelMetadata を呼び出す', async () => {
     // Given
-    mockRemindMetadataManager.getChannelMetadata.mockResolvedValue({
+    mockRemindChannelStore.getChannelMetadata.mockResolvedValue({
       success: true,
       metadata: { channelId: 'task-channel-1', linkedInventoryChannelId: 'inventory-channel-1' }
     });
@@ -63,8 +63,8 @@ describe('UnlinkInventoryCommand', () => {
 
     // Then
     expect(mockInteraction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
-    expect(mockRemindMetadataManager.getChannelMetadata).toHaveBeenCalledWith('task-channel-1');
-    expect(mockRemindMetadataManager.updateChannelMetadata).toHaveBeenCalledWith(
+    expect(mockRemindChannelStore.getChannelMetadata).toHaveBeenCalledWith('task-channel-1');
+    expect(mockRemindChannelStore.updateChannelMetadata).toHaveBeenCalledWith(
       'task-channel-1',
       { linkedInventoryChannelId: undefined }
     );
@@ -75,7 +75,7 @@ describe('UnlinkInventoryCommand', () => {
 
   it('linkedInventoryChannelId が未設定なら no-op で成功応答する', async () => {
     // Given
-    mockRemindMetadataManager.getChannelMetadata.mockResolvedValue({
+    mockRemindChannelStore.getChannelMetadata.mockResolvedValue({
       success: true,
       metadata: { channelId: 'task-channel-1', linkedInventoryChannelId: undefined }
     });
@@ -85,8 +85,8 @@ describe('UnlinkInventoryCommand', () => {
 
     // Then
     expect(mockInteraction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
-    expect(mockRemindMetadataManager.getChannelMetadata).toHaveBeenCalledWith('task-channel-1');
-    expect(mockRemindMetadataManager.updateChannelMetadata).not.toHaveBeenCalled();
+    expect(mockRemindChannelStore.getChannelMetadata).toHaveBeenCalledWith('task-channel-1');
+    expect(mockRemindChannelStore.updateChannelMetadata).not.toHaveBeenCalled();
     expect(mockInteraction.editReply).toHaveBeenCalledWith({
       content: expect.stringContaining('リンクされている在庫チャンネルはありません')
     });

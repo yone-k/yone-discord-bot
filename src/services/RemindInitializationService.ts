@@ -1,8 +1,7 @@
 import { Client } from 'discord.js';
 import { RemindTask } from '../models/RemindTask';
-import { RemindMetadataManager } from './RemindMetadataManager';
+import { RemindChannelStore } from './RemindChannelStore';
 import { RemindMessageManager } from './RemindMessageManager';
-import { RemindSheetManager } from './RemindSheetManager';
 import { RemindTaskRepository } from './RemindTaskRepository';
 
 export interface RemindInitializationResult {
@@ -12,9 +11,8 @@ export interface RemindInitializationResult {
 
 export class RemindInitializationService {
   constructor(
-    private sheetManager: RemindSheetManager = new RemindSheetManager(),
     private repository: RemindTaskRepository = new RemindTaskRepository(),
-    private metadataManager: RemindMetadataManager = RemindMetadataManager.getInstance(),
+    private metadataManager: RemindChannelStore = RemindChannelStore.getInstance(),
     private messageManager: RemindMessageManager = new RemindMessageManager()
   ) {}
 
@@ -23,8 +21,6 @@ export class RemindInitializationService {
     client: Client,
     listTitle: string
   ): Promise<RemindInitializationResult> {
-    await this.sheetManager.getOrCreateChannelSheet(channelId);
-
     const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
     if (metadataResult.success) {
       await this.metadataManager.updateChannelMetadata(channelId, { listTitle });
@@ -39,12 +35,13 @@ export class RemindInitializationService {
       refreshedMetadata.metadata?.remindNoticeThreadId,
       refreshedMetadata.metadata?.remindNoticeMessageId
     );
-    if (threadResult.success && threadResult.threadId && threadResult.parentMessageId) {
-      await this.metadataManager.updateChannelMetadata(channelId, {
-        remindNoticeThreadId: threadResult.threadId,
-        remindNoticeMessageId: threadResult.parentMessageId
-      });
+    if (!threadResult.success || !threadResult.threadId || !threadResult.parentMessageId) {
+      return { success: false, message: threadResult.message || '通知スレッドを準備できませんでした' };
     }
+    await this.metadataManager.updateChannelMetadata(channelId, {
+      remindNoticeThreadId: threadResult.threadId,
+      remindNoticeMessageId: threadResult.parentMessageId
+    });
 
     const tasks = await this.repository.fetchTasks(channelId);
     for (const task of tasks) {
@@ -71,12 +68,7 @@ export class RemindInitializationService {
 
     const createResult = await this.messageManager.createTaskMessage(channelId, task, client);
     if (createResult.success && createResult.messageId) {
-      const updatedTask = {
-        ...task,
-        messageId: createResult.messageId,
-        updatedAt: new Date()
-      };
-      const updateResult = await this.repository.updateTask(channelId, updatedTask);
+      const updateResult = await this.repository.patchTask(channelId, task, { messageId: createResult.messageId });
       if (!updateResult.success) {
         return { success: false, message: updateResult.message };
       }

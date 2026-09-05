@@ -14,14 +14,14 @@ import { InventoryDeleteButtonHandler } from '../buttons/InventoryDeleteButtonHa
 import { InventorySelectionCancelButtonHandler } from '../buttons/InventorySelectionCancelButtonHandler';
 import { Logger } from '../utils/logger';
 import { OperationLogService } from '../services/OperationLogService';
-import { MetadataManager } from '../services/MetadataManager';
-import { RemindMetadataManager } from '../services/RemindMetadataManager';
+import { ListChannelStore } from '../services/ListChannelStore';
+import { RemindChannelStore } from '../services/RemindChannelStore';
 
 export function registerAllButtons(
   buttonManager: ButtonManager, 
   logger: Logger,
   operationLogService?: OperationLogService,
-  metadataManager?: MetadataManager
+  metadataManager?: ListChannelStore
 ): void {
   // InitListButtonHandlerを明示的に登録
   const initListButtonHandler = new InitListButtonHandler(logger, operationLogService, metadataManager);
@@ -35,30 +35,30 @@ export function registerAllButtons(
   const addListButtonHandler = new AddListButtonHandler(logger, operationLogService, metadataManager);
   buttonManager.registerHandler(addListButtonHandler);
 
-  // Remind用のOperationLogServiceとMetadataManager
-  const remindMetadataManager = RemindMetadataManager.getInstance();
-  const remindOperationLogService = new OperationLogService(logger, remindMetadataManager);
+  // Remind用のOperationLogServiceとListChannelStore
+  const remindChannelStore = RemindChannelStore.getInstance();
+  const remindOperationLogService = new OperationLogService(logger, remindChannelStore);
 
-  const remindUpdateButtonHandler = new RemindTaskUpdateButtonHandler(logger, remindOperationLogService, remindMetadataManager);
+  const remindUpdateButtonHandler = new RemindTaskUpdateButtonHandler(logger, remindOperationLogService, remindChannelStore);
   buttonManager.registerHandler(remindUpdateButtonHandler);
 
   const remindUpdateCancelButtonHandler = new RemindTaskUpdateCancelButtonHandler(
     logger,
     remindOperationLogService,
-    remindMetadataManager
+    remindChannelStore
   );
   buttonManager.registerHandler(remindUpdateCancelButtonHandler);
 
-  const remindCompleteButtonHandler = new RemindTaskCompleteButtonHandler(logger, remindOperationLogService, remindMetadataManager);
+  const remindCompleteButtonHandler = new RemindTaskCompleteButtonHandler(logger, remindOperationLogService, remindChannelStore);
   buttonManager.registerHandler(remindCompleteButtonHandler);
 
-  const remindDeleteButtonHandler = new RemindTaskDeleteButtonHandler(logger, remindOperationLogService, remindMetadataManager);
+  const remindDeleteButtonHandler = new RemindTaskDeleteButtonHandler(logger, remindOperationLogService, remindChannelStore);
   buttonManager.registerHandler(remindDeleteButtonHandler);
 
-  const remindDetailButtonHandler = new RemindTaskDetailButtonHandler(logger, remindOperationLogService, remindMetadataManager);
+  const remindDetailButtonHandler = new RemindTaskDetailButtonHandler(logger, remindOperationLogService, remindChannelStore);
   buttonManager.registerHandler(remindDetailButtonHandler);
 
-  const remindAddButtonHandler = new RemindTaskAddButtonHandler(logger, remindOperationLogService, remindMetadataManager);
+  const remindAddButtonHandler = new RemindTaskAddButtonHandler(logger, remindOperationLogService, remindChannelStore);
   buttonManager.registerHandler(remindAddButtonHandler);
 
   const inventoryAddButtonHandler = new InventoryAddButtonHandler(logger);

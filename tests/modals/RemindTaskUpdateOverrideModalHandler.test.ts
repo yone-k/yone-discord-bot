@@ -21,7 +21,7 @@ describe('RemindTaskUpdateOverrideModalHandler', () => {
 
     const mockRepository = {
       findTaskByMessageId: vi.fn().mockResolvedValue(task),
-      updateTask: vi.fn().mockResolvedValue({ success: true })
+      patchTask: vi.fn().mockResolvedValue({ success: true })
     };
     const mockMessageManager = {
       updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
@@ -36,7 +36,7 @@ describe('RemindTaskUpdateOverrideModalHandler', () => {
     );
 
     const interaction = {
-      customId: 'remind-task-update-override-modal:msg-1:1700000000000',
+      customId: 'remind-task-update-override-modal:msg-1:0',
       user: { id: 'user-1' },
       channelId: 'channel-1',
       client: {} as any,
@@ -56,8 +56,8 @@ describe('RemindTaskUpdateOverrideModalHandler', () => {
     await handler.handle({ interaction } as any);
 
     expect(mockRepository.findTaskByMessageId).toHaveBeenCalledWith('channel-1', 'msg-1');
-    expect(mockRepository.updateTask).toHaveBeenCalled();
-    const updatedTask = mockRepository.updateTask.mock.calls[0][1];
+    expect(mockRepository.patchTask).toHaveBeenCalled();
+    const updatedTask = { ...task, ...mockRepository.patchTask.mock.calls[0][2] };
     const expectedLastDoneAt = new Date('2025-12-01T09:00:00+09:00');
     const expectedNextDueAt = new Date('2026-01-01T09:00:00+09:00');
     expect(updatedTask.lastDoneAt?.getTime()).toBe(expectedLastDoneAt.getTime());
@@ -85,7 +85,7 @@ describe('RemindTaskUpdateOverrideModalHandler', () => {
 
     const mockRepository = {
       findTaskByMessageId: vi.fn().mockResolvedValue(task),
-      updateTask: vi.fn().mockResolvedValue({ success: true })
+      patchTask: vi.fn().mockResolvedValue({ success: true })
     };
     const mockMessageManager = {
       updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
@@ -100,7 +100,7 @@ describe('RemindTaskUpdateOverrideModalHandler', () => {
     );
 
     const interaction = {
-      customId: 'remind-task-update-override-modal:msg-1',
+      customId: 'remind-task-update-override-modal:msg-1:0',
       user: { id: 'user-1' },
       channelId: 'channel-1',
       client: {} as any,
@@ -119,7 +119,7 @@ describe('RemindTaskUpdateOverrideModalHandler', () => {
 
     await handler.handle({ interaction } as any);
 
-    const updatedTask = mockRepository.updateTask.mock.calls[0][1];
+    const updatedTask = { ...task, ...mockRepository.patchTask.mock.calls[0][2] };
     expect(updatedTask.overdueNotifyLimit).toBe(1);
     expect(updatedTask.overdueNotifyCount).toBe(3);
     expect(updatedTask.lastOverdueNotifiedAt?.getTime()).toBe(task.lastOverdueNotifiedAt?.getTime());

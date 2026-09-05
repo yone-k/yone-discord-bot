@@ -2,16 +2,16 @@ import { Client, MessageFlags, TextChannel } from 'discord.js';
 import type { APIMessageTopLevelComponent, Message } from 'discord.js';
 import type { InventoryItem } from '../models/InventoryItem';
 import { InventoryFormatter } from '../ui/InventoryFormatter';
-import { InventoryMetadataManager } from './InventoryMetadataManager';
-import type { InventoryChannelMetadata } from './InventoryMetadataManager';
+import { InventoryChannelStore } from './InventoryChannelStore';
+import type { InventoryChannelMetadata } from './InventoryChannelStore';
 import type { MessageOperationResult } from './MessageManager';
 
 export class InventoryMessageManager {
   private static instance: InventoryMessageManager | undefined;
-  private metadataManager: InventoryMetadataManager;
+  private metadataManager: InventoryChannelStore;
 
   private constructor() {
-    this.metadataManager = InventoryMetadataManager.getInstance();
+    this.metadataManager = InventoryChannelStore.getInstance();
   }
 
   public static getInstance(): InventoryMessageManager {
@@ -35,9 +35,10 @@ export class InventoryMessageManager {
 
       const textChannel = channel as TextChannel;
       const metadata = await this.metadataManager.getChannelMetadata(channelId);
+      const title = metadata?.listTitle ?? listTitle;
       const content = items.length === 0
-        ? await InventoryFormatter.formatEmptyContent(listTitle, channelId, metadata?.defaultCategory)
-        : await InventoryFormatter.formatDataContent(items, listTitle, channelId, metadata?.defaultCategory);
+        ? await InventoryFormatter.formatEmptyContent(title, channelId, metadata?.defaultCategory)
+        : await InventoryFormatter.formatDataContent(items, title, channelId, metadata?.defaultCategory);
       const components = InventoryFormatter.buildInventoryComponents(content);
       let message: Message | undefined;
 
@@ -91,18 +92,16 @@ export class InventoryMessageManager {
     listTitle: string,
     existingMetadata: InventoryChannelMetadata | null
   ): Promise<void> {
-    const metadata = {
-      messageId,
-      listTitle,
-      lastSyncTime: new Date(),
-      defaultCategory: existingMetadata?.defaultCategory ?? 'その他'
-    };
-
     if (existingMetadata) {
-      await this.metadataManager.updateChannelMetadata(channelId, metadata);
+      await this.metadataManager.updateChannelMetadata(channelId, { messageId });
       return;
     }
 
+    const metadata = {
+      messageId,
+      listTitle,
+      defaultCategory: 'その他'
+    };
     await this.metadataManager.createChannelMetadata(channelId, metadata);
   }
 }

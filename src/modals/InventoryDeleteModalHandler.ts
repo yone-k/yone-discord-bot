@@ -4,7 +4,7 @@ import type { InventoryChannelMetadata } from '../models/InventoryChannelMetadat
 import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
-import { InventoryMetadataManager } from '../services/InventoryMetadataManager';
+import { InventoryChannelStore } from '../services/InventoryChannelStore';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryService } from '../services/InventoryService';
 import type { MetadataProvider } from '../services/MetadataProvider';
@@ -52,7 +52,7 @@ export class InventoryDeleteModalHandler extends BaseModalHandler {
   constructor(
     logger: Logger,
     operationLogService?: OperationLogService,
-    metadataManager: InventoryMetadataReader = InventoryMetadataManager.getInstance(),
+    metadataManager: InventoryMetadataReader = InventoryChannelStore.getInstance(),
     repository: InventoryRepositoryPort = new InventoryRepository(),
     inventoryService: InventoryServicePort = InventoryService.getInstance(),
     messageManager: InventoryMessageManagerPort = InventoryMessageManager.getInstance()

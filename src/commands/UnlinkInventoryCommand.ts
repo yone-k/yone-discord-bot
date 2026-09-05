@@ -1,5 +1,5 @@
 import { BaseCommand, CommandExecutionContext } from '../base/BaseCommand';
-import { RemindMetadataManager, type RemindChannelMetadata } from '../services/RemindMetadataManager';
+import { RemindChannelStore, type RemindChannelMetadata } from '../services/RemindChannelStore';
 import { CommandError, CommandErrorType } from '../utils/CommandError';
 import { Logger } from '../utils/logger';
 
@@ -28,7 +28,7 @@ export class UnlinkInventoryCommand extends BaseCommand {
 
   constructor(
     logger: Logger,
-    remindMetadataManager: RemindMetadataReaderUpdater = RemindMetadataManager.getInstance()
+    remindMetadataManager: RemindMetadataReaderUpdater = RemindChannelStore.getInstance()
   ) {
     super('unlink-inventory', '在庫チャンネルとのリンクを解除する', logger);
     this.ephemeral = true;

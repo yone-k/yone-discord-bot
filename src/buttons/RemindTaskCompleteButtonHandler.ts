@@ -1,7 +1,8 @@
 import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { Logger } from '../utils/logger';
+import { quoteCsvCell } from '../utils/Csv';
 import type { InventoryItem } from '../models/InventoryItem';
-import { isNewInventoryItem, type RemindTask } from '../models/RemindTask';
+import { type RemindTask } from '../models/RemindTask';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
@@ -9,12 +10,8 @@ import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { calculateNextDueAt } from '../utils/RemindSchedule';
-import {
-  consumeInventory,
-  formatInventoryShortageNotice,
-  getInsufficientInventoryItems
-} from '../utils/RemindInventory';
-import { InventoryService, type ConsumeForTaskResult } from '../services/InventoryService';
+import { compareDecimal } from '../utils/Decimal';
+import { type ConsumeForTaskResult } from '../services/InventoryService';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
 import { RemindTaskRefreshService } from '../services/RemindTaskRefreshService';
@@ -43,7 +40,6 @@ interface RefreshServicePort {
 export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
-  private inventoryService?: Pick<InventoryService, 'consumeForTask' | 'getById'>;
   private inventoryRepository?: InventoryRepositoryPort;
   private inventoryMessageManager?: InventoryMessageManagerPort;
   private refreshService?: RefreshServicePort;
@@ -54,7 +50,6 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
     messageManager?: RemindMessageManager,
-    inventoryService?: Pick<InventoryService, 'consumeForTask' | 'getById'>,
     inventoryRepository?: InventoryRepositoryPort,
     inventoryMessageManager?: InventoryMessageManagerPort,
     refreshService?: RefreshServicePort
@@ -63,7 +58,6 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
     this.ephemeral = true;
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
-    this.inventoryService = inventoryService ?? (process.env.NODE_ENV === 'test' ? undefined : InventoryService.getInstance());
     this.inventoryRepository = inventoryRepository;
     this.inventoryMessageManager = inventoryMessageManager;
     this.refreshService = refreshService;
@@ -109,34 +103,13 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
         return await replyError('タスクが見つかりません');
       }
 
-      if (this.hasVariableInventoryItem(task) && this.metadataManager && this.inventoryService?.getById) {
+      if (this.hasVariableInventoryItem(task)) {
         return await this.showVariableConsumptionModal(interaction, channelId, messageId, task);
       }
 
       if (!interaction.deferred && !interaction.replied) {
         await interaction.deferReply({ flags: ['Ephemeral'] as const });
         hasDeferredReply = true;
-      }
-
-      let consumedInventory = task.inventoryItems;
-      let nextInsufficientItems = getInsufficientInventoryItems(consumedInventory);
-      if (this.inventoryService) {
-        const inventoryResult = await this.inventoryService.consumeForTask(channelId, task);
-        const blockedMessage = this.toBlockedMessage(task.title, inventoryResult);
-        if (blockedMessage) {
-          return await replyError(blockedMessage);
-        }
-        await this.refreshInventoryMessage(inventoryResult, interaction.client, messageId);
-        nextInsufficientItems = [];
-      } else {
-        const insufficientItems = getInsufficientInventoryItems(task.inventoryItems);
-        if (insufficientItems.length > 0) {
-          const shortageNotice = formatInventoryShortageNotice(insufficientItems);
-          return await replyError(`${task.title}の完了に必要な在庫が不足しています。\n${shortageNotice}`);
-        }
-
-        consumedInventory = consumeInventory(task.inventoryItems);
-        nextInsufficientItems = getInsufficientInventoryItems(consumedInventory);
       }
 
       const now = new Date();
@@ -152,7 +125,6 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
 
       const updatedTask = {
         ...task,
-        inventoryItems: consumedInventory,
         lastDoneAt: now,
         nextDueAt,
         lastRemindDueAt: null,
@@ -161,21 +133,11 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
         updatedAt: now
       };
 
-      const updateResult = await this.repository.updateTask(channelId, updatedTask);
-      if (!updateResult.success) {
-        return await replyError(updateResult.message || '更新に失敗しました');
-      }
-
-      await this.messageManager.updateTaskMessage(channelId, messageId, updatedTask, interaction.client, now);
-
-      if (nextInsufficientItems.length > 0) {
-        const shortageNotice = formatInventoryShortageNotice(nextInsufficientItems);
-        await this.notifyInventory(
-          channelId,
-          `@everyone ${task.title}の次回分に必要な在庫が不足しています。\n${shortageNotice}`,
-          interaction.client
-        );
-      }
+      await this.repository.complete(channelId, task, now, nextDueAt);
+      const latest = await this.repository.findTaskByMessageId(channelId, messageId);
+      await this.messageManager.updateTaskMessage(channelId, messageId, latest ?? updatedTask, interaction.client, now);
+      const metadata = await this.metadataManager?.getChannelMetadata(channelId);
+      await this.refreshInventoryMessage({ kind: 'success', linkedInventoryChannelId: metadata?.metadata?.linkedInventoryChannelId }, interaction.client, messageId);
 
       try {
         await interaction.deleteReply();
@@ -184,13 +146,13 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
       }
 
       return { success: true };
-    } catch {
-      return await replyError('処理中にエラーが発生しました');
+    } catch (error) {
+      return await replyError(error instanceof Error ? error.message : '処理中にエラーが発生しました');
     }
   }
 
   private hasVariableInventoryItem(task: RemindTask): boolean {
-    return task.inventoryItems.some(item => isNewInventoryItem(item) && item.consume === 0);
+    return task.inventoryItems.some(item => compareDecimal(item.consume, '0') === 0);
   }
 
   private async showVariableConsumptionModal(
@@ -210,15 +172,15 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
 
     const prefill = await this.buildVariableConsumptionPrefill(linkedInventoryChannelId, task);
     const modal = new ModalBuilder()
-      .setCustomId(`remind-task-complete-modal:${messageId}:${Date.now()}`)
+      .setCustomId(`remind-task-complete-modal:${messageId}:${task.revision}`)
       .setTitle('完了時の消費数入力');
 
     const inventoryInput = new TextInputBuilder()
       .setCustomId('inventory-items')
-      .setLabel('消費数(名前,数 の形式 / 空欄でスキップor固定値)')
+      .setLabel('消費CSV（名前,数。都度入力必須・固定は空欄で維持）')
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(false)
-      .setPlaceholder('例: 洗剤,2.5')
+      .setPlaceholder('消費しない場合は0。例: "牛乳,低脂肪",0')
       .setMaxLength(1000)
       .setValue(prefill);
 
@@ -236,10 +198,6 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
     const inventoryItemsById = new Map(inventoryItems.map(inventoryItem => [inventoryItem.id, inventoryItem]));
 
     const lines = task.inventoryItems.map((item) => {
-      if (!isNewInventoryItem(item)) {
-        return this.formatInventoryPrefillLine(item.name, item.consume);
-      }
-
       const inventoryItem = inventoryItemsById.get(item.inventoryId);
       const name = inventoryItem?.name ?? `[不明な在庫:${item.inventoryId.slice(0, 8)}]`;
       return this.formatInventoryPrefillLine(name, item.consume);
@@ -247,31 +205,11 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
     return lines.join('\n');
   }
 
-  private formatInventoryPrefillLine(name: string, consume: number): string {
-    if (consume > 0) {
-      return `${name},${consume}`;
+  private formatInventoryPrefillLine(name: string, consume: string): string {
+    if (compareDecimal(consume, '0') > 0) {
+      return `${quoteCsvCell(name)},${consume}`;
     }
-    return `${name},`;
-  }
-
-  private async notifyInventory(channelId: string, message: string, client: ButtonHandlerContext['interaction']['client']): Promise<void> {
-    if (!this.metadataManager) {
-      return;
-    }
-
-    const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
-    if (!metadataResult.success || !metadataResult.metadata) {
-      return;
-    }
-
-    const { remindNoticeThreadId, remindNoticeMessageId } = metadataResult.metadata;
-    await this.messageManager.sendReminderToThread(
-      channelId,
-      remindNoticeThreadId,
-      remindNoticeMessageId,
-      message,
-      client
-    );
+    return `${quoteCsvCell(name)},`;
   }
 
   private async refreshInventoryMessage(
@@ -318,18 +256,4 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
     return this.refreshService;
   }
 
-  private toBlockedMessage(title: string, result: ConsumeForTaskResult): string | null {
-    if (result.kind === 'success') {
-      return null;
-    }
-    if (result.kind === 'migration_required') {
-      return '在庫移行が必要です。先に在庫移行を実行してください。';
-    }
-    if (result.kind === 'error') {
-      return `在庫の更新に失敗しました: ${result.message}`;
-    }
-
-    const shortageNotice = formatInventoryShortageNotice(result.items as never);
-    return `${title}の完了に必要な在庫が不足しています。\n${shortageNotice}`;
-  }
 }

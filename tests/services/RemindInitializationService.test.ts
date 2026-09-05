@@ -3,18 +3,14 @@ import { RemindInitializationService } from '../../src/services/RemindInitializa
 import { createRemindTask } from '../../src/models/RemindTask';
 
 describe('RemindInitializationService', () => {
-  let mockSheetManager: any;
   let mockRepository: any;
   let mockMetadataManager: any;
   let mockMessageManager: any;
 
   beforeEach(() => {
-    mockSheetManager = {
-      getOrCreateChannelSheet: vi.fn().mockResolvedValue({ existed: true })
-    };
     mockRepository = {
       fetchTasks: vi.fn(),
-      updateTask: vi.fn().mockResolvedValue({ success: true })
+      patchTask: vi.fn().mockResolvedValue({ success: true })
     };
     mockMetadataManager = {
       getChannelMetadata: vi.fn().mockResolvedValue({ success: false }),
@@ -24,8 +20,22 @@ describe('RemindInitializationService', () => {
     mockMessageManager = {
       createTaskMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'msg-1' }),
       updateTaskMessage: vi.fn().mockResolvedValue({ success: true }),
-      ensureReminderThread: vi.fn().mockResolvedValue({ success: true, threadId: 'thread-1' })
+      ensureReminderThread: vi.fn().mockResolvedValue({ success: true, threadId: 'thread-1', parentMessageId: 'notice-1' })
     };
+  });
+
+  it.each([
+    { success: false, message: '通知スレッドを作成できません' },
+    { success: true, threadId: 'thread-1' },
+    { success: true, parentMessageId: 'notice-1' }
+  ])('reports initialization failure for an unavailable or incomplete reminder thread: %j', async (threadResult) => {
+    mockMessageManager.ensureReminderThread.mockResolvedValue(threadResult);
+    mockRepository.fetchTasks.mockResolvedValue([]);
+    const service = new RemindInitializationService(mockRepository, mockMetadataManager, mockMessageManager);
+    const result = await service.initialize('channel-1', {} as any, 'リマインドリスト');
+    expect(result.success).toBe(false);
+    expect(result.message).toBeTruthy();
+    expect(mockRepository.fetchTasks).not.toHaveBeenCalled();
   });
 
   it('creates messages for tasks without messageId', async () => {
@@ -43,7 +53,6 @@ describe('RemindInitializationService', () => {
     mockRepository.fetchTasks.mockResolvedValue([task]);
 
     const service = new RemindInitializationService(
-      mockSheetManager,
       mockRepository,
       mockMetadataManager,
       mockMessageManager
@@ -54,7 +63,7 @@ describe('RemindInitializationService', () => {
     expect(result.success).toBe(true);
     expect(mockMessageManager.ensureReminderThread).toHaveBeenCalled();
     expect(mockMessageManager.createTaskMessage).toHaveBeenCalled();
-    expect(mockRepository.updateTask).toHaveBeenCalled();
+    expect(mockRepository.patchTask).toHaveBeenCalled();
     expect(mockMessageManager.ensureReminderThread.mock.invocationCallOrder[0])
       .toBeLessThan(mockRepository.fetchTasks.mock.invocationCallOrder[0]);
   });
@@ -77,7 +86,6 @@ describe('RemindInitializationService', () => {
     mockMessageManager.createTaskMessage.mockResolvedValue({ success: true, messageId: 'msg-new' });
 
     const service = new RemindInitializationService(
-      mockSheetManager,
       mockRepository,
       mockMetadataManager,
       mockMessageManager
@@ -88,8 +96,9 @@ describe('RemindInitializationService', () => {
     expect(result.success).toBe(true);
     expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();
     expect(mockMessageManager.createTaskMessage).toHaveBeenCalled();
-    expect(mockRepository.updateTask).toHaveBeenCalledWith(
+    expect(mockRepository.patchTask).toHaveBeenCalledWith(
       'channel-1',
+      expect.anything(),
       expect.objectContaining({ messageId: 'msg-new' })
     );
   });
@@ -108,12 +117,11 @@ describe('RemindInitializationService', () => {
       updatedAt: new Date('2025-12-29T09:00:00+09:00')
     });
     mockRepository.fetchTasks.mockResolvedValue([task]);
-    mockRepository.updateTask.mockResolvedValue({ success: false, message: 'update failed' });
+    mockRepository.patchTask.mockResolvedValue({ success: false, message: 'update failed' });
     mockMessageManager.updateTaskMessage.mockRejectedValue(new Error('Unknown Message'));
     mockMessageManager.createTaskMessage.mockResolvedValue({ success: true, messageId: 'msg-new' });
 
     const service = new RemindInitializationService(
-      mockSheetManager,
       mockRepository,
       mockMetadataManager,
       mockMessageManager

@@ -14,8 +14,8 @@ class MockLogger {
 describe('LinkInventoryCommand', () => {
   let command: LinkInventoryCommand;
   let mockLogger: MockLogger;
-  let mockRemindMetadataManager: any;
-  let mockInventoryMetadataManager: any;
+  let mockRemindChannelStore: any;
+  let mockInventoryChannelStore: any;
   let mockInteraction: any;
   let context: CommandExecutionContext;
 
@@ -23,10 +23,10 @@ describe('LinkInventoryCommand', () => {
     vi.clearAllMocks();
 
     mockLogger = new MockLogger();
-    mockRemindMetadataManager = {
+    mockRemindChannelStore = {
       updateChannelMetadata: vi.fn().mockResolvedValue({ success: true })
     };
-    mockInventoryMetadataManager = {
+    mockInventoryChannelStore = {
       getChannelMetadata: vi.fn().mockResolvedValue({
         success: true,
         metadata: {
@@ -58,15 +58,15 @@ describe('LinkInventoryCommand', () => {
 
     command = new LinkInventoryCommand(
       mockLogger as unknown as Logger,
-      mockRemindMetadataManager,
-      mockInventoryMetadataManager
+      mockRemindChannelStore,
+      mockInventoryChannelStore
     );
   });
 
   it('inventory-channel が指定され、対象が /init-inventory 済みなら updateChannelMetadata が呼ばれ成功応答する', async () => {
     // Given
     mockInteraction.options.getChannel.mockReturnValue({ id: 'inventory-channel-1', name: 'stock' });
-    mockInventoryMetadataManager.getChannelMetadata.mockResolvedValue({
+    mockInventoryChannelStore.getChannelMetadata.mockResolvedValue({
       success: true,
       metadata: { channelId: 'inventory-channel-1' }
     });
@@ -76,8 +76,8 @@ describe('LinkInventoryCommand', () => {
 
     // Then
     expect(mockInteraction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
-    expect(mockInventoryMetadataManager.getChannelMetadata).toHaveBeenCalledWith('inventory-channel-1');
-    expect(mockRemindMetadataManager.updateChannelMetadata).toHaveBeenCalledWith(
+    expect(mockInventoryChannelStore.getChannelMetadata).toHaveBeenCalledWith('inventory-channel-1');
+    expect(mockRemindChannelStore.updateChannelMetadata).toHaveBeenCalledWith(
       'task-channel-1',
       { linkedInventoryChannelId: 'inventory-channel-1' }
     );
@@ -98,13 +98,13 @@ describe('LinkInventoryCommand', () => {
     await expect(actual).rejects.toMatchObject({
       userMessage: expect.stringContaining('inventory-channel')
     });
-    expect(mockRemindMetadataManager.updateChannelMetadata).not.toHaveBeenCalled();
+    expect(mockRemindChannelStore.updateChannelMetadata).not.toHaveBeenCalled();
   });
 
   it('対象 inventory-channel が未初期化なら /init-inventory の実行を案内してエラー応答する', async () => {
     // Given
     mockInteraction.options.getChannel.mockReturnValue({ id: 'inventory-channel-1', name: 'stock' });
-    mockInventoryMetadataManager.getChannelMetadata.mockResolvedValue({
+    mockInventoryChannelStore.getChannelMetadata.mockResolvedValue({
       success: false,
       message: 'metadataが見つかりません'
     });
@@ -117,17 +117,17 @@ describe('LinkInventoryCommand', () => {
     await expect(actual).rejects.toMatchObject({
       userMessage: expect.stringContaining('/init-inventory を実行してください')
     });
-    expect(mockRemindMetadataManager.updateChannelMetadata).not.toHaveBeenCalled();
+    expect(mockRemindChannelStore.updateChannelMetadata).not.toHaveBeenCalled();
   });
 
   it('updateChannelMetadata 失敗時はエラー応答する', async () => {
     // Given
     mockInteraction.options.getChannel.mockReturnValue({ id: 'inventory-channel-1', name: 'stock' });
-    mockInventoryMetadataManager.getChannelMetadata.mockResolvedValue({
+    mockInventoryChannelStore.getChannelMetadata.mockResolvedValue({
       success: true,
       metadata: { channelId: 'inventory-channel-1' }
     });
-    mockRemindMetadataManager.updateChannelMetadata.mockResolvedValue({
+    mockRemindChannelStore.updateChannelMetadata.mockResolvedValue({
       success: false,
       message: 'metadata更新に失敗しました'
     });

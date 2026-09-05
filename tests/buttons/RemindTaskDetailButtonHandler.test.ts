@@ -14,8 +14,8 @@ describe('RemindTaskDetailButtonHandler', () => {
       timeOfDay: '09:00',
       remindBeforeMinutes: 1440,
       inventoryItems: [
-        { name: '牛乳', stock: 3, consume: 1 },
-        { name: '卵', stock: 2, consume: 1 }
+        { inventoryId: '牛乳', consume: '1' },
+        { inventoryId: '卵', consume: '1' }
       ],
       startAt: new Date('2025-12-29T09:00:00+09:00'),
       nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
@@ -30,8 +30,9 @@ describe('RemindTaskDetailButtonHandler', () => {
     const handler = new RemindTaskDetailButtonHandler(
       new Logger(),
       undefined,
-      undefined,
-      mockRepository as any
+      { getChannelMetadata: vi.fn().mockResolvedValue({success:true,metadata:{linkedInventoryChannelId:'123'}}) } as any,
+      mockRepository as any,
+      { findById: vi.fn(async (_channelId, id) => ({ id, name:id, stock:id==='牛乳'?'3':'2', category:'' })) }
     );
 
     const interaction = {

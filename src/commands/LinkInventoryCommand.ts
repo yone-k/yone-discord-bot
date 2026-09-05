@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { BaseCommand, CommandExecutionContext } from '../base/BaseCommand';
-import { InventoryMetadataManager, type InventoryChannelMetadata } from '../services/InventoryMetadataManager';
-import { RemindMetadataManager } from '../services/RemindMetadataManager';
+import { InventoryChannelStore, type InventoryChannelMetadata } from '../services/InventoryChannelStore';
+import { RemindChannelStore } from '../services/RemindChannelStore';
 import { CommandError, CommandErrorType } from '../utils/CommandError';
 import { Logger } from '../utils/logger';
 
@@ -48,8 +48,8 @@ export class LinkInventoryCommand extends BaseCommand {
 
   constructor(
     logger: Logger,
-    remindMetadataManager: RemindMetadataUpdater = RemindMetadataManager.getInstance(),
-    inventoryMetadataManager: InventoryMetadataReader = InventoryMetadataManager.getInstance()
+    remindMetadataManager: RemindMetadataUpdater = RemindChannelStore.getInstance(),
+    inventoryMetadataManager: InventoryMetadataReader = InventoryChannelStore.getInstance()
   ) {
     super('link-inventory', '在庫チャンネルとリンクする', logger);
     this.ephemeral = true;

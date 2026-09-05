@@ -20,7 +20,7 @@ describe('RemindTaskUpdateModalHandler', () => {
 
     const mockRepository = {
       findTaskByMessageId: vi.fn().mockResolvedValue(task),
-      updateTask: vi.fn().mockResolvedValue({ success: true })
+      patchTask: vi.fn().mockResolvedValue({ success: true })
     };
     const mockMessageManager = {
       updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
@@ -35,7 +35,7 @@ describe('RemindTaskUpdateModalHandler', () => {
     );
 
     const interaction = {
-      customId: 'remind-task-update-modal:msg-1:1700000000000',
+      customId: 'remind-task-update-modal:msg-1:0',
       user: { id: 'user-1' },
       channelId: 'channel-1',
       client: {} as any,
@@ -57,7 +57,7 @@ describe('RemindTaskUpdateModalHandler', () => {
     await handler.handle({ interaction } as any);
 
     expect(mockRepository.findTaskByMessageId).toHaveBeenCalledWith('channel-1', 'msg-1');
-    expect(mockRepository.updateTask).toHaveBeenCalled();
+    expect(mockRepository.patchTask).toHaveBeenCalled();
     expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();
   });
 
@@ -82,7 +82,7 @@ describe('RemindTaskUpdateModalHandler', () => {
 
     const mockRepository = {
       findTaskByMessageId: vi.fn().mockResolvedValue(task),
-      updateTask: vi.fn().mockResolvedValue({ success: true })
+      patchTask: vi.fn().mockResolvedValue({ success: true })
     };
     const mockMessageManager = {
       updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
@@ -97,7 +97,7 @@ describe('RemindTaskUpdateModalHandler', () => {
     );
 
     const interaction = {
-      customId: 'remind-task-update-modal:msg-2',
+      customId: 'remind-task-update-modal:msg-2:0',
       user: { id: 'user-2' },
       channelId: 'channel-2',
       client: {} as any,
@@ -118,7 +118,7 @@ describe('RemindTaskUpdateModalHandler', () => {
 
     await handler.handle({ interaction } as any);
 
-    const updatedTask = mockRepository.updateTask.mock.calls[0][1];
+    const updatedTask = { ...task, ...mockRepository.patchTask.mock.calls[0][2] };
     expect(updatedTask.nextDueAt).toEqual(task.nextDueAt);
     expect(updatedTask.lastRemindDueAt).toEqual(task.lastRemindDueAt);
     expect(updatedTask.overdueNotifyCount).toBe(task.overdueNotifyCount);

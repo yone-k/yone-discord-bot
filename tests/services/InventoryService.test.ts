@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { InventoryService } from '../../src/services/InventoryService';
 import type { InventoryRepository } from '../../src/services/InventoryRepository';
-import type { RemindMetadataManager } from '../../src/services/RemindMetadataManager';
+import type { RemindChannelStore } from '../../src/services/RemindChannelStore';
 import type { RemindTaskRepository } from '../../src/services/RemindTaskRepository';
-import type { OperationResult } from '../../src/services/GoogleSheetsService';
+import type { OperationResult } from '../../src/repositories/contracts';
 import type { InventoryItem } from '../../src/models/InventoryItem';
 import type { RemindTask } from '../../src/models/RemindTask';
 
@@ -18,16 +18,8 @@ vi.mock('node:crypto', async importOriginal => ({
 }));
 
 type MockInventoryRepository = Pick<InventoryRepository, 'fetchAll' | 'findByName' | 'findById' | 'append' | 'update' | 'bulkUpdate' | 'delete'>;
-type MockRemindMetadataManager = Pick<RemindMetadataManager, 'findChannelsLinkedToInventory' | 'getChannelMetadata'>;
-type MockRemindTaskRepository = Pick<RemindTaskRepository, 'fetchTasks'>;
-type MockGoogleSheetsService = {
-  runWithLock<T>(lockKey: string, fn: () => Promise<T>): Promise<T>;
-};
-type ConsumeForTaskResult =
-  | { kind: 'success' }
-  | { kind: 'shortage'; items: Array<{ inventoryId: string; name: string; required: number; available: number }> }
-  | { kind: 'migration_required' };
-
+type MockRemindChannelStore = Pick<RemindChannelStore, 'findChannelsLinkedToInventory' | 'getChannelMetadata'>;
+type MockRemindTaskRepository = Pick<RemindTaskRepository, 'referencingInventory'>;
 describe('InventoryService', () => {
   let inventoryRepository: {
     fetchAll: ReturnType<typeof vi.fn>;
@@ -43,10 +35,7 @@ describe('InventoryService', () => {
     getChannelMetadata: ReturnType<typeof vi.fn>;
   };
   let remindTaskRepository: {
-    fetchTasks: ReturnType<typeof vi.fn>;
-  };
-  let googleSheetsService: {
-    runWithLock: ReturnType<typeof vi.fn>;
+    referencingInventory: ReturnType<typeof vi.fn>;
   };
   let service: InventoryService;
 
@@ -54,13 +43,13 @@ describe('InventoryService', () => {
   const coffeeBeans: InventoryItem = {
     id: 'item-1',
     name: 'Coffee beans',
-    stock: 2,
+    stock: '2',
     category: 'food'
   };
   const detergent: InventoryItem = {
     id: 'item-2',
     name: 'Detergent',
-    stock: 1.5,
+    stock: '1.5',
     category: 'daily'
   };
   const successResult: OperationResult = { success: true };
@@ -80,21 +69,12 @@ describe('InventoryService', () => {
       getChannelMetadata: vi.fn()
     };
     remindTaskRepository = {
-      fetchTasks: vi.fn()
+      referencingInventory: vi.fn()
     };
-    googleSheetsService = {
-      runWithLock: vi.fn()
-    };
-    service = new (InventoryService as unknown as new (
-      inventoryRepository: MockInventoryRepository,
-      remindMetadataManager: MockRemindMetadataManager,
-      remindTaskRepository: MockRemindTaskRepository,
-      googleSheetsService: MockGoogleSheetsService
-    ) => InventoryService)(
+    service = new InventoryService(
       inventoryRepository as MockInventoryRepository,
-      remindMetadataManager as MockRemindMetadataManager,
-      remindTaskRepository as MockRemindTaskRepository,
-      googleSheetsService as MockGoogleSheetsService
+      remindMetadataManager as MockRemindChannelStore,
+      remindTaskRepository as MockRemindTaskRepository
     );
   });
 
@@ -128,7 +108,7 @@ describe('InventoryService', () => {
       expect(item).toEqual({
         id: '00000000-0000-4000-8000-000000000001',
         name: 'Paper filter',
-        stock: 0,
+        stock: '0',
         category: ''
       });
       expect(inventoryRepository.findByName).toHaveBeenCalledWith(channelId, 'Paper filter');
@@ -171,7 +151,7 @@ describe('InventoryService', () => {
       // Given
       const updatedCoffeeBeans: InventoryItem = {
         ...coffeeBeans,
-        stock: 3,
+        stock: '3',
         category: 'grocery'
       };
       inventoryRepository.findById.mockResolvedValue(coffeeBeans);
@@ -227,37 +207,24 @@ describe('InventoryService', () => {
   describe('delete', () => {
     it('deletes the item when no remind task references it', async () => {
       // Given
-      remindMetadataManager.findChannelsLinkedToInventory.mockResolvedValue(['task-channel-1', 'task-channel-2']);
-      remindTaskRepository.fetchTasks
-        .mockResolvedValueOnce([
-          createTask({ id: 'task-1', title: 'Replace filter', inventoryItems: [{ inventoryId: 'item-2', consume: 1 }] })
-        ])
-        .mockResolvedValueOnce([
-          createTask({ id: 'task-2', title: 'Legacy task', inventoryItems: [{ name: 'Coffee beans', stock: 2, consume: 1 }] })
-        ]);
+      remindTaskRepository.referencingInventory.mockResolvedValue([]);
       inventoryRepository.delete.mockResolvedValue(successResult);
 
       // When
       await service.delete(channelId, 'item-1');
 
       // Then
-      expect(remindMetadataManager.findChannelsLinkedToInventory).toHaveBeenCalledWith(channelId);
-      expect(remindTaskRepository.fetchTasks).toHaveBeenCalledWith('task-channel-1');
-      expect(remindTaskRepository.fetchTasks).toHaveBeenCalledWith('task-channel-2');
+      expect(remindTaskRepository.referencingInventory).toHaveBeenCalledWith(channelId, 'item-1');
+      expect(remindMetadataManager.findChannelsLinkedToInventory).not.toHaveBeenCalled();
       expect(inventoryRepository.delete).toHaveBeenCalledWith(channelId, 'item-1');
     });
 
     it('throws an error with referenced channel ids and titles when remind tasks reference it', async () => {
       // Given
-      remindMetadataManager.findChannelsLinkedToInventory.mockResolvedValue(['task-channel-1', 'task-channel-2']);
-      remindTaskRepository.fetchTasks
-        .mockResolvedValueOnce([
-          createTask({ id: 'task-1', title: 'Brew coffee', inventoryItems: [{ inventoryId: 'item-1', consume: 1 }] }),
-          createTask({ id: 'task-2', title: 'Buy filters', inventoryItems: [{ inventoryId: 'item-2', consume: 1 }] })
-        ])
-        .mockResolvedValueOnce([
-          createTask({ id: 'task-3', title: 'Clean grinder', inventoryItems: [{ inventoryId: 'item-1', consume: 0.5 }] })
-        ]);
+      remindTaskRepository.referencingInventory.mockResolvedValue([
+        { ...createTask({ id: 'task-1', title: 'Brew coffee' }), channelId: 'task-channel-1' },
+        { ...createTask({ id: 'task-3', title: 'Clean grinder' }), channelId: 'task-channel-2' }
+      ]);
 
       // When
       const promise = service.delete(channelId, 'item-1');
@@ -271,192 +238,6 @@ describe('InventoryService', () => {
         expect(error.message).toContain('Clean grinder');
       });
       expect(inventoryRepository.delete).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('consumeForTask', () => {
-    const taskChannelId = 'task-channel-1';
-    const linkedInventoryChannelId = 'inventory-channel-1';
-    const consumeForTask = (task: RemindTask): Promise<ConsumeForTaskResult> =>
-      (service as unknown as {
-        consumeForTask(taskChannelId: string, task: RemindTask): Promise<ConsumeForTaskResult>;
-      }).consumeForTask(taskChannelId, task);
-
-    beforeEach(() => {
-      googleSheetsService.runWithLock.mockImplementation(async (_lockKey, fn) => fn());
-    });
-
-    it('returns success without consuming inventory when task channel is not linked', async () => {
-      // Given
-      remindMetadataManager.getChannelMetadata.mockResolvedValue({
-        success: true,
-        metadata: { channelId: taskChannelId, linkedInventoryChannelId: undefined }
-      });
-      const task = createTask({
-        inventoryItems: [{ inventoryId: 'item-1', consume: 1 }]
-      });
-
-      // When
-      const result = await consumeForTask(task);
-
-      // Then
-      expect(result).toEqual({ kind: 'success' });
-      expect(remindMetadataManager.getChannelMetadata).toHaveBeenCalledWith(taskChannelId);
-      expect(googleSheetsService.runWithLock).not.toHaveBeenCalled();
-      expect(inventoryRepository.findById).not.toHaveBeenCalled();
-      expect(inventoryRepository.update).not.toHaveBeenCalled();
-      expect(inventoryRepository.bulkUpdate).not.toHaveBeenCalled();
-    });
-
-    it('returns migration_required without consuming inventory when task includes a legacy inventory item', async () => {
-      // Given
-      remindMetadataManager.getChannelMetadata.mockResolvedValue({
-        success: true,
-        metadata: { channelId: taskChannelId, linkedInventoryChannelId }
-      });
-      const task = createTask({
-        inventoryItems: [
-          { inventoryId: 'item-1', consume: 1 },
-          { name: 'Coffee beans', stock: 2, consume: 1 }
-        ]
-      });
-
-      // When
-      const result = await consumeForTask(task);
-
-      // Then
-      expect(result).toEqual({ kind: 'migration_required' });
-      expect(googleSheetsService.runWithLock).not.toHaveBeenCalled();
-      expect(inventoryRepository.findById).not.toHaveBeenCalled();
-      expect(inventoryRepository.update).not.toHaveBeenCalled();
-      expect(inventoryRepository.bulkUpdate).not.toHaveBeenCalled();
-    });
-
-    it('returns all shortages without consuming inventory when any item has insufficient stock', async () => {
-      // Given
-      remindMetadataManager.getChannelMetadata.mockResolvedValue({
-        success: true,
-        metadata: { channelId: taskChannelId, linkedInventoryChannelId }
-      });
-      inventoryRepository.fetchAll.mockResolvedValue([
-        { ...coffeeBeans, stock: 0.5 },
-        { ...detergent, stock: 0 }
-      ]);
-      inventoryRepository.findById
-        .mockResolvedValueOnce({ ...coffeeBeans, stock: 0.5 })
-        .mockResolvedValueOnce({ ...detergent, stock: 0 });
-      const task = createTask({
-        inventoryItems: [
-          { inventoryId: 'item-1', consume: 1 },
-          { inventoryId: 'item-2', consume: 0.5 }
-        ]
-      });
-
-      // When
-      const result = await consumeForTask(task);
-
-      // Then
-      expect(result).toEqual({
-        kind: 'shortage',
-        items: [
-          { inventoryId: 'item-1', name: 'Coffee beans', required: 1, available: 0.5 },
-          { inventoryId: 'item-2', name: 'Detergent', required: 0.5, available: 0 }
-        ]
-      });
-      expect(inventoryRepository.fetchAll).toHaveBeenCalledWith(linkedInventoryChannelId);
-      expect(inventoryRepository.findById).not.toHaveBeenCalled();
-      expect(inventoryRepository.update).not.toHaveBeenCalled();
-      expect(inventoryRepository.bulkUpdate).not.toHaveBeenCalled();
-    });
-
-    it('treats a missing inventory item as shortage with zero available stock', async () => {
-      // Given
-      remindMetadataManager.getChannelMetadata.mockResolvedValue({
-        success: true,
-        metadata: { channelId: taskChannelId, linkedInventoryChannelId }
-      });
-      inventoryRepository.fetchAll.mockResolvedValue([]);
-      inventoryRepository.findById.mockResolvedValue(null);
-      const task = createTask({
-        inventoryItems: [{ inventoryId: 'missing-item', consume: 2 }]
-      });
-
-      // When
-      const result = await consumeForTask(task);
-
-      // Then
-      expect(result).toEqual({
-        kind: 'shortage',
-        items: [{ inventoryId: 'missing-item', name: 'missing-item', required: 2, available: 0 }]
-      });
-      expect(inventoryRepository.fetchAll).toHaveBeenCalledWith(linkedInventoryChannelId);
-      expect(inventoryRepository.findById).not.toHaveBeenCalled();
-      expect(inventoryRepository.update).not.toHaveBeenCalled();
-      expect(inventoryRepository.bulkUpdate).not.toHaveBeenCalled();
-    });
-
-    it('updates every inventory item with consumed stock and returns success when all stocks are sufficient', async () => {
-      // Given
-      remindMetadataManager.getChannelMetadata.mockResolvedValue({
-        success: true,
-        metadata: { channelId: taskChannelId, linkedInventoryChannelId }
-      });
-      inventoryRepository.fetchAll.mockResolvedValue([
-        { ...coffeeBeans, stock: 3 },
-        { ...detergent, stock: 1.5 }
-      ]);
-      inventoryRepository.findById
-        .mockResolvedValueOnce({ ...coffeeBeans, stock: 3 })
-        .mockResolvedValueOnce({ ...detergent, stock: 1.5 });
-      inventoryRepository.bulkUpdate.mockResolvedValue(successResult);
-      const task = createTask({
-        inventoryItems: [
-          { inventoryId: 'item-1', consume: 1 },
-          { inventoryId: 'item-2', consume: 0.5 }
-        ]
-      });
-
-      // When
-      const result = await consumeForTask(task);
-
-      // Then
-      expect(result).toEqual({ kind: 'success', linkedInventoryChannelId });
-      expect(inventoryRepository.fetchAll).toHaveBeenCalledTimes(1);
-      expect(inventoryRepository.findById).not.toHaveBeenCalled();
-      expect(inventoryRepository.update).not.toHaveBeenCalled();
-      expect(inventoryRepository.bulkUpdate).toHaveBeenCalledWith(linkedInventoryChannelId, [
-        {
-          ...coffeeBeans,
-          stock: 2
-        },
-        {
-          ...detergent,
-          stock: 1
-        }
-      ], { useLock: false });
-    });
-
-    it('runs inventory consumption under the linked inventory channel lock', async () => {
-      // Given
-      remindMetadataManager.getChannelMetadata.mockResolvedValue({
-        success: true,
-        metadata: { channelId: taskChannelId, linkedInventoryChannelId }
-      });
-      inventoryRepository.fetchAll.mockResolvedValue([{ ...coffeeBeans, stock: 2 }]);
-      inventoryRepository.findById.mockResolvedValue({ ...coffeeBeans, stock: 2 });
-      inventoryRepository.bulkUpdate.mockResolvedValue(successResult);
-      const task = createTask({
-        inventoryItems: [{ inventoryId: 'item-1', consume: 1 }]
-      });
-
-      // When
-      await consumeForTask(task);
-
-      // Then
-      expect(googleSheetsService.runWithLock).toHaveBeenCalledWith(
-        `inventory_${linkedInventoryChannelId}`,
-        expect.any(Function)
-      );
     });
   });
 
@@ -475,16 +256,16 @@ describe('InventoryService', () => {
         metadata: { channelId: taskChannelId, linkedInventoryChannelId }
       });
       inventoryRepository.fetchAll.mockResolvedValue([
-        { ...coffeeBeans, stock: 3 },
-        { ...detergent, stock: 1.5 }
+        { ...coffeeBeans, stock: '3' },
+        { ...detergent, stock: '1.5' }
       ]);
       inventoryRepository.findById
-        .mockResolvedValueOnce({ ...coffeeBeans, stock: 3 })
-        .mockResolvedValueOnce({ ...detergent, stock: 1.5 });
+        .mockResolvedValueOnce({ ...coffeeBeans, stock: '3' })
+        .mockResolvedValueOnce({ ...detergent, stock: '1.5' });
       const task = createTask({
         inventoryItems: [
-          { inventoryId: 'item-1', consume: 1 },
-          { inventoryId: 'item-2', consume: 0.5 }
+          { inventoryId: 'item-1', consume: '1' },
+          { inventoryId: 'item-2', consume: '0.5' }
         ]
       });
 

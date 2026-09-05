@@ -1,92 +1,45 @@
-import { GoogleSheetsService, OperationResult } from './GoogleSheetsService';
-import { RemindTask } from '../models/RemindTask';
-import { fromSheetRow, getRemindSheetHeaders, toSheetRow } from '../utils/RemindSheetMapper';
+import type { RemindTask } from '../models/RemindTask';
+import type { RemindTaskRepository as TaskPort, StoredRemindTask, OperationResult, InventoryConsumption, DayBounds, RemindTaskPatch } from '../repositories/contracts';
+import { PostgresRemindTaskRepository } from '../repositories/PostgresRemindTaskRepository';
+import type { RemindInventoryEdit } from '../repositories/contracts';
+
+const fromStored = (task: StoredRemindTask): RemindTask => ({ ...task,
+  messageId: task.messageId ?? undefined, description: task.description ?? undefined,
+  overdueNotifyLimit: task.overdueNotifyLimit ?? undefined });
+const toStored = (channelId: string, task: RemindTask): StoredRemindTask => ({ ...task, channelId, position: 0,
+  messageId: task.messageId ?? null, description: task.description ?? null,
+  overdueNotifyLimit: task.overdueNotifyLimit ?? null });
 
 export class RemindTaskRepository {
-  private googleSheetsService: GoogleSheetsService;
-
-  constructor() {
-    this.googleSheetsService = GoogleSheetsService.getInstance();
+  constructor(private readonly repository: TaskPort = new PostgresRemindTaskRepository()) {}
+  async fetchTasks(channelId: string): Promise<RemindTask[]> { return (await this.repository.fetchTasks(channelId)).map(fromStored); }
+  async findTaskByMessageId(channelId: string, messageId: string): Promise<RemindTask | null> {
+    const task = await this.repository.findTaskByMessageId(channelId, messageId); return task ? fromStored(task) : null;
   }
-
-  public getSheetNameForChannel(channelId: string): string {
-    return `remind_list_${channelId}`;
+  async appendTask(channelId: string, task: RemindTask): Promise<OperationResult> {
+    await this.repository.appendTask(channelId, toStored(channelId, task)); return { success: true };
   }
-
-  public async fetchTasks(channelId: string): Promise<RemindTask[]> {
-    const sheetName = this.getSheetNameForChannel(channelId);
-    const data = await this.googleSheetsService.getSheetDataByName(sheetName);
-    if (data.length <= 1) {
-      return [];
-    }
-
-    return data.slice(1).map(row => fromSheetRow(row));
+  async patchTask(channelId: string, task: RemindTask, patch: RemindTaskPatch): Promise<OperationResult> {
+    await this.repository.patchTask(channelId, task.id, task.revision, patch); return { success: true };
   }
-
-  public async appendTask(channelId: string, task: RemindTask): Promise<OperationResult> {
-    const sheetName = this.getSheetNameForChannel(channelId);
-    const rows = [toSheetRow(task).map(value => String(value))];
-    const validation = this.googleSheetsService.validateData(rows);
-    if (!validation.isValid) {
-      return { success: false, message: validation.errors?.join(',') };
-    }
-
-    return this.googleSheetsService.appendSheetData(sheetName, rows);
+  async editInventorySettings(channelId: string, task: RemindTask, items: RemindInventoryEdit[]): Promise<{ task: RemindTask; inventoryChannelId: string | null; stockChanged: boolean }> {
+    const result = await this.repository.editInventorySettings(channelId, task.id, task.revision, items);
+    return { ...result, task: fromStored(result.task) };
   }
-
-  public async updateTask(channelId: string, task: RemindTask): Promise<OperationResult> {
-    const sheetName = this.getSheetNameForChannel(channelId);
-    const data = await this.googleSheetsService.getSheetDataByName(sheetName, { skipCache: true });
-    if (data.length === 0) {
-      return { success: false, message: 'Sheet is empty' };
-    }
-
-    const headers = data[0];
-    const targetIndex = data.findIndex((row, index) => index > 0 && row[0] === task.id);
-    if (targetIndex === -1) {
-      return { success: false, message: 'Task not found' };
-    }
-
-    const expectedHeaders = getRemindSheetHeaders();
-    const normalizedHeaders = headers.length < expectedHeaders.length ? expectedHeaders : headers;
-    const normalizedRows = data.slice(1).map((row) => {
-      if (row.length >= expectedHeaders.length) {
-        return row;
-      }
-      const padded = [...row];
-      while (padded.length < expectedHeaders.length) {
-        padded.push('');
-      }
-      return padded;
-    });
-
-    const updatedRows = [...normalizedRows];
-    updatedRows[targetIndex - 1] = toSheetRow(task).map(value => String(value));
-    const rawData = [normalizedHeaders, ...updatedRows];
-    return this.googleSheetsService.updateSheetData(sheetName, rawData);
+  async deleteTask(channelId: string, taskId: string): Promise<OperationResult> {
+    await this.repository.deleteTask(channelId, taskId); return { success: true };
   }
-
-  public async findTaskByMessageId(channelId: string, messageId: string): Promise<RemindTask | null> {
-    const sheetName = this.getSheetNameForChannel(channelId);
-    const data = await this.googleSheetsService.getSheetDataByName(sheetName);
-    if (data.length <= 1) {
-      return null;
-    }
-
-    const row = data.slice(1).find(taskRow => taskRow[1] === messageId);
-    return row ? fromSheetRow(row) : null;
+  async complete(channelId: string, task: RemindTask, now: Date, nextDueAt: Date, consumption?: InventoryConsumption[]): Promise<void> {
+    await this.repository.complete(channelId, task.id, task.revision, now, nextDueAt, consumption);
   }
-
-  public async deleteTask(channelId: string, taskId: string): Promise<OperationResult> {
-    const sheetName = this.getSheetNameForChannel(channelId);
-    const data = await this.googleSheetsService.getSheetDataByName(sheetName, { skipCache: true });
-    if (data.length === 0) {
-      return { success: false, message: 'Sheet is empty' };
-    }
-
-    const headers = data[0];
-    const remaining = data.slice(1).filter(row => row[0] !== taskId);
-    const updated = [headers, ...remaining];
-    return this.googleSheetsService.updateSheetData(sheetName, updated);
+  async markNotified(channelId: string, task: RemindTask, kind: 'before' | 'overdue', now: Date): Promise<boolean> {
+    return this.repository.markNotified(toStored(channelId, task), kind, now);
+  }
+  async notificationCandidates(channelId: string, now: Date, day: DayBounds): Promise<RemindTask[]> {
+    return (await this.repository.notificationCandidates(channelId, now, day)).map(fromStored);
+  }
+  async activeTasks(channelId: string): Promise<RemindTask[]> { return (await this.repository.activeTasks(channelId)).map(fromStored); }
+  async referencingInventory(channelId: string, inventoryId: string): Promise<(RemindTask & { channelId: string })[]> {
+    return (await this.repository.referencingInventory(channelId, inventoryId)).map(task => ({ ...fromStored(task), channelId: task.channelId }));
   }
 }

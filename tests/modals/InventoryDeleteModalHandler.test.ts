@@ -32,7 +32,7 @@ describe('InventoryDeleteModalHandler', () => {
     mockLogger = new MockLogger();
     mockRepository = {
       fetchAll: vi.fn().mockResolvedValue([
-        { id: 'inventory-item-2', name: '電池', stock: 4, category: '消耗品' }
+        { id: 'inventory-item-2', name: '電池', stock: '4', category: '消耗品' }
       ])
     };
     mockInventoryService = {
@@ -84,7 +84,7 @@ describe('InventoryDeleteModalHandler', () => {
     expect(mockRepository.fetchAll).toHaveBeenCalledWith('inventory-channel-1');
     expect(mockInventoryMessageManager.createOrUpdateMessage).toHaveBeenCalledWith(
       'inventory-channel-1',
-      [{ id: 'inventory-item-2', name: '電池', stock: 4, category: '消耗品' }],
+      [{ id: 'inventory-item-2', name: '電池', stock: '4', category: '消耗品' }],
       '在庫リスト',
       interaction.client
     );

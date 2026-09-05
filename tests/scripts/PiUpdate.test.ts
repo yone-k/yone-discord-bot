@@ -13,7 +13,7 @@ let bin: string;
 type Fixture = {
   current: string; target: string; failed: string[];
   pullFail?: boolean; configFail?: boolean; stopFail?: boolean; busy?: boolean; missing?: boolean;
-  starting?: string[]; platform?: string; upFail?: string[];
+  starting?: string[]; platform?: string; upFail?: string[]; incompatible?: string[];
 };
 let fixture: Fixture;
 
@@ -33,6 +33,7 @@ if(a[0] === 'image' && a[1] === 'inspect') {
   finish(0, a[a.length-1]);
 }
 if(a[0] === 'compose') {
+  if(a.includes('run')) finish(s.incompatible?.includes(process.env.BOT_IMAGE) ? 1 : 0);
   if(a.includes('config')) finish(s.configFail ? 1 : 0);
   if(a.includes('ps')) finish(0, s.missing ? '' : 'container');
   if(a.includes('stop')) { if(s.stopFail) finish(1); s.stopped=true; fs.writeFileSync(f,JSON.stringify(s)); finish(); }
@@ -52,6 +53,7 @@ beforeEach(() => {
   mkdirSync(bin);
   mkdirSync(join(dir, 'scripts'));
   if (existsSync('scripts/pi-update.sh')) copyFileSync('scripts/pi-update.sh', join(dir, 'scripts/pi-update.sh'));
+  writeFileSync(join(dir, 'scripts/pi-db-preflight.sh'), '#!/bin/sh\nexit 0\n');
   writeFileSync(join(dir, 'docker-compose.yml'), 'name: discord-bot\n');
   writeFileSync(join(dir, '.env'), 'DISCORD_BOT_TOKEN=not-a-real-token\n');
   writeFileSync(join(bin, 'docker'), dockerStub, { mode: 0o755 });
@@ -81,6 +83,26 @@ function clearCalls(): void { writeFileSync(join(dir, 'calls'), ''); }
 function upCalls(): string[][] { return calls().filter(c => c.includes('up')); }
 
 describe('Pi update lifecycle', () => {
+  it('refuses a schema-incompatible candidate before replacing the running Bot', () => {
+    initialize(); fixture.incompatible = [next]; clearCalls();
+    expect(run().status).not.toBe(0);
+    expect(upCalls()).toHaveLength(0);
+    expect(fixture.current).toBe(old);
+  });
+  it('never rolls back to a Sheets image without the DB schema checker', () => {
+    initialize(); fixture.incompatible = [old]; fixture.failed = [next]; clearCalls();
+    expect(run().status).not.toBe(0);
+    expect(upCalls()).toHaveLength(0);
+  });
+  it('rejects manual recovery to an incompatible or Sheets image', () => {
+    initialize(); fixture.incompatible = [next]; clearCalls();
+    expect(run('--recover', next).status).not.toBe(0);
+    expect(upCalls()).toHaveLength(0);
+  });
+  it('reports contention as failure when establishing a maintenance block', () => {
+    initialize(); fixture.busy = true;
+    expect(run('--block').status).not.toBe(0);
+  });
   it('verifies the deployed digest and health without pulling or recreating', () => {
     initialize(); clearCalls();
     expect(run('--verify', old).status).toBe(0);

@@ -84,17 +84,7 @@ export class ChannelConfigurationManager {
     const config = await this.getConfiguration(channelId);
     const updatedConfig = {
       ...config,
-      messageId,
-      lastSyncTime: new Date()
-    };
-    await this.updateConfiguration(updatedConfig);
-  }
-
-  public async updateSyncTime(channelId: string): Promise<void> {
-    const config = await this.getConfiguration(channelId);
-    const updatedConfig = {
-      ...config,
-      lastSyncTime: new Date()
+      messageId
     };
     await this.updateConfiguration(updatedConfig);
   }

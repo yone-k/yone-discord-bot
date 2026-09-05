@@ -44,10 +44,14 @@ it('preserves dummy values through real Compose parsing and Config newline resto
     const converted = convert(input);
     expect(converted.status).toBe(0);
     writeFileSync(envFile, String(converted.stdout));
+    // Compose startup can exceed the unit-test timeout on shared CI runners.
+    // Bound the subprocess separately so a hung CLI cannot block the worker.
     const result = spawnSync('docker', ['compose', '--env-file', envFile, '-f', 'docker-compose.yml', 'config', '--format', 'json'], {
-      encoding: 'utf8', env: { ...process.env, BOT_ENV_FILE: envFile,
+      encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL',
+      env: { ...process.env, BOT_ENV_FILE: envFile,
         BOT_IMAGE: `ghcr.io/yone-k/yone-discord-bot@sha256:${'a'.repeat(64)}` }
     });
+    expect(result.error, 'Docker Compose must complete within 20 seconds').toBeUndefined();
     expect(result.status, result.stderr).toBe(0);
     const config = JSON.parse(result.stdout);
     const env = config.services.bot.environment;
@@ -59,4 +63,4 @@ it('preserves dummy values through real Compose parsing and Config newline resto
     expect(config.services.bot.restart).toBe('unless-stopped');
     expect(config.services.bot.ports[0].host_ip).toBe('127.0.0.1');
   } finally { rmSync(dir, { recursive: true, force: true }); }
-});
+}, 30000);

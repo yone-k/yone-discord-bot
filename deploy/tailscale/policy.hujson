@@ -1,0 +1,10 @@
+{
+  "tagOwners": {
+    "tag:discord-bot-ci": ["autogroup:admin"],
+    "tag:discord-bot-pi": ["autogroup:admin"]
+  },
+  "grants": [
+    {"src": ["autogroup:member"], "dst": ["*"], "ip": ["*"]},
+    {"src": ["tag:discord-bot-ci"], "dst": ["tag:discord-bot-pi"], "ip": ["tcp:22"]}
+  ]
+}

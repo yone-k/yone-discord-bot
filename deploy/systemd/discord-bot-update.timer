@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for a Discord Bot update every five minutes
+
+[Timer]
+OnActiveSec=5min
+OnUnitInactiveSec=5min
+AccuracySec=1s
+Unit=discord-bot-update.service
+
+[Install]
+WantedBy=timers.target

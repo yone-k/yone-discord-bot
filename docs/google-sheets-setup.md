@@ -36,19 +36,7 @@ MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC9W8bAF7Nq0BtF
 
 #### Docker環境
 
-Dockerfileまたはdocker-compose.ymlで設定する場合：
-
-```dockerfile
-# Dockerfile
-ENV GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account@project.iam.gserviceaccount.com
-ENV GOOGLE_SHEETS_SPREADSHEET_ID=your-spreadsheet-id
-```
-
-秘密鍵は別途、環境変数として渡すか、シークレット管理を使用：
-
-```bash
-docker run -e GOOGLE_PRIVATE_KEY="$(cat service-account-key.json | jq -r .private_key)" your-image
-```
+本番Piでは[運用手順](raspberry-pi-deployment.md)に従い、既存GCEの認証情報を所有者yone・権限600の `.env` へ移送します。Composeの `env_file` で実行時に読み込み、Dockerfileやイメージへ秘密値を埋め込みません。今回の移行ではサービスアカウントや鍵を新規発行しません。
 
 #### Heroku
 
@@ -94,7 +82,7 @@ GitHub Secretsに保存：
 **解決方法**:
 1. サービスアカウントのJSONファイルから秘密鍵を再度コピー
 2. 改行文字が正しく保持されているか確認
-3. 環境変数検証スクリプトを実行して確認
+3. 下記の検証方法でCompose構文と実際のSheetsアクセスを確認
 
 ### 2. 改行文字の問題
 
@@ -114,12 +102,7 @@ export GOOGLE_PRIVATE_KEY=$(cat key.json | jq -r .private_key)
 
 ## 検証方法
 
-環境変数が正しく設定されているか確認：
-
-```bash
-# 検証スクリプトの実行
-node scripts/verify-google-auth.js
-```
+Pi上で正常イメージの `BOT_IMAGE` を設定したうえで `docker compose config --quiet` により設定構文を確認します。認証の成功は本番BotのSheetsアクセス、および既存リマインド送信後の通知状態更新で確認します。healthがreadyでもSheets認証の成功は保証されません。秘密鍵や解決後の環境変数全体を出力しないでください。
 
 ## セキュリティのベストプラクティス
 
@@ -133,7 +116,7 @@ node scripts/verify-google-auth.js
 
 問題が解決しない場合：
 
-1. 環境変数検証スクリプトの出力を確認
+1. Compose構文とBotのSheets認証エラーの有無を確認（秘密値を出力しない）
 2. Google Cloud Consoleでサービスアカウントの権限を確認
 3. スプレッドシートの共有設定を確認（サービスアカウントのメールアドレスに編集権限があるか）
 4. Node.jsのバージョンを確認（v18以上を推奨）

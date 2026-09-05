@@ -1,32 +1,29 @@
 import { randomUUID } from 'node:crypto';
 import type { InventoryItem } from '../models/InventoryItem';
 import type { NewRemindInventoryItem, RemindTask } from '../models/RemindTask';
-import { isLegacyInventoryItem } from '../models/RemindTask';
 import { InventoryRepository } from './InventoryRepository';
-import { GoogleSheetsService, type OperationResult } from './GoogleSheetsService';
-import { RemindMetadataManager } from './RemindMetadataManager';
+import type { OperationResult } from '../repositories/contracts';
+import { compareDecimal } from '../utils/Decimal';
+import { RemindChannelStore } from './RemindChannelStore';
 import { RemindTaskRepository } from './RemindTaskRepository';
-import { LoggerManager } from '../utils/LoggerManager';
 
 type InventoryRepositoryPort = Pick<
   InventoryRepository,
   'findByName' | 'findById' | 'append' | 'update' | 'bulkUpdate' | 'delete' | 'fetchAll'
 >;
-type RemindMetadataManagerPort = Pick<RemindMetadataManager, 'findChannelsLinkedToInventory' | 'getChannelMetadata'>;
-type RemindTaskRepositoryPort = Pick<RemindTaskRepository, 'fetchTasks'>;
-type GoogleSheetsServicePort = Pick<GoogleSheetsService, 'runWithLock'>;
+type RemindChannelStorePort = Pick<RemindChannelStore, 'getChannelMetadata'>;
+type RemindTaskRepositoryPort = Pick<RemindTaskRepository, 'referencingInventory'>;
 
 export interface ShortageItem {
   inventoryId: string;
   name: string;
-  required: number;
-  available: number;
+  required: string;
+  available: string;
 }
 
 export type ConsumeForTaskResult =
   | { kind: 'success'; linkedInventoryChannelId?: string }
   | { kind: 'shortage'; items: ShortageItem[] }
-  | { kind: 'migration_required' }
   | { kind: 'error'; message: string };
 
 export interface ReferencedTask {
@@ -36,22 +33,19 @@ export interface ReferencedTask {
 
 export class InventoryService {
   private static instance: InventoryService | undefined;
-  private readonly logger = LoggerManager.getLogger('InventoryService');
 
   constructor(
     private readonly inventoryRepository: InventoryRepositoryPort,
-    private readonly remindMetadataManager: RemindMetadataManagerPort,
-    private readonly remindTaskRepository: RemindTaskRepositoryPort,
-    private readonly googleSheetsService: GoogleSheetsServicePort
+    private readonly remindMetadataManager: RemindChannelStorePort,
+    private readonly remindTaskRepository: RemindTaskRepositoryPort
   ) {}
 
   public static getInstance(): InventoryService {
     if (!InventoryService.instance) {
       InventoryService.instance = new InventoryService(
         new InventoryRepository(),
-        RemindMetadataManager.getInstance(),
-        new RemindTaskRepository(),
-        GoogleSheetsService.getInstance()
+        RemindChannelStore.getInstance(),
+        new RemindTaskRepository()
       );
     }
     return InventoryService.instance;
@@ -66,7 +60,7 @@ export class InventoryService {
     const item: InventoryItem = {
       id: randomUUID(),
       name,
-      stock: 0,
+      stock: '0',
       category: ''
     };
     await this.inventoryRepository.append(channelId, item);
@@ -84,13 +78,9 @@ export class InventoryService {
       return { kind: 'success' };
     }
 
-    if (task.inventoryItems.some(isLegacyInventoryItem)) {
-      return { kind: 'migration_required' };
-    }
-
     const shortages = await this.collectShortages(
       linkedInventoryChannelId,
-      task.inventoryItems as NewRemindInventoryItem[]
+      task.inventoryItems
     );
     return shortages.length > 0
       ? { kind: 'shortage', items: shortages }
@@ -132,81 +122,8 @@ export class InventoryService {
   }
 
   public async findReferencingTasks(channelId: string, id: string): Promise<ReferencedTask[]> {
-    const taskChannelIds = await this.remindMetadataManager.findChannelsLinkedToInventory(channelId);
-    const references: ReferencedTask[] = [];
-
-    for (const taskChannelId of taskChannelIds) {
-      const tasks = await this.remindTaskRepository.fetchTasks(taskChannelId);
-      references.push(...this.findReferencedTasks(taskChannelId, tasks, id));
-    }
-
-    return references;
-  }
-
-  public async consumeForTask(taskChannelId: string, task: RemindTask): Promise<ConsumeForTaskResult> {
-    const metadataResult = await this.remindMetadataManager.getChannelMetadata(taskChannelId);
-    const linkedInventoryChannelId = metadataResult.metadata?.linkedInventoryChannelId;
-    if (!linkedInventoryChannelId) {
-      return { kind: 'success' };
-    }
-
-    if (task.inventoryItems.some(isLegacyInventoryItem)) {
-      return { kind: 'migration_required' };
-    }
-
-    const inventoryItems = task.inventoryItems as NewRemindInventoryItem[];
-    return this.googleSheetsService.runWithLock(
-      `inventory_${linkedInventoryChannelId}`,
-      async () => this.consumeInventoryItems(linkedInventoryChannelId, inventoryItems)
-    );
-  }
-
-  private findReferencedTasks(channelId: string, tasks: RemindTask[], inventoryId: string): ReferencedTask[] {
-    return tasks
-      .filter(task => task.inventoryItems.some(item => 'inventoryId' in item && item.inventoryId === inventoryId))
-      .map(task => ({
-        channelId,
-        title: task.title
-      }));
-  }
-
-  private async consumeInventoryItems(
-    linkedInventoryChannelId: string,
-    inventoryItems: NewRemindInventoryItem[]
-  ): Promise<ConsumeForTaskResult> {
-    const { stockedItems, shortages } = await this.collectInventoryState(linkedInventoryChannelId, inventoryItems);
-
-    if (shortages.length > 0) {
-      return { kind: 'shortage', items: shortages };
-    }
-
-    const updatedItems = stockedItems.map(stockedItem => ({
-      ...stockedItem.item,
-      stock: stockedItem.item.stock - stockedItem.request.consume
-    }));
-
-    const result = await this.inventoryRepository.bulkUpdate(linkedInventoryChannelId, updatedItems, { useLock: false });
-
-    if (result.success === false) {
-      const message = result.message ?? 'Unknown error';
-      this.logger.warn('Inventory consumption bulk update failed', {
-        component: 'InventoryService',
-        method: 'consumeInventoryItems',
-        linkedInventoryChannelId,
-        itemCount: updatedItems.length,
-        message
-      });
-      this.logger.error('Inventory consumption failed', {
-        component: 'InventoryService',
-        method: 'consumeInventoryItems',
-        linkedInventoryChannelId,
-        itemCount: updatedItems.length,
-        message
-      });
-      return { kind: 'error', message };
-    }
-
-    return { kind: 'success', linkedInventoryChannelId };
+    const tasks = await this.remindTaskRepository.referencingInventory(channelId, id);
+    return tasks.map(task => ({ channelId: task.channelId, title: task.title }));
   }
 
   private async collectShortages(
@@ -224,12 +141,12 @@ export class InventoryService {
           inventoryId: request.inventoryId,
           name: request.inventoryId,
           required: request.consume,
-          available: 0
+          available: '0'
         });
         continue;
       }
 
-      if (item.stock < request.consume) {
+      if (compareDecimal(item.stock, request.consume) < 0) {
         shortages.push({
           inventoryId: request.inventoryId,
           name: item.name,
@@ -242,42 +159,4 @@ export class InventoryService {
     return shortages;
   }
 
-  private async collectInventoryState(
-    linkedInventoryChannelId: string,
-    inventoryItems: NewRemindInventoryItem[]
-  ): Promise<{
-      stockedItems: Array<{ request: NewRemindInventoryItem; item: InventoryItem }>;
-      shortages: ShortageItem[];
-    }> {
-    const inventory = await this.inventoryRepository.fetchAll(linkedInventoryChannelId);
-    const inventoryById = new Map(inventory.map(item => [item.id, item]));
-    const stockedItems: Array<{ request: NewRemindInventoryItem; item: InventoryItem }> = [];
-    const shortages: ShortageItem[] = [];
-
-    for (const request of inventoryItems) {
-      const item = inventoryById.get(request.inventoryId);
-      if (!item) {
-        shortages.push({
-          inventoryId: request.inventoryId,
-          name: request.inventoryId,
-          required: request.consume,
-          available: 0
-        });
-        continue;
-      }
-
-      if (item.stock < request.consume) {
-        shortages.push({
-          inventoryId: request.inventoryId,
-          name: item.name,
-          required: request.consume,
-          available: item.stock
-        });
-      }
-
-      stockedItems.push({ request, item });
-    }
-
-    return { stockedItems, shortages };
-  }
 }

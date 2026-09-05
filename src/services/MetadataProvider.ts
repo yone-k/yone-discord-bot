@@ -5,6 +5,7 @@ export interface OperationLogMetadata {
   operationLogThreadId?: string | null;
   remindNoticeThreadId?: string;
   remindNoticeMessageId?: string;
+  linkedInventoryChannelId?: string;
 }
 
 export interface MetadataProviderResult {

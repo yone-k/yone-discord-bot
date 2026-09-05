@@ -57,7 +57,7 @@ describe('DeleteInventoryCommand', () => {
     mockRepository.findByName.mockResolvedValue({
       id: 'inventory-item-1',
       name: 'フィルター',
-      stock: 3,
+      stock: '3',
       category: '消耗品'
     });
 

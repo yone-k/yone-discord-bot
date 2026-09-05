@@ -2,18 +2,27 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RemindTaskService } from '../../src/services/RemindTaskService';
 
 describe('RemindTaskService', () => {
-  let mockSheetManager: any;
+  it('uses the database initial revision when recording a newly created message', async () => {
+    const repository = {
+      appendTask: vi.fn().mockResolvedValue({ success: true }),
+      patchTask: vi.fn(async (_channel, task) => {
+        if (task.revision !== '0') throw new Error('revision conflict');
+        return { success: true };
+      })
+    };
+    const metadata = { getChannelMetadata: vi.fn().mockResolvedValue({ success: true }) };
+    const messages = { createTaskMessage: vi.fn().mockResolvedValue({ success: true, messageId: '456' }) };
+    const service = new RemindTaskService(repository as any, metadata as any, messages as any, () => 'task');
+    expect((await service.addTask('123', {title:'米',intervalDays:1}, {} as any, new Date('2026-01-01T00:00:00Z'))).success).toBe(true);
+  });
   let mockRepository: any;
   let mockMetadataManager: any;
   let mockMessageManager: any;
 
   beforeEach(() => {
-    mockSheetManager = {
-      getOrCreateChannelSheet: vi.fn().mockResolvedValue({ existed: true })
-    };
     mockRepository = {
       appendTask: vi.fn().mockResolvedValue({ success: true }),
-      updateTask: vi.fn().mockResolvedValue({ success: true })
+      patchTask: vi.fn().mockResolvedValue({ success: true })
     };
     mockMetadataManager = {
       getChannelMetadata: vi.fn().mockResolvedValue({ success: false }),
@@ -26,7 +35,6 @@ describe('RemindTaskService', () => {
 
   it('adds task and updates message id', async () => {
     const service = new RemindTaskService(
-      mockSheetManager,
       mockRepository,
       mockMetadataManager,
       mockMessageManager,
@@ -49,12 +57,11 @@ describe('RemindTaskService', () => {
     expect(result.success).toBe(true);
     expect(mockRepository.appendTask).toHaveBeenCalled();
     expect(mockMessageManager.createTaskMessage).toHaveBeenCalled();
-    expect(mockRepository.updateTask).toHaveBeenCalled();
+    expect(mockRepository.patchTask).toHaveBeenCalled();
   });
 
   it('defaults timeOfDay to 00:00 when omitted', async () => {
     const service = new RemindTaskService(
-      mockSheetManager,
       mockRepository,
       mockMetadataManager,
       mockMessageManager,
@@ -80,10 +87,9 @@ describe('RemindTaskService', () => {
   });
 
   it('returns failure when messageId persistence fails', async () => {
-    mockRepository.updateTask.mockResolvedValue({ success: false, message: 'update failed' });
+    mockRepository.patchTask.mockResolvedValue({ success: false, message: 'update failed' });
 
     const service = new RemindTaskService(
-      mockSheetManager,
       mockRepository,
       mockMetadataManager,
       mockMessageManager,

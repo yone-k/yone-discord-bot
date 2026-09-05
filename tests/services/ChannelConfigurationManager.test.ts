@@ -31,8 +31,7 @@ describe('ChannelConfigurationManager', () => {
       channelId: 'test-channel-123',
       messageId: 'test-message-456',
       listTitle: 'テストリスト',
-      listType: 'shopping',
-      lastSyncTime: new Date('2025-01-01T00:00:00Z')
+      defaultCategory: 'その他',
     };
     vi.clearAllMocks();
   });
@@ -64,14 +63,12 @@ describe('ChannelConfigurationManager', () => {
       const updatedMetadata = {
         ...testMetadata,
         listTitle: '更新されたリスト',
-        lastSyncTime: new Date('2025-01-02T00:00:00Z')
       };
       
       await manager.updateConfiguration(updatedMetadata);
       const savedConfig = await manager.getConfiguration('test-channel-123');
       
       expect(savedConfig.listTitle).toBe('更新されたリスト');
-      expect(savedConfig.lastSyncTime).toEqual(new Date('2025-01-02T00:00:00Z'));
     });
   });
 
@@ -145,18 +142,6 @@ describe('ChannelConfigurationManager', () => {
         'non-existent-message',
         'テストメッセージ'
       )).rejects.toThrow('メッセージが見つかりません');
-    });
-  });
-
-  describe('同期時間管理', () => {
-    it('同期時間を更新できる', async () => {
-      await manager.saveConfiguration(testMetadata);
-      
-      const _newSyncTime = new Date('2025-01-03T12:00:00Z');
-      await manager.updateSyncTime('test-channel-123');
-      
-      const updatedConfig = await manager.getConfiguration('test-channel-123');
-      expect(updatedConfig.lastSyncTime.getTime()).toBeGreaterThan(testMetadata.lastSyncTime.getTime());
     });
   });
 

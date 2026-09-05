@@ -1,5 +1,7 @@
+import { normalizeDecimal } from '../utils/Decimal';
 export interface RemindTaskInput {
   id: string;
+  revision?: string;
   messageId?: string;
   title: string;
   description?: string;
@@ -21,27 +23,14 @@ export interface RemindTaskInput {
 
 export interface NewRemindInventoryItem {
   inventoryId: string;
-  consume: number;
+  consume: string;
 }
 
-export interface LegacyRemindInventoryItem {
-  name: string;
-  stock: number;
-  consume: number;
-}
-
-export type RemindInventoryItem = NewRemindInventoryItem | LegacyRemindInventoryItem;
-
-export function isNewInventoryItem(item: RemindInventoryItem): item is NewRemindInventoryItem {
-  return 'inventoryId' in item;
-}
-
-export function isLegacyInventoryItem(item: RemindInventoryItem): item is LegacyRemindInventoryItem {
-  return 'name' in item;
-}
+export type RemindInventoryItem = NewRemindInventoryItem;
 
 export interface RemindTask {
   id: string;
+  revision: string;
   messageId?: string;
   title: string;
   description?: string;
@@ -64,6 +53,7 @@ export interface RemindTask {
 export function createRemindTask(input: RemindTaskInput): RemindTask {
   return {
     id: input.id.trim(),
+    revision: input.revision ?? '0',
     messageId: input.messageId,
     title: input.title.trim(),
     description: input.description?.trim(),
@@ -93,7 +83,7 @@ export function validateRemindTask(task: RemindTask): void {
     throw new Error('タイトルは必須です');
   }
 
-  if (task.intervalDays < 1) {
+  if (!Number.isInteger(task.intervalDays) || task.intervalDays < 1) {
     throw new Error('interval_daysは1以上である必要があります');
   }
 
@@ -101,7 +91,7 @@ export function validateRemindTask(task: RemindTask): void {
     throw new Error('time_of_dayの形式が無効です');
   }
 
-  if (task.remindBeforeMinutes < 0 || task.remindBeforeMinutes > 10080) {
+  if (!Number.isInteger(task.remindBeforeMinutes) || task.remindBeforeMinutes < 0 || task.remindBeforeMinutes > 10080) {
     throw new Error('remind_before_minutesの範囲が無効です');
   }
 
@@ -109,31 +99,11 @@ export function validateRemindTask(task: RemindTask): void {
     throw new Error('inventory_itemsが無効です');
   }
 
+  const ids = new Set<string>();
   for (const item of task.inventoryItems) {
-    if (isNewInventoryItem(item)) {
-      if (!item.inventoryId || item.inventoryId.trim() === '') {
-        throw new Error('inventory_itemsの在庫IDが無効です');
-      }
-      if (!Number.isFinite(item.consume) || item.consume < 0) {
-        throw new Error('inventory_itemsの消費数が無効です');
-      }
-      continue;
-    }
-
-    if (isLegacyInventoryItem(item)) {
-      if (!item.name || item.name.trim() === '') {
-        throw new Error('inventory_itemsの名称が無効です');
-      }
-      if (!Number.isFinite(item.stock) || item.stock < 0) {
-        throw new Error('inventory_itemsの在庫数が無効です');
-      }
-      if (!Number.isFinite(item.consume) || item.consume <= 0) {
-        throw new Error('inventory_itemsの消費数が無効です');
-      }
-      continue;
-    }
-
-    throw new Error('inventory_itemsの形式が無効です');
+    if (!item.inventoryId?.trim() || ids.has(item.inventoryId)) throw new Error('inventory_itemsの在庫IDが無効です');
+    ids.add(item.inventoryId);
+    normalizeDecimal(item.consume);
   }
 
   if (!(task.startAt instanceof Date) || isNaN(task.startAt.getTime())) {

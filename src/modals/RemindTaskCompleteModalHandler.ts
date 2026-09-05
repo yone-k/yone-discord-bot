@@ -1,6 +1,7 @@
+import { compareDecimal, formatDecimal } from '../utils/Decimal';
 import { Logger } from '../utils/logger';
 import type { InventoryItem } from '../models/InventoryItem';
-import { isNewInventoryItem, type NewRemindInventoryItem } from '../models/RemindTask';
+import { type NewRemindInventoryItem } from '../models/RemindTask';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
@@ -9,10 +10,9 @@ import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { calculateNextDueAt } from '../utils/RemindSchedule';
 import {
-  formatInventoryShortageNotice,
   parseCompletionInput
 } from '../utils/RemindInventory';
-import { InventoryService, type ConsumeForTaskResult } from '../services/InventoryService';
+import { type ConsumeForTaskResult } from '../services/InventoryService';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
 import { RemindTaskRefreshService } from '../services/RemindTaskRefreshService';
@@ -41,7 +41,6 @@ interface RefreshServicePort {
 export class RemindTaskCompleteModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
-  private inventoryService: Pick<InventoryService, 'consumeForTask'>;
   private inventoryRepository?: InventoryRepositoryPort;
   private inventoryMessageManager?: InventoryMessageManagerPort;
   private refreshService?: RefreshServicePort;
@@ -52,7 +51,6 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
     messageManager?: RemindMessageManager,
-    inventoryService?: Pick<InventoryService, 'consumeForTask'>,
     inventoryRepository?: InventoryRepositoryPort,
     inventoryMessageManager?: InventoryMessageManagerPort,
     refreshService?: RefreshServicePort
@@ -62,7 +60,6 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
     this.silentOnSuccess = true;
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
-    this.inventoryService = inventoryService ?? InventoryService.getInstance();
     this.inventoryRepository = inventoryRepository;
     this.inventoryMessageManager = inventoryMessageManager;
     this.refreshService = refreshService;
@@ -102,10 +99,10 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
       return { success: false, message: '在庫チャンネルが連携されていません' };
     }
 
-    let completionInput: Array<{ name: string; consume: number | null }>;
+    let completionInput: Array<{ name: string; consume: string | null }>;
     try {
       completionInput = parseCompletionInput(
-        context.interaction.fields.getTextInputValue('inventory-items')
+        context.interaction.fields.getTextInputValue('inventory-items'), { preservePrecision: true }
       );
     } catch (error) {
       return {
@@ -114,7 +111,7 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
       };
     }
 
-    const inputMap = new Map<string, number | null>(
+    const inputMap = new Map<string, string | null>(
       completionInput.map(item => [item.name, item.consume])
     );
     const tempInventoryItems: NewRemindInventoryItem[] = [];
@@ -123,37 +120,27 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
     const inventoryItemMap = new Map<string, InventoryItem>(
       inventoryItems.map(item => [item.id, item])
     );
+    const taskInventoryNames = new Set(task.inventoryItems.map(item => inventoryItemMap.get(item.inventoryId)?.name));
+    for (const input of completionInput) {
+      if (!taskInventoryNames.has(input.name)) return { success: false, message: `タスクの在庫設定にないアイテムです: ${input.name}` };
+    }
 
     for (const item of task.inventoryItems) {
-      if (!isNewInventoryItem(item)) {
-        continue;
-      }
-
       const inventoryItem = inventoryItemMap.get(item.inventoryId);
       if (!inventoryItem) {
-        if (item.consume > 0) {
+        if (compareDecimal(item.consume, '0') > 0) {
           tempInventoryItems.push({ inventoryId: item.inventoryId, consume: item.consume });
         }
         continue;
       }
 
       const input = inputMap.get(inventoryItem.name);
-      const effectiveConsume = this.resolveEffectiveConsume(item.consume, input);
-      if (effectiveConsume > 0) {
+      try {
+        const effectiveConsume = this.resolveEffectiveConsume(item.consume, input);
         tempInventoryItems.push({ inventoryId: item.inventoryId, consume: effectiveConsume });
+      } catch (error) {
+        return { success: false, message: `${inventoryItem.name}: ${(error as Error).message}` };
       }
-    }
-
-    let consumed = false;
-    let inventoryResult: ConsumeForTaskResult = { kind: 'success' };
-    if (tempInventoryItems.length > 0) {
-      const tempTask = { ...task, inventoryItems: tempInventoryItems };
-      inventoryResult = await this.inventoryService.consumeForTask(channelId, tempTask);
-      const blockedResult = this.toBlockedResult(task.title, inventoryResult);
-      if (blockedResult) {
-        return blockedResult;
-      }
-      consumed = true;
     }
 
     const now = new Date();
@@ -178,45 +165,27 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
       updatedAt: now
     };
 
-    const updateResult = await this.repository.updateTask(channelId, updatedTask);
-    if (!updateResult.success) {
-      return { success: false, message: updateResult.message };
+    const expectedRevision = context.interaction.customId.split(':')[2];
+    if (!expectedRevision || task.revision !== expectedRevision) return { success: false, message: 'タスクが変更されました。開き直してください。' };
+    try {
+      await this.repository.complete(channelId, task, now, nextDueAt, tempInventoryItems);
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : '完了に失敗しました' };
     }
-
-    await this.messageManager.updateTaskMessage(channelId, messageId, updatedTask, context.interaction.client, now);
-
-    if (consumed) {
-      await this.refreshInventoryMessage(inventoryResult, context.interaction.client, messageId);
-    }
+    const latest = await this.repository.findTaskByMessageId(channelId, messageId);
+    await this.messageManager.updateTaskMessage(channelId, messageId, latest ?? updatedTask, context.interaction.client, now);
+    await this.refreshInventoryMessage({ kind: 'success', linkedInventoryChannelId }, context.interaction.client, messageId);
 
     return { success: true };
   }
 
-  private resolveEffectiveConsume(originalConsume: number, input: number | null | undefined): number {
-    if (originalConsume > 0) {
-      return input && input > 0 ? input : originalConsume;
+  private resolveEffectiveConsume(originalConsume: string, input: string | null | undefined): string {
+    if (input === null || input === undefined) {
+      if (compareDecimal(originalConsume, '0') === 0) throw new Error('今回の消費数を入力してください');
+      return originalConsume;
     }
-    return input && input > 0 ? input : 0;
-  }
-
-  private async notifyInventory(channelId: string, message: string, client: ModalHandlerContext['interaction']['client']): Promise<void> {
-    if (!this.metadataManager) {
-      return;
-    }
-
-    const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
-    if (!metadataResult.success || !metadataResult.metadata) {
-      return;
-    }
-
-    const { remindNoticeThreadId, remindNoticeMessageId } = metadataResult.metadata;
-    await this.messageManager.sendReminderToThread(
-      channelId,
-      remindNoticeThreadId,
-      remindNoticeMessageId,
-      message,
-      client
-    );
+    if (compareDecimal(input, originalConsume) === 0) return originalConsume;
+    return formatDecimal(input);
   }
 
   private async refreshInventoryMessage(
@@ -268,27 +237,4 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
     return parts.length >= 2 && parts[1] ? parts[1] : null;
   }
 
-  private toBlockedResult(title: string, result: ConsumeForTaskResult): OperationResult | null {
-    if (result.kind === 'success') {
-      return null;
-    }
-    if (result.kind === 'migration_required') {
-      return {
-        success: false,
-        message: '在庫移行が必要です。先に在庫移行を実行してください。'
-      };
-    }
-    if (result.kind === 'error') {
-      return {
-        success: false,
-        message: `在庫の更新に失敗しました: ${result.message}`
-      };
-    }
-
-    const shortageNotice = formatInventoryShortageNotice(result.items as never);
-    return {
-      success: false,
-      message: `${title}の完了に必要な在庫が不足しています。\n${shortageNotice}`
-    };
-  }
 }

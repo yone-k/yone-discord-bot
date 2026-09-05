@@ -64,3 +64,8 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+*.dump
+*.dump.*
+backups/
+migration/
+rclone.conf

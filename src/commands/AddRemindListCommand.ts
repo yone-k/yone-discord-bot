@@ -5,7 +5,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { RemindTaskService, type RemindTaskInputData } from '../services/RemindTaskService';
 import { parseRemindBeforeInput } from '../utils/RemindDuration';
 import { parseInventoryInput } from '../utils/RemindInventory';
-import { RemindMetadataManager } from '../services/RemindMetadataManager';
+import { RemindChannelStore } from '../services/RemindChannelStore';
 import { InventoryService } from '../services/InventoryService';
 
 export class AddRemindListCommand extends BaseCommand {
@@ -53,20 +53,20 @@ export class AddRemindListCommand extends BaseCommand {
   }
 
   private remindTaskService: RemindTaskService;
-  private metadataManager: Pick<RemindMetadataManager, 'getChannelMetadata'>;
+  private metadataManager: Pick<RemindChannelStore, 'getChannelMetadata'>;
   private inventoryService: Pick<InventoryService, 'resolveByName'>;
 
   constructor(
     logger: Logger,
     remindTaskService?: RemindTaskService,
-    metadataManager?: Pick<RemindMetadataManager, 'getChannelMetadata'>,
+    metadataManager?: Pick<RemindChannelStore, 'getChannelMetadata'>,
     inventoryService?: Pick<InventoryService, 'resolveByName'>
   ) {
     super('add-remind-list', 'リマインドタスクを追加します', logger);
     this.ephemeral = true;
     this.useThread = false;
     this.remindTaskService = remindTaskService || new RemindTaskService();
-    this.metadataManager = metadataManager || RemindMetadataManager.getInstance();
+    this.metadataManager = metadataManager || RemindChannelStore.getInstance();
     this.inventoryService = inventoryService || InventoryService.getInstance();
   }
 

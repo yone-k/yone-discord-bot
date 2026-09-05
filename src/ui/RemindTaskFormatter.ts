@@ -1,13 +1,23 @@
 import { EmbedBuilder } from 'discord.js';
-import { isNewInventoryItem, RemindTask } from '../models/RemindTask';
+import { RemindTask } from '../models/RemindTask';
 import { formatRemainingDuration } from '../utils/RemindDuration';
-import { formatInventoryDetail } from '../utils/RemindInventory';
-import { formatInventorySummary } from '../utils/RemindInventory';
+import { formatDecimal } from '../utils/Decimal';
 
-export type InventoryNameResolver = (inventoryId: string) => Promise<{ name: string; stock: number } | null>;
+export type InventoryNameResolver = (inventoryId: string) => Promise<{ name: string; stock: string } | null>;
 
 export class RemindTaskFormatter {
   private static readonly EMBED_COLOR = 0xFFA726;
+
+  public static async formatResolvedDetailText(task: RemindTask, resolve: InventoryNameResolver): Promise<string> {
+    const base = this.formatDetailText({ ...task, inventoryItems: [] });
+    const details = await Promise.all(task.inventoryItems.map(async item => {
+      const inventory = await resolve(item.inventoryId);
+      return inventory
+        ? `${inventory.name} 在庫${formatDecimal(inventory.stock)}/消費${formatDecimal(item.consume)}`
+        : `[不明な在庫:${item.inventoryId}]`;
+    }));
+    return details.length ? `${base}\n在庫: ${details.join(', ')}` : base;
+  }
 
   public static formatTaskEmbed(task: RemindTask, now: Date = new Date()): EmbedBuilder {
     const summary = this.formatSummaryText(task, now) as { progressBar: string; detailsText: string };
@@ -34,7 +44,7 @@ export class RemindTaskFormatter {
   public static formatDetailText(task: RemindTask, _now: Date = new Date()): string {
     const nextDueText = this.formatTokyoDateTime(task.nextDueAt);
     const remindBeforeText = formatRemainingDuration(task.remindBeforeMinutes);
-    const inventoryDetail = formatInventoryDetail(task.inventoryItems);
+    const inventoryDetail = task.inventoryItems.map(item => `在庫ID: ${item.inventoryId} / 消費: ${formatDecimal(item.consume)}`).join('\n');
 
     return [
       `期限: ${nextDueText}`,
@@ -81,7 +91,7 @@ export class RemindTaskFormatter {
       }));
     }
 
-    const inventorySummary = formatInventorySummary(task.inventoryItems);
+    const inventorySummary = null;
     const detailsText = inventorySummary ? `${baseDetail}\n-# ${inventorySummary}` : baseDetail;
 
     return { progressBar, detailsText };
@@ -95,19 +105,12 @@ export class RemindTaskFormatter {
       return null;
     }
 
-    if (!task.inventoryItems.some(isNewInventoryItem)) {
-      return formatInventorySummary(task.inventoryItems);
-    }
-
     const display = await Promise.all(task.inventoryItems.slice(0, 3).map(async (item) => {
-      if (!isNewInventoryItem(item)) {
-        return `${item.name} ${item.stock}`;
-      }
       const resolved = await resolveInventoryName(item.inventoryId);
       if (!resolved) {
         return `[不明な在庫:${item.inventoryId.slice(0, 8)}]`;
       }
-      return `${resolved.name} ${resolved.stock}`;
+      return `${resolved.name} ${formatDecimal(resolved.stock)}`;
     }));
     const suffix = task.inventoryItems.length > 3 ? '...' : '';
     return `在庫: ${display.join(', ')}${suffix}`;

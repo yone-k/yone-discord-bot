@@ -4,30 +4,7 @@ import { Logger, LogLevel } from '../../src/utils/logger';
 import { registerAllButtons } from '../../src/registry/RegisterButtons';
 import { Config } from '../../src/utils/config';
 
-// Google APIs のモック
-vi.mock('googleapis', () => ({
-  google: {
-    auth: {
-      GoogleAuth: vi.fn().mockImplementation(() => ({}))
-    },
-    sheets: vi.fn().mockReturnValue({
-      spreadsheets: {
-        get: vi.fn(),
-        batchUpdate: vi.fn(),
-        values: {
-          get: vi.fn(),
-          append: vi.fn()
-        }
-      }
-    })
-  }
-}));
-
-vi.mock('google-auth-library', () => ({
-  GoogleAuth: vi.fn().mockImplementation(() => ({
-    getClient: vi.fn().mockResolvedValue({})
-  }))
-}));
+vi.mock('../../src/db/pool', () => ({ getPool: (): unknown => ({ query: vi.fn(() => { throw new Error('Unexpected DB access in registration'); }) }) }));
 
 describe('RegisterButtons', () => {
   let buttonManager: ButtonManager;
@@ -40,9 +17,6 @@ describe('RegisterButtons', () => {
     // 必要な環境変数をセット
     process.env.DISCORD_BOT_TOKEN = 'test-token';
     process.env.CLIENT_ID = 'test-client-id';
-    process.env.GOOGLE_SHEETS_SPREADSHEET_ID = 'test-spreadsheet-id';
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@service.account';
-    process.env.GOOGLE_PRIVATE_KEY = 'test-private-key';
 
     // シングルトンをリセット
     (Config as any).instance = undefined;

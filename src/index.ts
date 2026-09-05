@@ -17,11 +17,24 @@ import { registerAllModals } from './registry/RegisterModals';
 import { SelectMenuManager } from './services/SelectMenuManager';
 import { registerAllSelectMenus } from './registry/RegisterSelectMenus';
 import { OperationLogService } from './services/OperationLogService';
-import { MetadataManager } from './services/MetadataManager';
+import { ListChannelStore } from './services/ListChannelStore';
 import { RemindScheduler } from './services/RemindScheduler';
 import { ListDueReminderScheduler } from './services/ListDueReminderScheduler';
 import { AutocompleteManager } from './services/AutocompleteManager';
 import { registerAllAutocompletes } from './registry/RegisterAutocompletes';
+import { getPool, closePool } from './db/pool';
+import { assertReady } from './db/schema';
+import { DatabaseLifecycle } from './services/DatabaseLifecycle';
+import { refreshStoredDisplays } from './services/StartupDisplayRefresh';
+import { InventoryChannelStore } from './services/InventoryChannelStore';
+import { RemindChannelStore } from './services/RemindChannelStore';
+import { PostgresListRepository } from './repositories/PostgresListRepository';
+import { InventoryRepository } from './services/InventoryRepository';
+import { MessageManager } from './services/MessageManager';
+import { InventoryMessageManager } from './services/InventoryMessageManager';
+import { RemindMessageManager } from './services/RemindMessageManager';
+import { ListFormatter } from './ui/ListFormatter';
+import { toDisplayListItem } from './utils/ListInput';
 
 class DiscordBot {
   private client: Client;
@@ -36,9 +49,10 @@ class DiscordBot {
   private httpServer!: express.Application;
   private server: Server | null = null;
   private operationLogService!: OperationLogService;
-  private metadataManager!: MetadataManager;
+  private metadataManager!: ListChannelStore;
   private remindScheduler!: RemindScheduler;
   private listDueReminderScheduler!: ListDueReminderScheduler;
+  private databaseLifecycle = new DatabaseLifecycle(() => assertReady(getPool()));
 
   constructor() {
     try {
@@ -78,8 +92,8 @@ class DiscordBot {
 
   private registerReactionAndModalHandlers(): void {
     try {
-      // MetadataManagerとOperationLogServiceを初期化
-      this.metadataManager = MetadataManager.getInstance();
+      // ListChannelStoreとOperationLogServiceを初期化
+      this.metadataManager = ListChannelStore.getInstance();
       this.operationLogService = new OperationLogService(this.logger, this.metadataManager);
       
       this.reactionManager = new ReactionManager(this.logger);
@@ -104,18 +118,20 @@ class DiscordBot {
   private setupHealthCheckServer(): void {
     this.httpServer = express();
     
-    this.httpServer.get('/health', (req, res) => {
+    this.httpServer.get('/health', async (req, res) => {
+      const databaseHealth = await this.databaseLifecycle.health(this.client.isReady());
       const healthStatus = {
-        status: 'ok',
+        status: databaseHealth.ready ? 'ok' : 'unavailable',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         bot: {
-          ready: this.client.isReady(),
+          ready: databaseHealth.ready,
           guilds: this.client.guilds.cache.size
-        }
+        },
+        database: databaseHealth.database
       };
       
-      res.status(200).json(healthStatus);
+      res.status(databaseHealth.statusCode).json(healthStatus);
     });
 
     this.httpServer.get('/', (req, res) => {
@@ -210,11 +226,19 @@ class DiscordBot {
   }
 
   private setupEventHandlers(): void {
-    this.client.once(Events.ClientReady, () => {
+    this.client.once(Events.ClientReady, async () => {
       this.logger.info(`Bot is ready! Logged in as ${this.client.user?.tag}`);
       
       // 起動時に統計情報をログ出力
       this.commandManager.logExecutionSummary();
+
+      try {
+        await this.refreshDisplays();
+        this.databaseLifecycle.displaysReady = true;
+      } catch (error) {
+        this.logger.error('Startup database enumeration failed', { error: error instanceof Error ? error.message : 'Unknown error' });
+        return;
+      }
 
       this.remindScheduler = new RemindScheduler();
       this.remindScheduler.start(this.client);
@@ -324,7 +348,7 @@ class DiscordBot {
       });
       
       const token = this.config.getDiscordToken();
-      await this.client.login(token);
+      await this.databaseLifecycle.connect(() => this.client.login(token));
       
       this.logger.info('Discord Bot started successfully');
     } catch (error) {
@@ -343,6 +367,9 @@ class DiscordBot {
       
       // シャットダウン前に統計情報を出力
       this.commandManager.logExecutionSummary();
+      this.remindScheduler?.stop();
+      this.listDueReminderScheduler?.stop();
+      this.databaseLifecycle.displaysReady = false;
       
       // HTTPサーバーを停止
       if (this.server) {
@@ -355,6 +382,7 @@ class DiscordBot {
       }
       
       this.client.destroy();
+      await closePool();
       
       this.logger.info('Discord Bot shutdown complete');
       process.exit(0);
@@ -362,6 +390,40 @@ class DiscordBot {
       this.logger.error(`Error during shutdown: ${error}`);
       process.exit(1);
     }
+  }
+
+  private async refreshDisplays(): Promise<void> {
+    const listStore = this.metadataManager;
+    const inventoryStore = InventoryChannelStore.getInstance();
+    const remindStore = RemindChannelStore.getInstance();
+    const listRepository = new PostgresListRepository();
+    const inventoryRepository = new InventoryRepository();
+    const messages = new MessageManager();
+    const reminderMessages = new RemindMessageManager();
+    const failures = await refreshStoredDisplays([
+      { list: (): Promise<{ channelId: string }[]> => listStore.listChannelMetadata(), render: async ({ channelId }): Promise<void> => {
+        const { metadata } = await listStore.getChannelMetadata(channelId);
+        if (!metadata) throw new Error('一覧チャンネル設定が見つかりません');
+        const items = (await listRepository.fetchAll(channelId)).map(toDisplayListItem);
+        const content = await ListFormatter.formatDataListContent(metadata.listTitle, items, channelId, metadata.defaultCategory);
+        const result = await messages.createOrUpdateMessageWithMetadataV2(channelId, ListFormatter.buildListComponents(content), metadata.listTitle, this.client, 'list');
+        if (!result.success) throw new Error(result.errorMessage);
+      } },
+      { list: (): Promise<{ channelId: string }[]> => inventoryStore.listChannelMetadata(), render: async ({ channelId }): Promise<void> => {
+        const metadata = await inventoryStore.getChannelMetadata(channelId);
+        if (!metadata) throw new Error('在庫チャンネル設定が見つかりません');
+        const result = await InventoryMessageManager.getInstance().createOrUpdateMessage(channelId, await inventoryRepository.fetchAll(channelId), metadata.listTitle, this.client);
+        if (!result.success) throw new Error(result.errorMessage);
+      } },
+      { list: (): Promise<{ channelId: string }[]> => remindStore.listChannelMetadata(), render: async ({ channelId }): Promise<void> => {
+        const { metadata } = await remindStore.getChannelMetadata(channelId);
+        if (!metadata) throw new Error('リマインドチャンネル設定が見つかりません');
+        const result = await reminderMessages.ensureReminderThread(channelId, this.client, metadata.remindNoticeThreadId, metadata.remindNoticeMessageId);
+        if (!result.success || !result.threadId || !result.parentMessageId) throw new Error(result.message);
+        await remindStore.updateChannelMetadata(channelId, { remindNoticeThreadId: result.threadId, remindNoticeMessageId: result.parentMessageId });
+      } }
+    ]);
+    for (const failure of failures) this.logger.error('Startup display refresh failed; retry the channel initialization command', failure);
   }
 }
 

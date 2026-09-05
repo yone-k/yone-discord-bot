@@ -70,7 +70,7 @@ describe('RemindMessageManager', () => {
       getById: vi.fn().mockResolvedValue({
         id: 'inventory-1',
         name: '牛乳',
-        stock: 3,
+        stock: '3',
         category: ''
       })
     };
@@ -92,7 +92,7 @@ describe('RemindMessageManager', () => {
       intervalDays: 1,
       timeOfDay: '00:00',
       remindBeforeMinutes: 0,
-      inventoryItems: [{ inventoryId: 'inventory-1', consume: 2 }],
+      inventoryItems: [{ inventoryId: 'inventory-1', consume: '2' }],
       startAt: new Date('2025-01-01T00:00:00.000Z'),
       nextDueAt: new Date('2025-01-02T00:00:00.000Z'),
       createdAt: now,
@@ -127,7 +127,7 @@ describe('RemindMessageManager', () => {
       getById: vi.fn().mockResolvedValue({
         id: 'inventory-1',
         name: '洗剤',
-        stock: 5,
+        stock: '5',
         category: ''
       })
     };
@@ -149,7 +149,7 @@ describe('RemindMessageManager', () => {
       intervalDays: 1,
       timeOfDay: '00:00',
       remindBeforeMinutes: 0,
-      inventoryItems: [{ inventoryId: 'inventory-1', consume: 2 }],
+      inventoryItems: [{ inventoryId: 'inventory-1', consume: '2' }],
       startAt: new Date('2025-01-01T00:00:00.000Z'),
       nextDueAt: new Date('2025-01-02T00:00:00.000Z'),
       createdAt: now,
@@ -173,7 +173,7 @@ describe('RemindMessageManager', () => {
       getById: vi.fn().mockResolvedValue({
         id: 'inventory-1',
         name: '洗剤',
-        stock: 5,
+        stock: '5',
         category: ''
       })
     };
@@ -195,7 +195,7 @@ describe('RemindMessageManager', () => {
       intervalDays: 1,
       timeOfDay: '00:00',
       remindBeforeMinutes: 0,
-      inventoryItems: [{ inventoryId: 'inventory-1', consume: 2 }],
+      inventoryItems: [{ inventoryId: 'inventory-1', consume: '2' }],
       startAt: new Date('2025-01-01T00:00:00.000Z'),
       nextDueAt: new Date('2025-01-02T00:00:00.000Z'),
       createdAt: now,
@@ -389,7 +389,7 @@ describe('RemindMessageManager', () => {
     expect(mockThread.send).toHaveBeenCalledWith('@everyone ❗ 期限超過: 掃除');
   });
 
-  it('creates reminder thread parent message with V2 components and sheet link', async () => {
+  it('creates reminder thread parent message with V2 components and no sheet link', async () => {
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/test-spreadsheet-id/edit#gid=0';
     const manager = new RemindMessageManager({
       sheetUrlResolver: async (): Promise<string> => sheetUrl
@@ -426,8 +426,8 @@ describe('RemindMessageManager', () => {
       .filter((component: any) => component.type === ComponentType.TextDisplay)
       .map((component: any) => component.content);
     expect(textContents.some((content: string) => content.includes('### 通知用スレッド'))).toBe(true);
-    expect(textContents.some((content: string) => content.includes('[スプレッドシートを開く]'))).toBe(true);
-    expect(textContents.some((content: string) => content.includes(sheetUrl))).toBe(true);
+    expect(textContents.some((content: string) => content.includes('[スプレッドシートを開く]'))).toBe(false);
+    expect(textContents.some((content: string) => content.includes(sheetUrl))).toBe(false);
     const actionRow = container.components.find(
       (component: any) => component.type === ComponentType.ActionRow
     );

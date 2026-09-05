@@ -200,15 +200,15 @@ describe('ListFormatter', () => {
       expect(result.data.description).toContain('📦 その他');
     });
 
-    it('should include spreadsheet URL with gid parameter in description', async () => {
+    it('should render without spreadsheet links', async () => {
       const title = 'テストリスト';
       const channelId = 'test-channel-id';
       const categories = ['重要'];
 
       const result = await ListFormatter.formatEmptyList(title, channelId, categories);
 
-      expect(result.data.description).toContain('[スプレッドシートを開く](https://docs.google.com/spreadsheets/d/');
-      expect(result.data.description).toContain('#gid=');
+      expect(result.data.description).not.toContain('スプレッドシート');
+      expect(result.data.description).not.toContain('{spreadsheet_url}');
     });
   });
 
@@ -450,7 +450,7 @@ describe('ListFormatter', () => {
       expect(result.data.description).not.toContain('~~タスク2~~');
     });
 
-    it('should include spreadsheet URL with gid parameter in description', async () => {
+    it('should render without spreadsheet links', async () => {
       const title = 'テストリスト';
       const channelId = 'test-channel-id';
       const items: ListItem[] = [
@@ -464,8 +464,8 @@ describe('ListFormatter', () => {
 
       const result = await ListFormatter.formatDataList(title, items, channelId);
 
-      expect(result.data.description).toContain('[スプレッドシートを開く](https://docs.google.com/spreadsheets/d/');
-      expect(result.data.description).toContain('#gid=');
+      expect(result.data.description).not.toContain('スプレッドシート');
+      expect(result.data.description).not.toContain('{spreadsheet_url}');
     });
   });
 
@@ -481,4 +481,8 @@ describe('ListFormatter', () => {
       });
     });
   });
+});
+it('任意カテゴリ名を安全にグループ化する', async () => {
+  const content = await ListFormatter.formatDataListContent('一覧', [{name:'牛乳',category:'__proto__',until:null,check:false},{name:'パン',category:'constructor',until:null,check:false}], '1');
+  expect(content).toContain('牛乳');expect(content).toContain('パン');
 });

@@ -2,50 +2,62 @@ import { describe, it, expect } from 'vitest';
 import {
   parseInventoryInput,
   parseCompletionInput,
-  consumeInventory,
-  getInsufficientInventoryItems,
   formatInventoryShortageNotice,
-  formatInventorySummary
 } from '../../src/utils/RemindInventory';
+import { quoteCsvCell } from '../../src/utils/Csv';
 
 describe('RemindInventory', () => {
+  it.each([' milk ', 'a,b', 'a"b', 'a\nb', 'a;b'])('retains the exact CSV name %j in both input modes', name => {
+    const cell = quoteCsvCell(name);
+    expect(parseInventoryInput(`${cell},1.234,0.0123`, { preservePrecision: true })).toEqual([{ name, stock: '1.234', consume: '0.0123' }]);
+    expect(parseCompletionInput(`${cell},0.0123`, { preservePrecision: true })).toEqual([{ name, consume: '0.0123' }]);
+  });
+  it('preserves original precision for inventory settings until the transactional comparison', () => {
+    expect(parseInventoryInput('A,1.234,0.0123', { preservePrecision: true })).toEqual([{ name: 'A', stock: '1.234', consume: '0.0123' }]);
+  });
+  it.each(['A,消費1,unexpected', 'A,消費1,消費2', 'A,在庫1,在庫2'])('rejects unconsumed or duplicate quantity tokens %s', input => {
+    expect(() => parseInventoryInput(input, { preservePrecision: true })).toThrow();
+  });
+  it('resolves labeled stock and equal unlabeled consume without comparing token values', () => {
+    expect(parseInventoryInput('A,在庫5,5')).toEqual([{ name: 'A', stock: '5', consume: '5' }]);
+  });
   it('parses inventory input lines', () => {
     const text = 'フィルター,1\n替えブラシ,2';
     const items = parseInventoryInput(text);
 
     expect(items).toEqual([
-      { name: 'フィルター', stock: undefined, consume: 1 },
-      { name: '替えブラシ', stock: undefined, consume: 2 }
+      { name: 'フィルター', stock: undefined, consume: '1' },
+      { name: '替えブラシ', stock: undefined, consume: '2' }
     ]);
   });
 
   it('parses inventory input with stock and consume columns', () => {
     expect(parseInventoryInput('米,5,1')).toEqual([
-      { name: '米', stock: 5, consume: 1 }
+      { name: '米', stock: '5', consume: '1' }
     ]);
   });
 
   it('allows zero consume with stock and consume columns', () => {
     expect(parseInventoryInput('アイテム名,5,0')).toEqual([
-      { name: 'アイテム名', stock: 5, consume: 0 }
+      { name: 'アイテム名', stock: '5', consume: '0' }
     ]);
   });
 
   it('keeps two-column inventory input backward compatible', () => {
     expect(parseInventoryInput('米,1')).toEqual([
-      { name: '米', stock: undefined, consume: 1 }
+      { name: '米', stock: undefined, consume: '1' }
     ]);
   });
 
   it('allows zero consume with two-column inventory input', () => {
     expect(parseInventoryInput('アイテム名,0')).toEqual([
-      { name: 'アイテム名', stock: undefined, consume: 0 }
+      { name: 'アイテム名', stock: undefined, consume: '0' }
     ]);
   });
 
   it('parses labeled stock and consume input', () => {
     expect(parseInventoryInput('米,在庫:5,消費:1')).toEqual([
-      { name: '米', stock: 5, consume: 1 }
+      { name: '米', stock: '5', consume: '1' }
     ]);
   });
 
@@ -55,7 +67,7 @@ describe('RemindInventory', () => {
 
   it('parses decimal stock and consume values', () => {
     expect(parseInventoryInput('米,5.5,1.5')).toEqual([
-      { name: '米', stock: 5.5, consume: 1.5 }
+      { name: '米', stock: '5.5', consume: '1.5' }
     ]);
   });
 
@@ -64,8 +76,8 @@ describe('RemindInventory', () => {
     const items = parseInventoryInput(text);
 
     expect(items).toEqual([
-      { name: 'フィルター', stock: undefined, consume: 1.4 },
-      { name: '替えブラシ', stock: undefined, consume: 0.6 }
+      { name: 'フィルター', stock: undefined, consume: '1.4' },
+      { name: '替えブラシ', stock: undefined, consume: '0.6' }
     ]);
   });
 
@@ -81,41 +93,10 @@ describe('RemindInventory', () => {
     expect(() => parseInventoryInput('フィルター,1\nフィルター,2')).toThrow('アイテム名が重複しています');
   });
 
-  it('returns insufficient items when stock is below consume', () => {
-    const items = [
-      { name: '牛乳', stock: 0, consume: 1 },
-      { name: '卵', stock: 2, consume: 1 }
-    ];
-
-    const insufficient = getInsufficientInventoryItems(items);
-    expect(insufficient).toEqual([{ name: '牛乳', stock: 0, consume: 1 }]);
-  });
-
-  it('consumes inventory items', () => {
-    const items = [
-      { name: '牛乳', stock: 3, consume: 1 },
-      { name: '卵', stock: 2, consume: 2 }
-    ];
-
-    expect(consumeInventory(items)).toEqual([
-      { name: '牛乳', stock: 2, consume: 1 },
-      { name: '卵', stock: 0, consume: 2 }
-    ]);
-  });
-
-  it('formats inventory summary', () => {
-    const items = [
-      { name: '牛乳', stock: 3, consume: 1 },
-      { name: '卵', stock: 2.5, consume: 1 }
-    ];
-
-    expect(formatInventorySummary(items)).toBe('在庫: 牛乳 3, 卵 2.5');
-  });
-
   it('formats inventory shortage notice with counts', () => {
     const items = [
-      { name: '牛乳', stock: 1.2, consume: 1.5 },
-      { name: '卵', stock: 0, consume: 3 }
+      { inventoryId: '牛乳', name: '牛乳', available: '1.2', required: '1.5' },
+      { inventoryId: '卵', name: '卵', available: '0', required: '3' }
     ];
 
     expect(formatInventoryShortageNotice(items)).toBe(
@@ -126,8 +107,8 @@ describe('RemindInventory', () => {
   describe('parseCompletionInput', () => {
     it('parses completion input lines with consume values', () => {
       expect(parseCompletionInput('アイテムA,3\nアイテムB,1.5')).toEqual([
-        { name: 'アイテムA', consume: 3 },
-        { name: 'アイテムB', consume: 1.5 }
+        { name: 'アイテムA', consume: '3' },
+        { name: 'アイテムB', consume: '1.5' }
       ]);
     });
 
@@ -139,14 +120,14 @@ describe('RemindInventory', () => {
 
     it('allows zero consume values', () => {
       expect(parseCompletionInput('アイテムA,0')).toEqual([
-        { name: 'アイテムA', consume: 0 }
+        { name: 'アイテムA', consume: '0' }
       ]);
     });
 
     it('skips blank and whitespace-only lines', () => {
       expect(parseCompletionInput('\n  \nアイテムA,3\n\t\nアイテムB,1')).toEqual([
-        { name: 'アイテムA', consume: 3 },
-        { name: 'アイテムB', consume: 1 }
+        { name: 'アイテムA', consume: '3' },
+        { name: 'アイテムB', consume: '1' }
       ]);
     });
 

@@ -7,6 +7,7 @@ describe('Config Error Handling Tests', () => {
   beforeEach(() => {
     // 環境変数を保存
     originalEnv = { ...process.env };
+    process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
     // Configのシングルトンをリセット
     (Config as any).instance = undefined;
   });
@@ -80,51 +81,4 @@ describe('Config Error Handling Tests', () => {
     });
   });
 
-  describe('Google Sheets設定エラーハンドリング', () => {
-    beforeEach(() => {
-      // Discord設定は正常に設定
-      process.env.DISCORD_BOT_TOKEN = 'test-token';
-      process.env.CLIENT_ID = 'test-client-id';
-    });
-
-    test('Google Sheets設定が部分的に未設定の場合はundefinedを返す', () => {
-      process.env.GOOGLE_SHEETS_SPREADSHEET_ID = 'test-spreadsheet-id';
-      // 他の設定は未設定
-
-      const config = Config.getInstance();
-      expect(config.getGoogleSheetsConfig()).toBeUndefined();
-    });
-
-    test('Google Sheets設定がすべて空文字の場合はundefinedを返す', () => {
-      process.env.GOOGLE_SHEETS_SPREADSHEET_ID = '';
-      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = '';
-      process.env.GOOGLE_PRIVATE_KEY = '';
-
-      const config = Config.getInstance();
-      expect(config.getGoogleSheetsConfig()).toBeUndefined();
-    });
-
-    test('Google Sheets設定が一部空文字の場合はundefinedを返す', () => {
-      process.env.GOOGLE_SHEETS_SPREADSHEET_ID = 'test-spreadsheet-id';
-      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = '';
-      process.env.GOOGLE_PRIVATE_KEY = 'test-private-key';
-
-      const config = Config.getInstance();
-      expect(config.getGoogleSheetsConfig()).toBeUndefined();
-    });
-
-    test('Google Sheets設定が正常な場合は設定オブジェクトを返す', () => {
-      process.env.GOOGLE_SHEETS_SPREADSHEET_ID = 'test-spreadsheet-id';
-      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test@example.com';
-      process.env.GOOGLE_PRIVATE_KEY = 'test-private-key\\nwith\\nnewlines';
-
-      const config = Config.getInstance();
-      const googleConfig = config.getGoogleSheetsConfig();
-
-      expect(googleConfig).toBeDefined();
-      expect(googleConfig!.spreadsheetId).toBe('test-spreadsheet-id');
-      expect(googleConfig!.serviceAccountEmail).toBe('test@example.com');
-      expect(googleConfig!.privateKey).toBe('test-private-key\nwith\nnewlines');
-    });
-  });
 });

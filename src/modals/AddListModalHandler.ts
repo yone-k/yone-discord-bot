@@ -1,370 +1,43 @@
-import { Client } from 'discord.js';
-import { Logger } from '../utils/logger';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
-import { GoogleSheetsService } from '../services/GoogleSheetsService';
+import { Logger } from '../utils/logger';
+import { ListRepository, RepositoryError } from '../repositories/contracts';
+import { PostgresListRepository } from '../repositories/PostgresListRepository';
 import { MessageManager } from '../services/MessageManager';
-import { MetadataManager } from '../services/MetadataManager';
-import { ListFormatter } from '../ui/ListFormatter';
-import { ListItem, createListItem, validateListItem } from '../models/ListItem';
-import { normalizeCategory, CategoryType } from '../models/CategoryType';
+import { ListChannelStore } from '../services/ListChannelStore';
 import { OperationLogService } from '../services/OperationLogService';
-import { OperationResult, OperationInfo } from '../models/types/OperationLog';
-
+import { OperationInfo, OperationResult } from '../models/types/OperationLog';
+import { parseListAdd } from '../utils/ListInput';
+import { redrawList } from '../utils/ListDisplay';
+import { listLogItems } from '../utils/ListChanges';
 export class AddListModalHandler extends BaseModalHandler {
-  private googleSheetsService: GoogleSheetsService;
-  private messageManager: MessageManager;
-
-  constructor(
-    logger: Logger, 
-    googleSheetsService?: GoogleSheetsService,
-    messageManager?: MessageManager,
-    metadataManager?: MetadataManager,
-    operationLogService?: OperationLogService
-  ) {
-    super('add-list-modal', logger, operationLogService, metadataManager);
-    this.deleteOnSuccess = true;
-    this.ephemeral = false;
-    this.googleSheetsService = googleSheetsService || GoogleSheetsService.getInstance();
-    this.messageManager = messageManager || new MessageManager();
-  }
-
+  constructor(logger: Logger, private repository: ListRepository = new PostgresListRepository(), private messageManager: MessageManager = new MessageManager(), metadataManager: ListChannelStore = ListChannelStore.getInstance(), operationLogService?: OperationLogService) { super('add-list-modal', logger, operationLogService, metadataManager); }
   protected async executeAction(context: ModalHandlerContext): Promise<OperationResult> {
     try {
-      const channelId = context.interaction.channelId;
-      if (!channelId) {
-        return {
-          success: false,
-          message: 'チャンネルIDが取得できません',
-          error: new Error('チャンネルIDが取得できません')
-        };
-      }
-
-      // モーダルからデータを取得
-      const categoryText = context.interaction.fields.getTextInputValue('category');
-      const itemsText = context.interaction.fields.getTextInputValue('items');
-      
-      if (!itemsText || itemsText.trim() === '') {
-        return {
-          success: false,
-          message: '追加するアイテムが入力されていません',
-          error: new Error('追加するアイテムが入力されていません')
-        };
-      }
-
-      // カテゴリーの処理
-      const category: CategoryType | null = categoryText && categoryText.trim() !== '' 
-        ? normalizeCategory(categoryText)
-        : null;
-
-      // 既存のリストデータを取得
-      const existingData = await this.googleSheetsService.getSheetData(channelId);
-      const existingItems = this.convertToListItems(existingData);
-      const existingNames = new Set(existingItems.map(item => item.name));
-
-      // 新しいアイテムをパース
-      const newItems = this.parseItemsText(itemsText, category);
-      
-      // 重複チェックとフィルタリング
-      const filteredNewItems = newItems.filter(item => {
-        if (existingNames.has(item.name)) {
-          this.logger.warn('Duplicate name found, skipping', { name: item.name });
-          return false;
-        }
-        return true;
-      });
-
-      if (filteredNewItems.length === 0) {
-        return {
-          success: false,
-          message: '追加できるアイテムがありません（重複またはエラー）',
-          affectedItems: 0
-        };
-      }
-
-      // 合計アイテム数チェック
-      const totalItemsCount = existingItems.length + filteredNewItems.length;
-      if (totalItemsCount > 100) {
-        return {
-          success: false,
-          message: 'アイテム数が多すぎます（最大100件）',
-          error: new Error('アイテム数が多すぎます（最大100件）')
-        };
-      }
-
-      // データをバリデーション
-      this.validateItems(filteredNewItems);
-      
-      // 既存データと新しいデータをマージ
-      const allItems = [...existingItems, ...filteredNewItems];
-      
-      // Google Sheetsに書き込み
-      await this.updateSheetData(channelId, allItems);
-      
-      // Discord上のリストメッセージを更新
-      await this.updateDiscordMessage(channelId, allItems, context.interaction.client);
-
-      this.logger.info('List items added successfully', {
-        channelId,
-        newItemsCount: filteredNewItems.length,
-        totalItemsCount: allItems.length,
-        userId: context.interaction.user.id
-      });
-
-      // 操作結果を返す
-      return {
-        success: true,
-        message: `${filteredNewItems.length}件のアイテムを追加しました`,
-        affectedItems: filteredNewItems.length,
-        details: {
-          changes: {
-            added: filteredNewItems
-          },
-          items: filteredNewItems.map(item => ({
-            name: item.name,
-            quantity: 1,
-            category: item.category || 'その他',
-            until: item.until || undefined
-          }))
-        }
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : '追加処理中にエラーが発生しました',
-        error: error instanceof Error ? error : new Error('Unknown error')
-      };
-    }
-  }
-
-  protected getOperationInfo(_context: ModalHandlerContext): OperationInfo {
-    return {
-      operationType: 'add',
-      actionName: 'アイテム追加'
-    };
-  }
-
-  protected getSuccessMessage(): string {
-    return '✅ リストに項目が追加されました！';
-  }
-
-  private parseItemsText(itemsText: string, defaultCategory: CategoryType | null): ListItem[] {
-    const items: ListItem[] = [];
-    const lines = itemsText.trim().split('\n');
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      // 空行をスキップ
-      if (!line) {
-        continue;
-      }
-
+      const { interaction } = context;
+      if (!interaction.channelId)
+        throw new Error('チャンネルIDが取得できません');
+      const items = parseListAdd(interaction.fields.getTextInputValue('items'), interaction.fields.getTextInputValue('category'));
+      const snapshot = await this.repository.snapshot(interaction.channelId);
+      const names = new Set(snapshot.items.map(item => item.name));
+      if (items.some(item => names.has(item.name)))
+        throw new Error('同じ名前のアイテムが既に存在します');
+      if (snapshot.items.length + items.length > 100)
+        throw new Error('アイテムは最大100件です');
+      await this.repository.save(interaction.channelId, snapshot.editVersion, [...snapshot.items, ...items]);
       try {
-        const parts = line.split(',').map(part => part.trim());
-        
-        if (parts.length < 1) {
-          this.logger.warn('Invalid line format, skipping', { lineNumber: i + 1, line });
-          continue;
-        }
-
-        const name = parts[0];
-        const untilStr = parts.length > 1 && parts[1] ? parts[1] : null;
-
-        if (!name || name.trim() === '') {
-          this.logger.warn('Empty name found, skipping', { lineNumber: i + 1, line });
-          continue;
-        }
-
-        const until = untilStr ? this.parseDate(untilStr) : null;
-        const item = createListItem(name, defaultCategory, until);
-        
-        validateListItem(item);
-        
-        items.push(item);
-      } catch (error) {
-        this.logger.warn('Failed to parse line, skipping', { 
-          lineNumber: i + 1, 
-          line,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
+        await redrawList(interaction.channelId, interaction.client, this.repository, this.messageManager, this.metadataManager!);
       }
-    }
-
-    return items;
-  }
-
-  private parseDate(dateStr: string): Date | null {
-    if (!dateStr || dateStr.trim() === '') {
-      return null;
-    }
-    
-    try {
-      const date = new Date(dateStr.trim());
-      return isNaN(date.getTime()) ? null : date;
-    } catch {
-      this.logger.warn('Failed to parse date', { dateStr });
-      return null;
-    }
-  }
-
-  private convertToListItems(data: string[][]): ListItem[] {
-    const items: ListItem[] = [];
-    
-    // ヘッダー行をスキップ（存在する場合）
-    const startIndex = data.length > 0 && this.isHeaderRow(data[0]) ? 1 : 0;
-    
-    for (let i = startIndex; i < data.length; i++) {
-      const row = data[i];
-      if (row.length >= 1 && row[0]) {
-        try {
-          const name = row[0].trim();
-          const category = row.length > 1 && row[1] && row[1].trim() !== '' ? normalizeCategory(row[1]) : null;
-          const until = row.length > 2 && row[2] ? this.parseDate(row[2]) : null;
-          const check = row.length > 3 && row[3] && row[3].trim() === '1' ? true : false;
-          const lastNotifiedAt = row.length > 4 && row[4] ? this.parseDate(row[4]) : null;
-
-          const item: ListItem = {
-            name,
-            category,
-            until,
-            check,
-            lastNotifiedAt
-          };
-
-          items.push(item);
-        } catch (error) {
-          this.logger.warn('Failed to parse row, skipping', { 
-            rowIndex: i, 
-            row,
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
-        }
+      catch (error) {
+        this.logger.warn('List appended but redraw failed', { error: String(error) });
+        return { success: false, message: '追加は完了しましたが表示更新に失敗しました。再描画ボタンを押してください。' };
       }
+      return { success: true, affectedItems: items.length, message: 'アイテムを追加しました', details: { items: listLogItems(items) } };
     }
-
-    return items;
-  }
-
-  private isHeaderRow(row: string[]): boolean {
-    const headers = ['name', 'category', 'until', 'check', 'last_notified_at', '名前', 'カテゴリ', '完了'];
-    return row.some(cell => 
-      headers.some(header => 
-        cell && cell.toLowerCase().includes(header.toLowerCase())
-      )
-    );
-  }
-
-  private validateItems(items: ListItem[]): void {
-    // 各アイテムのバリデーション
-    for (const item of items) {
-      validateListItem(item);
+    catch (error) {
+      return { success: false, message: error instanceof RepositoryError && error.code === 'conflict'
+        ? '別の操作でリストが更新されました。追加を開き直してください。' : error instanceof Error ? error.message : '追加に失敗しました' };
     }
   }
-
-  private async updateSheetData(channelId: string, items: ListItem[]): Promise<void> {
-    // シートデータを完全に置き換える
-    const sheetData = this.convertItemsToSheetData(items);
-    
-    const result = await this.googleSheetsService.updateSheetData(channelId, sheetData);
-    if (!result.success) {
-      throw new Error(`スプレッドシートの更新に失敗しました: ${result.message}`);
-    }
-  }
-
-  private convertItemsToSheetData(items: ListItem[]): (string | number)[][] {
-    const data: (string | number)[][] = [];
-    
-    // ヘッダー行を追加
-    data.push(['name', 'category', 'until', 'check', 'last_notified_at']);
-    
-    // データ行を追加
-    for (const item of items) {
-      const row = [
-        item.name,
-        item.category || '',
-        item.until ? this.formatDateForSheet(item.until) : '',
-        item.check ? 1 : 0,
-        item.lastNotifiedAt ? item.lastNotifiedAt.toISOString() : ''
-      ];
-      data.push(row);
-    }
-
-    return data;
-  }
-
-  private formatDateForSheet(date: Date): string {
-    // タイムゾーンの影響を受けないよう、ローカルの年月日を直接使用
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  private async updateDiscordMessage(channelId: string, items: ListItem[], client: Client): Promise<void> {
-    try {
-      // チャンネル名を取得してタイトルを生成
-      let listTitle = 'リスト';
-      try {
-        const channel = await client.channels.fetch(channelId);
-        if (channel && 'name' in channel) {
-          listTitle = `${channel.name}リスト`;
-        }
-      } catch (channelError) {
-        this.logger.warn('Failed to fetch channel name, using default title', {
-          channelId,
-          error: channelError instanceof Error ? channelError.message : 'Unknown error'
-        });
-      }
-
-      // metadataからdefaultCategoryを取得
-      let defaultCategory;
-      try {
-        if (this.metadataManager) {
-          const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
-          if (metadataResult.success && metadataResult.metadata?.defaultCategory) {
-            defaultCategory = metadataResult.metadata.defaultCategory;
-          }
-        }
-      } catch (error) {
-        this.logger.warn('Failed to get metadata for defaultCategory', {
-          channelId,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-
-      // コンポーネントV2用の表示を作成
-      const content = items.length > 0 
-        ? await ListFormatter.formatDataListContent(listTitle, items, channelId, defaultCategory)
-        : await ListFormatter.formatEmptyListContent(listTitle, channelId, undefined, defaultCategory);
-      const components = ListFormatter.buildListComponents(content);
-
-      // MessageManagerを使用してメッセージを更新
-      const messageResult = await this.messageManager.createOrUpdateMessageWithMetadataV2(
-        channelId,
-        components,
-        listTitle,
-        client,
-        'list'
-      );
-
-      if (messageResult.success) {
-        this.logger.info('Discord message updated successfully after add', {
-          channelId,
-          messageId: messageResult.message?.id,
-          itemCount: items.length
-        });
-      } else {
-        this.logger.warn('Failed to update Discord message after add', {
-          channelId,
-          errorMessage: messageResult.errorMessage
-        });
-      }
-    } catch (error) {
-      this.logger.warn('Failed to update Discord message after add', {
-        channelId,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      // Discord側の更新が失敗してもシート更新は成功しているので続行
-    }
-  }
+  protected getOperationInfo(): OperationInfo { return { operationType: 'add', actionName: 'アイテム追加' }; }
+  protected getSuccessMessage(): string { return '✅ アイテムを追加しました'; }
 }

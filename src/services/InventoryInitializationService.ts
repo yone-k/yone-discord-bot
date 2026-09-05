@@ -1,8 +1,7 @@
 import type { Client } from 'discord.js';
-import type { GoogleSheetsService } from './GoogleSheetsService';
-import type { InventoryMetadataManager } from './InventoryMetadataManager';
+import type { InventoryChannelStore } from './InventoryChannelStore';
 import type { InventoryMessageManager } from './InventoryMessageManager';
-import { getInventorySheetHeaders } from '../utils/InventorySheetMapper';
+import { InventoryRepository } from './InventoryRepository';
 
 export interface InitializationContext {
   channelId: string;
@@ -17,41 +16,21 @@ export interface InventoryInitializationResult {
 
 export class InventoryInitializationService {
   constructor(
-    private googleSheetsService: GoogleSheetsService,
-    private metadataManager: InventoryMetadataManager,
-    private messageManager: InventoryMessageManager
+    private metadataManager: InventoryChannelStore,
+    private messageManager: InventoryMessageManager,
+    private repository: Pick<InventoryRepository, 'fetchAll'> = new InventoryRepository()
   ) {}
 
   public async initializeInventory(
     context: InitializationContext
   ): Promise<InventoryInitializationResult> {
-    const sheetName = `inventory_${context.channelId}`;
-
-    const createResult = await this.googleSheetsService.createSheetByName(sheetName);
-    const sheetAlreadyExists = createResult.message?.includes('already exists') ?? false;
-
-    if (!createResult.success && !sheetAlreadyExists) {
-      return { success: false, message: createResult.message };
-    }
-
-    if (createResult.success) {
-      const headerResult = await this.googleSheetsService.appendSheetData(
-        sheetName,
-        [getInventorySheetHeaders()]
-      );
-      if (!headerResult.success) {
-        return { success: false, message: headerResult.message };
-      }
-    }
-
-    const metadataResult = await this.metadataManager.getOrCreateMetadataSheet();
-    if (!metadataResult.success) {
-      return { success: false, message: metadataResult.message };
-    }
+    const current = await this.metadataManager.getChannelMetadata(context.channelId);
+    if (!current) await this.metadataManager.createChannelMetadata(context.channelId, { messageId: '', listTitle: context.listTitle, defaultCategory: '' });
+    const items = await this.repository.fetchAll(context.channelId);
 
     const messageResult = await this.messageManager.createOrUpdateMessage(
       context.channelId,
-      [],
+      items,
       context.listTitle,
       context.client
     );

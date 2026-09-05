@@ -2,18 +2,18 @@ import { ButtonInteraction } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { OperationLogService } from './OperationLogService';
-import { MetadataManager } from './MetadataManager';
+import { ListChannelStore } from './ListChannelStore';
 
 export class ButtonManager {
   private handlers: Map<string, BaseButtonHandler> = new Map();
   private logger: Logger;
   private operationLogService?: OperationLogService;
-  private metadataManager?: MetadataManager;
+  private metadataManager?: ListChannelStore;
 
   constructor(
     logger: Logger, 
     operationLogService?: OperationLogService,
-    metadataManager?: MetadataManager
+    metadataManager?: ListChannelStore
   ) {
     this.logger = logger;
     this.operationLogService = operationLogService;
@@ -43,7 +43,7 @@ export class ButtonManager {
     return this.operationLogService;
   }
 
-  public getMetadataManager(): MetadataManager | undefined {
+  public getMetadataManager(): ListChannelStore | undefined {
     return this.metadataManager;
   }
 

@@ -19,7 +19,7 @@ describe('InventoryFormatter', () => {
       expect(content).toContain('まだアイテムがありません');
       expect(content).toContain('合計: 0項目');
       expect(content).toContain('最終更新');
-      expect(content).toMatch(/スプレッドシートを開く/);
+      expect(content).not.toContain('スプレッドシートを開く');
     });
 
     it('Given default category When formatting empty content Then includes default category section with emoji', async () => {
@@ -40,8 +40,8 @@ describe('InventoryFormatter', () => {
     it('Given items in a single category When formatting data content Then renders category section with name and stock per item', async () => {
       // Given
       const items: InventoryItem[] = [
-        { id: 'item-1', name: '米', stock: 5, category: '食料品' },
-        { id: 'item-2', name: '水', stock: 12, category: '食料品' }
+        { id: 'item-1', name: '米', stock: '5', category: '食料品' },
+        { id: 'item-2', name: '水', stock: '12', category: '食料品' }
       ];
 
       // When
@@ -58,8 +58,8 @@ describe('InventoryFormatter', () => {
     it('Given items in multiple categories When formatting data content Then renders multiple category sections', async () => {
       // Given
       const items: InventoryItem[] = [
-        { id: 'item-1', name: '米', stock: 5, category: '食料品' },
-        { id: 'item-2', name: '電池', stock: 3, category: '日用品' }
+        { id: 'item-1', name: '米', stock: '5', category: '食料品' },
+        { id: 'item-2', name: '電池', stock: '3', category: '日用品' }
       ];
 
       // When
@@ -75,7 +75,7 @@ describe('InventoryFormatter', () => {
     it('Given item with empty category When formatting data content Then assigns it to default category section', async () => {
       // Given
       const items: InventoryItem[] = [
-        { id: 'item-1', name: '分類なし', stock: 1, category: '' }
+        { id: 'item-1', name: '分類なし', stock: '1', category: '' }
       ];
 
       // When
@@ -86,17 +86,17 @@ describe('InventoryFormatter', () => {
       expect(content).toContain('• 分類なし: 1');
     });
 
-    it('Given items When formatting data content Then includes spreadsheet link and last update timestamp', async () => {
+    it('Given items When formatting data content Then includes update timestamp without a spreadsheet link', async () => {
       // Given
       const items: InventoryItem[] = [
-        { id: 'item-1', name: '米', stock: 5, category: '食料品' }
+        { id: 'item-1', name: '米', stock: '5', category: '食料品' }
       ];
 
       // When
       const content = await InventoryFormatter.formatDataContent(items, '在庫リスト', channelId);
 
       // Then
-      expect(content).toMatch(/\[スプレッドシートを開く\]\(.+\)/);
+      expect(content).not.toContain('スプレッドシートを開く');
       expect(content).toContain('合計: 1項目');
       expect(content).toContain('最終更新');
     });
@@ -145,7 +145,7 @@ describe('InventoryFormatter', () => {
       Array.from({ length: count }, (_, index) => ({
         id: `item-${index + 1}`,
         name: `在庫${index + 1}`,
-        stock: index + 1,
+        stock: String(index + 1),
         category: index % 2 === 0 ? '日用品' : '食料品'
       }));
 

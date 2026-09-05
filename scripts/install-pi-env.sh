@@ -4,15 +4,16 @@ set -euo pipefail
 umask 077
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
+if [ -f "$root/.env.storage" ]; then set -a; . "$root/.env.storage"; set +a; fi
 : "${BOT_IMAGE:?Set the selected GHCR digest}"
 temp=$(mktemp "$root/.env.XXXXXX")
 trap 'rm -f "$temp"' EXIT
 cat > "$temp"
-# The producer emits these six complete lines, with NODE_ENV last. Reject EOF
+# The producer emits these four complete lines, with NODE_ENV last. Reject EOF
 # partway through a transfer before asking Compose to parse the temporary file.
-[ "$(wc -l < "$temp" | tr -d ' ')" = 6 ] || exit 1
+[ "$(wc -l < "$temp" | tr -d ' ')" = 4 ] || exit 1
 {
-  for name in DISCORD_BOT_TOKEN CLIENT_ID GOOGLE_SERVICE_ACCOUNT_EMAIL GOOGLE_SHEETS_SPREADSHEET_ID GOOGLE_PRIVATE_KEY NODE_ENV; do
+  for name in DISCORD_BOT_TOKEN CLIENT_ID DATABASE_URL NODE_ENV; do
     IFS= read -r line || exit 1
     case "$line" in "$name=\""*'"') ;; *) exit 1 ;; esac
     [ "$line" != "$name=\"\"" ] || exit 1

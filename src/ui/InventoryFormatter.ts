@@ -1,3 +1,4 @@
+import { formatDecimal } from '../utils/Decimal';
 import { ButtonStyle, ComponentType } from 'discord.js';
 import type {
   APIActionRowComponent,
@@ -11,9 +12,7 @@ import type {
 import type { InventoryItem } from '../models/InventoryItem';
 import { DEFAULT_CATEGORY, getCategoryEmoji } from '../models/CategoryType';
 import { TemplateManager } from '../services/TemplateManager';
-import { GoogleSheetsService } from '../services/GoogleSheetsService';
 import { LoggerManager } from '../utils/LoggerManager';
-import { ConsoleMigrationHelper } from '../utils/ConsoleMigrationHelper';
 
 export class InventoryFormatter {
   private static readonly selectionPageSize = 25;
@@ -34,8 +33,7 @@ export class InventoryFormatter {
       list_title: title,
       category_sections: categorySections,
       total_count: '0',
-      last_update: '未更新',
-      spreadsheet_url: await this.getSpreadsheetUrl(channelId)
+      last_update: '未更新'
     });
   }
 
@@ -50,8 +48,7 @@ export class InventoryFormatter {
       list_title: title,
       category_sections: this.buildCategorySections(items, defaultCategory),
       total_count: items.length.toString(),
-      last_update: this.getLatestUpdateTime(),
-      spreadsheet_url: await this.getSpreadsheetUrl(channelId)
+      last_update: this.getLatestUpdateTime()
     });
   }
 
@@ -148,7 +145,7 @@ export class InventoryFormatter {
       options: pageItems.map((item) => ({
         label: item.name,
         value: item.id,
-        description: `${item.category || 'その他'} / 在庫: ${item.stock}`
+        description: `${item.category || 'その他'} / 在庫: ${formatDecimal(item.stock)}`
       }))
     };
 
@@ -225,7 +222,7 @@ export class InventoryFormatter {
       .map((category) => {
         const emoji = getCategoryEmoji(category);
         const formattedItems = groupedItems[category]
-          .map((item) => `• ${item.name}: ${item.stock}`)
+          .map((item) => `• ${item.name}: ${formatDecimal(item.stock)}`)
           .join('\n');
 
         return `### ${emoji} ${category}\n${formattedItems}`;
@@ -255,37 +252,4 @@ export class InventoryFormatter {
     });
   }
 
-  private static async getSpreadsheetUrl(channelId: string): Promise<string> {
-    if (process.env.NODE_ENV === 'test') {
-      return 'https://docs.google.com/spreadsheets/d/test-spreadsheet-id/edit#gid=0';
-    }
-
-    try {
-      const googleSheetsService = GoogleSheetsService.getInstance();
-      const spreadsheetId = (googleSheetsService as unknown as { config?: { spreadsheetId: string } }).config?.spreadsheetId;
-
-      if (spreadsheetId) {
-        const sheetName = `inventory_${channelId}`;
-        try {
-          const sheetMetadata = await googleSheetsService.getSheetMetadataByName(sheetName);
-          return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetMetadata.sheetId}`;
-        } catch (sheetError) {
-          this.logger.warn('Failed to get inventory sheet metadata, falling back to main spreadsheet URL',
-            ConsoleMigrationHelper.createMetadata('InventoryFormatter', 'getSpreadsheetUrl', { error: String(sheetError) }));
-          return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
-        }
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      if (errorMessage.includes('Missing required environment variables')) {
-        return 'https://docs.google.com/spreadsheets/d/test-spreadsheet-id/edit#gid=0';
-      }
-
-      this.logger.warn('Failed to get inventory spreadsheet URL',
-        ConsoleMigrationHelper.createMetadata('InventoryFormatter', 'getSpreadsheetUrl', { errorMessage }));
-    }
-
-    return '';
-  }
 }

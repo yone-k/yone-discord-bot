@@ -7,17 +7,10 @@ import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { parseInventoryInput } from '../utils/RemindInventory';
 import type { RemindTask } from '../models/RemindTask';
-import { InventoryService } from '../services/InventoryService';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
 import type { InventoryItem } from '../models/InventoryItem';
 import { RemindTaskRefreshService } from '../services/RemindTaskRefreshService';
-
-interface InventoryServicePort {
-  resolveByName(channelId: string, name: string): Promise<InventoryItem>;
-  update(channelId: string, item: InventoryItem): Promise<{ success: boolean; message?: string }>;
-  getById(channelId: string, id: string): Promise<InventoryItem | null>;
-}
 
 interface InventoryRepositoryPort {
   fetchAll(channelId: string): Promise<InventoryItem[]>;
@@ -43,7 +36,6 @@ interface RefreshServicePort {
 export class RemindTaskInventoryModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
-  private inventoryService: InventoryServicePort;
   private inventoryRepository: InventoryRepositoryPort;
   private inventoryMessageManager: InventoryMessageManagerPort;
   private refreshService: RefreshServicePort;
@@ -54,7 +46,6 @@ export class RemindTaskInventoryModalHandler extends BaseModalHandler {
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
     messageManager?: RemindMessageManager,
-    inventoryService?: InventoryServicePort,
     inventoryRepository?: InventoryRepositoryPort,
     inventoryMessageManager?: InventoryMessageManagerPort,
     refreshService?: RefreshServicePort
@@ -64,7 +55,6 @@ export class RemindTaskInventoryModalHandler extends BaseModalHandler {
     this.silentOnSuccess = true;
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
-    this.inventoryService = inventoryService || InventoryService.getInstance();
     this.inventoryRepository = inventoryRepository || new InventoryRepository();
     this.inventoryMessageManager = inventoryMessageManager || InventoryMessageManager.getInstance();
     this.refreshService = refreshService || new RemindTaskRefreshService();
@@ -96,63 +86,22 @@ export class RemindTaskInventoryModalHandler extends BaseModalHandler {
     if (!task) {
       return { success: false, message: 'タスクが見つかりません' };
     }
+    if (context.interaction.customId.split(':')[2] !== task.revision) return { success: false, message: 'タスクが変更されました。開き直してください。' };
 
-    const input = context.interaction.fields.getTextInputValue('inventory-items').trim();
-    let inventoryItems: RemindTask['inventoryItems'] = [];
-    if (input !== '') {
-      try {
-        if (!this.metadataManager) {
-          return { success: false, message: '在庫チャンネルが連携されていません' };
-        }
-        const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
-        const linkedInventoryChannelId = (metadataResult.metadata as { linkedInventoryChannelId?: string } | undefined)
-          ?.linkedInventoryChannelId;
-        if (!linkedInventoryChannelId) {
-          return { success: false, message: '在庫チャンネルが連携されていません' };
-        }
-        const parsedItems = parseInventoryInput(input);
 
-        let stockUpdated = false;
-        inventoryItems = [];
-        for (const item of parsedItems) {
-          const inventoryItem = await this.inventoryService.resolveByName(linkedInventoryChannelId, item.name);
-          if (item.stock !== undefined) {
-            const updateResult = await this.inventoryService.update(linkedInventoryChannelId, {
-              ...inventoryItem,
-              stock: item.stock
-            });
-            if (!updateResult.success) {
-              throw new Error(updateResult.message ?? '在庫の更新に失敗しました');
-            }
-            stockUpdated = true;
-          }
-          inventoryItems.push({
-            inventoryId: inventoryItem.id,
-            consume: item.consume
-          });
-        }
-        if (stockUpdated) {
-          await this.refreshInventoryMessage(linkedInventoryChannelId, context.interaction.client);
-          await this.refreshTasksUsingInventory(linkedInventoryChannelId, context.interaction.client, messageId);
-        }
-      } catch (error) {
-        return { success: false, message: error instanceof Error ? error.message : '在庫の形式が無効です' };
-      }
+    const input = context.interaction.fields.getTextInputValue('inventory-items');
+    let result: { task: RemindTask; inventoryChannelId: string | null; stockChanged: boolean };
+    try {
+      const items = parseInventoryInput(input, { preservePrecision: true });
+      result = await this.repository.editInventorySettings(channelId, task, items);
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : '在庫の更新に失敗しました' };
     }
-
-    const now = new Date();
-    const updatedTask = {
-      ...task,
-      inventoryItems,
-      updatedAt: now
-    };
-
-    const updateResult = await this.repository.updateTask(channelId, updatedTask);
-    if (!updateResult.success) {
-      return { success: false, message: updateResult.message };
+    if (result.stockChanged && result.inventoryChannelId) {
+      await this.refreshInventoryMessage(result.inventoryChannelId, context.interaction.client);
+      await this.refreshTasksUsingInventory(result.inventoryChannelId, context.interaction.client, messageId);
     }
-
-    await this.messageManager.updateTaskMessage(channelId, messageId, updatedTask, context.interaction.client, now);
+    await this.messageManager.updateTaskMessage(channelId, messageId, result.task, context.interaction.client, new Date());
 
     return { success: true };
   }

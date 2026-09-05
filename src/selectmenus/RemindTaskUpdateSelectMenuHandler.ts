@@ -6,14 +6,14 @@ import {
 } from 'discord.js';
 import { BaseSelectMenuHandler, SelectMenuHandlerContext } from '../base/BaseSelectMenuHandler';
 import { Logger } from '../utils/logger';
+import { quoteCsvCell } from '../utils/Csv';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { formatRemindBeforeInput } from '../utils/RemindDuration';
-import { formatInventoryInput } from '../utils/RemindInventory';
-import { isNewInventoryItem, RemindTask } from '../models/RemindTask';
+import { RemindTask } from '../models/RemindTask';
 import { InventoryService } from '../services/InventoryService';
 
 export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
@@ -32,7 +32,7 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
     super('remind-task-update-select', logger, operationLogService, metadataManager);
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
-    this.inventoryService = inventoryService ?? (process.env.NODE_ENV === 'test' ? undefined : InventoryService.getInstance());
+    this.inventoryService = inventoryService;
     this.ephemeral = true;
   }
 
@@ -99,7 +99,7 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
 
   private buildBasicModal(task: RemindTask, messageId: string): ModalBuilder {
     const modal = new ModalBuilder()
-      .setCustomId(`remind-task-update-modal:${messageId}:${Date.now()}`)
+      .setCustomId(`remind-task-update-modal:${messageId}:${task.revision}`)
       .setTitle('リマインド更新');
 
     const titleInput = new TextInputBuilder()
@@ -155,7 +155,7 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
 
   private buildAdvancedModal(task: RemindTask, messageId: string): ModalBuilder {
     const modal = new ModalBuilder()
-      .setCustomId(`remind-task-update-override-modal:${messageId}:${Date.now()}`)
+      .setCustomId(`remind-task-update-override-modal:${messageId}:${task.revision}`)
       .setTitle('詳細設定');
 
     const lastDoneValue = task.lastDoneAt ? this.formatTokyoDateTime(task.lastDoneAt) : '';
@@ -202,16 +202,16 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
 
   private async buildInventoryModal(channelId: string, task: RemindTask, messageId: string): Promise<ModalBuilder> {
     const modal = new ModalBuilder()
-      .setCustomId(`remind-task-inventory-modal:${messageId}:${Date.now()}`)
+      .setCustomId(`remind-task-inventory-modal:${messageId}:${task.revision}`)
       .setTitle('在庫設定');
 
     const inventoryInput = new TextInputBuilder()
       .setCustomId('inventory-items')
-      .setLabel('在庫詳細(名前,在庫数,消費数 の形式。小数は1.5)')
+      .setLabel('在庫CSV（名前,在庫数,消費数。1行1件）')
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(false)
       .setMaxLength(1000)
-      .setPlaceholder('例: フィルター,5,1.5')
+      .setPlaceholder('例: "牛乳,低脂肪",5,1.5')
       .setValue(await this.formatInventoryInputForModal(channelId, task));
 
     modal.addComponents(
@@ -222,29 +222,20 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
   }
 
   private async formatInventoryInputForModal(channelId: string, task: RemindTask): Promise<string> {
-    if (!task.inventoryItems.some(isNewInventoryItem)) {
-      return formatInventoryInput(task.inventoryItems);
-    }
-    if (!this.metadataManager) {
-      return '';
-    }
-    const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
-    const linkedInventoryChannelId = (metadataResult.metadata as { linkedInventoryChannelId?: string } | undefined)
+    const metadataResult = await this.metadataManager?.getChannelMetadata(channelId);
+    const linkedInventoryChannelId = (metadataResult?.metadata as { linkedInventoryChannelId?: string } | undefined)
       ?.linkedInventoryChannelId;
     if (!linkedInventoryChannelId) {
       return '';
     }
 
     const lines = await Promise.all(task.inventoryItems.map(async (item) => {
-      if (!isNewInventoryItem(item)) {
-        return `${item.name},${item.consume}`;
-      }
-      const inventoryItem = await this.inventoryService?.getById(linkedInventoryChannelId, item.inventoryId);
+      const inventoryItem = await (this.inventoryService ?? InventoryService.getInstance()).getById(linkedInventoryChannelId, item.inventoryId);
       const name = inventoryItem?.name ?? `[不明な在庫:${item.inventoryId.slice(0, 8)}]`;
       if (!inventoryItem) {
-        return `${name},${item.consume}`;
+        return `${quoteCsvCell(name)},${item.consume}`;
       }
-      return `${name},${inventoryItem.stock},${item.consume}`;
+      return `${quoteCsvCell(name)},${inventoryItem.stock},${item.consume}`;
     }));
     return lines.join('\n');
   }

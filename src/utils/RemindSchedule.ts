@@ -14,7 +14,7 @@ export function calculateStartAt(createdAt: Date, timeOfDay: string): Date {
 }
 
 export function calculateNextDueAt(input: NextDueAtInput, now: Date): Date {
-  if (input.intervalDays < 1) {
+  if (!Number.isInteger(input.intervalDays) || input.intervalDays < 1) {
     throw new Error('intervalDays must be >= 1');
   }
 

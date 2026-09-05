@@ -4,6 +4,9 @@ services:
   bot:
     image: ${BOT_IMAGE:?Set BOT_IMAGE to the GHCR image digest}
     env_file: ${BOT_ENV_FILE:-.env}
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
     # Avoid the Pi host's unresponsive resolver delaying Discord replies.
     dns:
@@ -16,3 +19,79 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  db:
+    image: &postgres-image postgres:18.6@sha256:6fd9e18b6fedda0a34e4d53ad6fdbd4289a217300af573c31ec7084e6d9cf329
+    platform: linux/arm64
+    env_file: ${DB_ADMIN_ENV_FILE:-.env.db-admin}
+    environment: &postgres-environment
+      PGDATA: /var/lib/postgresql/18/docker
+      STORAGE_UUID: ${STORAGE_UUID:?Set STORAGE_UUID}
+    entrypoint: ["/bin/bash", "/opt/postgres-entrypoint.sh"]
+    command: ["postgres"]
+    restart: unless-stopped
+    volumes:
+      - &postgres-data
+        type: bind
+        source: ${STORAGE_ROOT:-/srv/discord-bot-storage}/postgres
+        target: /var/lib/postgresql
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./deploy/postgres-entrypoint.sh
+        target: /opt/postgres-entrypoint.sh
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    logging: &bounded-logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  db-init:
+    profiles: [init]
+    image: *postgres-image
+    platform: linux/arm64
+    env_file: ${DB_ADMIN_ENV_FILE:-.env.db-admin}
+    environment: *postgres-environment
+    restart: "no"
+    entrypoint: ["/bin/bash", "/opt/postgres-init-entrypoint.sh"]
+    command: ["postgres"]
+    volumes:
+      - *postgres-data
+      - type: bind
+        source: ./deploy/postgres-init-entrypoint.sh
+        target: /opt/postgres-init-entrypoint.sh
+        read_only: true
+        bind:
+          create_host_path: false
+    logging: *bounded-logging
+
+  ops:
+    profiles: [ops]
+    image: ${BOT_IMAGE:?Set BOT_IMAGE}
+    env_file: ${DB_ADMIN_ENV_FILE:-.env.db-admin}
+    entrypoint: ["node", "dist/scripts/db-migrate.js"]
+    restart: "no"
+    logging: *bounded-logging
+
+  migration:
+    profiles: [migration]
+    image: ${BOT_IMAGE:?Set BOT_IMAGE}
+    user: "${OPS_UID:-1000}:${OPS_GID:-1000}"
+    env_file: ["${DB_ADMIN_ENV_FILE:-.env.db-admin}", .env.migration]
+    entrypoint: ["node", "dist/scripts/migrate-sheets-to-postgres.js"]
+    restart: "no"
+    volumes:
+      - type: bind
+        source: ${STORAGE_ROOT:-/srv/discord-bot-storage}/migration
+        target: /migration
+        bind:
+          create_host_path: false
+    logging: *bounded-logging

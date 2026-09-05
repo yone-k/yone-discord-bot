@@ -34,8 +34,8 @@ const mockLogger = {
   debug: vi.fn()
 };
 
-// MetadataManagerのモック
-const mockMetadataManager: MetadataProvider = {
+// ListChannelStoreのモック
+const mockListChannelStore: MetadataProvider = {
   getChannelMetadata: vi.fn(),
   updateChannelMetadata: vi.fn()
 } as any;
@@ -56,7 +56,7 @@ describe('OperationLogService', () => {
     mockTextChannel.threads.create.mockResolvedValue(mockThread);
     mockThread.send.mockResolvedValue({ id: 'test-log-message-789' });
     
-    mockMetadataManager.getChannelMetadata.mockResolvedValue({
+    mockListChannelStore.getChannelMetadata.mockResolvedValue({
       success: true,
       metadata: {
         channelId: 'test-channel-123',
@@ -66,18 +66,18 @@ describe('OperationLogService', () => {
       }
     });
     
-    mockMetadataManager.updateChannelMetadata.mockResolvedValue({
+    mockListChannelStore.updateChannelMetadata.mockResolvedValue({
       success: true
     });
 
     operationLogService = new OperationLogService(
       mockLogger as unknown as Logger,
-      mockMetadataManager
+      mockListChannelStore
     );
   });
 
   describe('コンストラクタ', () => {
-    it('LoggerとMetadataManagerが正しく注入されること', () => {
+    it('LoggerとListChannelStoreが正しく注入されること', () => {
       // TDD Red Phase: サービスがまだ存在しないため、このテストは失敗する
       expect(operationLogService).toBeDefined();
       expect(operationLogService).toBeInstanceOf(OperationLogService);
@@ -262,7 +262,7 @@ describe('OperationLogService', () => {
       );
 
       // Assert
-      expect(mockMetadataManager.getChannelMetadata).toHaveBeenCalledWith(channelId);
+      expect(mockListChannelStore.getChannelMetadata).toHaveBeenCalledWith(channelId);
       expect(mockThread.send).toHaveBeenCalledWith(
         expect.stringContaining('✅')
       );
@@ -298,7 +298,7 @@ describe('OperationLogService', () => {
       );
     });
 
-    it('MetadataManagerからoperationLogThreadIdを正しく取得すること', async () => {
+    it('ListChannelStoreからoperationLogThreadIdを正しく取得すること', async () => {
       // Arrange
       const channelId = 'test-channel-123';
       const operationInfo: OperationInfo = {
@@ -318,7 +318,7 @@ describe('OperationLogService', () => {
       );
 
       // Assert
-      expect(mockMetadataManager.getChannelMetadata).toHaveBeenCalledWith(channelId);
+      expect(mockListChannelStore.getChannelMetadata).toHaveBeenCalledWith(channelId);
       expect(mockClient.channels.fetch).toHaveBeenCalledWith('test-thread-456');
     });
 
@@ -332,7 +332,7 @@ describe('OperationLogService', () => {
       const result: OperationResult = { success: true };
       const userId = 'test-user-123';
 
-      mockMetadataManager.getChannelMetadata.mockResolvedValue({
+      mockListChannelStore.getChannelMetadata.mockResolvedValue({
         success: true,
         metadata: {
           channelId: 'test-channel-123',
@@ -353,7 +353,7 @@ describe('OperationLogService', () => {
 
       // Assert - 新仕様：スレッド作成もログ投稿も行わない
       expect(mockTextChannel.threads.create).not.toHaveBeenCalled();
-      expect(mockMetadataManager.updateChannelMetadata).not.toHaveBeenCalled();
+      expect(mockListChannelStore.updateChannelMetadata).not.toHaveBeenCalled();
       expect(mockThread.send).not.toHaveBeenCalled();
     });
   });

@@ -1,9 +1,9 @@
 import { Client } from 'discord.js';
+import { randomUUID } from 'node:crypto';
 import { createRemindTask, RemindTask } from '../models/RemindTask';
 import { calculateNextDueAt, calculateStartAt, normalizeTimeOfDay } from '../utils/RemindSchedule';
-import { RemindSheetManager } from './RemindSheetManager';
 import { RemindTaskRepository } from './RemindTaskRepository';
-import { RemindMetadataManager } from './RemindMetadataManager';
+import { RemindChannelStore } from './RemindChannelStore';
 import { RemindMessageManager } from './RemindMessageManager';
 
 export interface RemindTaskInputData {
@@ -24,11 +24,10 @@ export interface RemindTaskServiceResult {
 
 export class RemindTaskService {
   constructor(
-    private sheetManager: RemindSheetManager = new RemindSheetManager(),
     private repository: RemindTaskRepository = new RemindTaskRepository(),
-    private metadataManager: RemindMetadataManager = RemindMetadataManager.getInstance(),
+    private metadataManager: RemindChannelStore = RemindChannelStore.getInstance(),
     private messageManager: RemindMessageManager = new RemindMessageManager(),
-    private idGenerator: () => string = () => `task-${Date.now()}`
+    private idGenerator: () => string = randomUUID
   ) {}
 
   public async addTask(
@@ -38,7 +37,8 @@ export class RemindTaskService {
     now: Date = new Date(),
     listTitle: string = 'リマインドリスト'
   ): Promise<RemindTaskServiceResult> {
-    await this.sheetManager.getOrCreateChannelSheet(channelId);
+    const metadata = await this.metadataManager.getChannelMetadata(channelId);
+    if (!metadata.success) await this.metadataManager.createChannelMetadata(channelId, '', listTitle);
 
     const createdAt = now;
     const normalizedTimeOfDay = normalizeTimeOfDay(input.timeOfDay ?? '00:00');
@@ -81,23 +81,11 @@ export class RemindTaskService {
       messageId: messageResult.messageId,
       updatedAt: new Date()
     };
-    const updateResult = await this.repository.updateTask(channelId, updatedTask);
+    const updateResult = await this.repository.patchTask(channelId, task, { messageId: messageResult.messageId });
     if (!updateResult.success) {
       return { success: false, message: updateResult.message };
     }
 
-    const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
-    if (!metadataResult.success) {
-      await this.metadataManager.createChannelMetadata(
-        channelId,
-        '',
-        listTitle,
-        metadataResult.metadata?.operationLogThreadId,
-        metadataResult.metadata?.remindNoticeThreadId,
-        metadataResult.metadata?.remindNoticeMessageId
-      );
-    }
-
-    return { success: true, task: updatedTask, messageId: messageResult.messageId };
+    return { success: true, task: { ...updatedTask, revision: '1' }, messageId: messageResult.messageId };
   }
 }

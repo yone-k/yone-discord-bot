@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 let dir: string;
-const content = ['DISCORD_BOT_TOKEN="dummy"', 'CLIENT_ID="123"', 'GOOGLE_SERVICE_ACCOUNT_EMAIL="a@example.invalid"',
-  'GOOGLE_SHEETS_SPREADSHEET_ID="dummy"', 'GOOGLE_PRIVATE_KEY="dummy"', 'NODE_ENV="production"'].join('\n') + '\n';
+const content = ['DISCORD_BOT_TOKEN="dummy"', 'CLIENT_ID="123"',
+  'DATABASE_URL="postgresql://bot:dummy@db/discord_bot"', 'NODE_ENV="production"'].join('\n') + '\n';
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'install-pi-env-'));
   mkdirSync(join(dir, 'scripts')); mkdirSync(join(dir, 'bin'));

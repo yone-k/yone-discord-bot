@@ -4,7 +4,6 @@ export const templates = {
 {category_sections}
 
 ---
-[スプレッドシートを開く]({spreadsheet_url})
 合計: {total_count}項目 | 最終更新: {last_update}`,
 
   inventory: `## {list_title}
@@ -12,7 +11,6 @@ export const templates = {
 {category_sections}
 
 ---
-[スプレッドシートを開く]({spreadsheet_url})
 合計: {total_count}項目 | 最終更新: {last_update}`,
 
   default: `# {title}

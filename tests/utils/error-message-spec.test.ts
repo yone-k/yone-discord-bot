@@ -1,7 +1,5 @@
 import { describe, test, expect } from 'vitest';
 import { CommandError, CommandErrorType } from '../../src/utils/CommandError';
-import { GoogleSheetsError, GoogleSheetsErrorType } from '../../src/services/GoogleSheetsService';
-import { ChannelSheetError, ChannelSheetErrorType } from '../../src/services/ChannelSheetManager';
 
 describe('Error Message Specification Compliance Tests', () => {
   describe('技術仕様書5章準拠エラーメッセージ確認', () => {
@@ -55,77 +53,11 @@ describe('Error Message Specification Compliance Tests', () => {
       });
     });
 
-    describe('GoogleSheetsError エラーメッセージ', () => {
-      test('CONFIG_MISSING エラーメッセージが技術仕様準拠', () => {
-        const error = new GoogleSheetsError(
-          GoogleSheetsErrorType.CONFIG_MISSING,
-          'Google Sheets configuration is missing'
-        );
-
-        expect(error.userMessage).toBe('Google Sheetsの設定が見つかりません。環境変数を確認してください。');
-        expect(error.type).toBe(GoogleSheetsErrorType.CONFIG_MISSING);
-      });
-
-      test('AUTHENTICATION_FAILED エラーメッセージが技術仕様準拠', () => {
-        const error = new GoogleSheetsError(
-          GoogleSheetsErrorType.AUTHENTICATION_FAILED,
-          'Authentication failed'
-        );
-
-        expect(error.userMessage).toBe('Google Sheetsの認証に失敗しました。');
-        expect(error.type).toBe(GoogleSheetsErrorType.AUTHENTICATION_FAILED);
-      });
-
-      test('SPREADSHEET_NOT_FOUND エラーメッセージが技術仕様準拠', () => {
-        const error = new GoogleSheetsError(
-          GoogleSheetsErrorType.SPREADSHEET_NOT_FOUND,
-          'Spreadsheet not found'
-        );
-
-        expect(error.userMessage).toBe('スプレッドシートが見つかりません。');
-        expect(error.type).toBe(GoogleSheetsErrorType.SPREADSHEET_NOT_FOUND);
-      });
-
-
-      test('DATA_VALIDATION_ERROR エラーメッセージが技術仕様準拠', () => {
-        const error = new GoogleSheetsError(
-          GoogleSheetsErrorType.DATA_VALIDATION_ERROR,
-          'Data validation error'
-        );
-
-        expect(error.userMessage).toBe('データの形式が正しくありません。');
-        expect(error.type).toBe(GoogleSheetsErrorType.DATA_VALIDATION_ERROR);
-      });
-    });
-
-    describe('ChannelSheetError エラーメッセージ', () => {
-      test('CREATION_FAILED エラーメッセージが技術仕様準拠', () => {
-        const error = new ChannelSheetError(
-          ChannelSheetErrorType.CREATION_FAILED,
-          'Sheet creation failed'
-        );
-
-        expect(error.userMessage).toBe('シートの作成に失敗しました。');
-        expect(error.type).toBe(ChannelSheetErrorType.CREATION_FAILED);
-      });
-
-      test('OPERATION_FAILED エラーメッセージが技術仕様準拠', () => {
-        const error = new ChannelSheetError(
-          ChannelSheetErrorType.OPERATION_FAILED,
-          'Operation failed'
-        );
-
-        expect(error.userMessage).toBe('シート操作に失敗しました。');
-        expect(error.type).toBe(ChannelSheetErrorType.OPERATION_FAILED);
-      });
-    });
   });
 
   describe('エラーメッセージの一貫性確認', () => {
     test('全エラータイプでuserMessageが日本語', () => {
       const commandErrorTypes = Object.values(CommandErrorType);
-      const googleErrorTypes = Object.values(GoogleSheetsErrorType);
-      const channelErrorTypes = Object.values(ChannelSheetErrorType);
 
       // CommandError の確認
       commandErrorTypes.forEach(type => {
@@ -134,19 +66,6 @@ describe('Error Message Specification Compliance Tests', () => {
         expect(error.userMessage.length).toBeGreaterThan(0);
       });
 
-      // GoogleSheetsError の確認
-      googleErrorTypes.forEach(type => {
-        const error = new GoogleSheetsError(type, 'Test error');
-        expect(error.userMessage).toMatch(/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/); // 日本語文字を含む
-        expect(error.userMessage.length).toBeGreaterThan(0);
-      });
-
-      // ChannelSheetError の確認
-      channelErrorTypes.forEach(type => {
-        const error = new ChannelSheetError(type, 'Test error');
-        expect(error.userMessage).toMatch(/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/); // 日本語文字を含む
-        expect(error.userMessage.length).toBeGreaterThan(0);
-      });
     });
 
     test('エラーメッセージの長さが適切', () => {

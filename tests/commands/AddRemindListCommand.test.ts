@@ -33,7 +33,7 @@ describe('AddRemindListCommand', () => {
       resolveByName: vi.fn().mockResolvedValue({
         id: 'inventory-1',
         name: 'フィルター',
-        stock: 0,
+        stock: '0',
         category: ''
       })
     };
@@ -80,7 +80,7 @@ describe('AddRemindListCommand', () => {
     expect(mockService.addTask).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        inventoryItems: [{ inventoryId: 'inventory-1', consume: 1 }]
+        inventoryItems: [{ inventoryId: 'inventory-1', consume: '1' }]
       }),
       expect.anything()
     );

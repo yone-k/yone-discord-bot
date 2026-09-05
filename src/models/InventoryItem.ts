@@ -1,6 +1,6 @@
 export interface InventoryItem {
   id: string;
   name: string;
-  stock: number;
+  stock: string;
   category: string;
 }

@@ -6,8 +6,7 @@ import {
   type InitializationContext,
   type InventoryInitializationResult
 } from '../services/InventoryInitializationService';
-import { GoogleSheetsService } from '../services/GoogleSheetsService';
-import { InventoryMetadataManager } from '../services/InventoryMetadataManager';
+import { InventoryChannelStore } from '../services/InventoryChannelStore';
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
 
 interface InventoryInitializer {
@@ -74,8 +73,7 @@ export class InitInventoryCommand extends BaseCommand {
 
   private getInitializationService(): InventoryInitializer {
     return this.initializationService ?? new InventoryInitializationService(
-      GoogleSheetsService.getInstance(),
-      InventoryMetadataManager.getInstance(),
+      InventoryChannelStore.getInstance(),
       InventoryMessageManager.getInstance()
     );
   }

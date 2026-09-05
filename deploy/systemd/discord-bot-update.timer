@@ -1,9 +1,10 @@
 [Unit]
-Description=Check for a Discord Bot update every five minutes
+Description=Catch missed Discord Bot deployments at boot and daily
 
 [Timer]
-OnActiveSec=5min
-OnUnitInactiveSec=5min
+OnBootSec=5min
+OnCalendar=*-*-* 05:00:00
+Persistent=true
 AccuracySec=1s
 Unit=discord-bot-update.service
 

@@ -13,6 +13,7 @@ lock_status=0
 flock -n 9 || lock_status=$?
 if [ "$lock_status" = 1 ]; then
   printf '%s\n' 'update: already-running'
+  [ "${1:-}" != --verify ] || exit 1
   exit 0
 fi
 [ "$lock_status" = 0 ] || { printf '%s\n' 'update: lock-failed' >&2; exit 1; }
@@ -102,8 +103,8 @@ start_image() {
 
 action=${1:---update}
 case "$action" in
-  --initialize|--recover|--retry)
-    [ "$#" -eq 2 ] || fail 'usage: --initialize|--recover|--retry IMAGE@sha256:DIGEST'
+  --initialize|--recover|--retry|--verify)
+    [ "$#" -eq 2 ] || fail 'usage: --initialize|--recover|--retry|--verify IMAGE@sha256:DIGEST'
     valid_image "$2" || fail invalid-image
     ;;
   --update|--status|--block) [ "$#" -le 1 ] || fail invalid-arguments ;;
@@ -112,6 +113,13 @@ esac
 
 if [ "$action" = --status ]; then
   if [ "$initialized" = 1 ]; then cat "$state_dir/state"; else log uninitialized; fi
+  exit 0
+fi
+
+if [ "$action" = --verify ]; then
+  [ "$initialized" = 1 ] && [ "$blocked" = 0 ] && [ "$pending" = 0 ] || fail not-ready
+  [ "$current" = "$2" ] && healthy "$2" || fail deployed-version-not-healthy
+  log verified
   exit 0
 fi
 

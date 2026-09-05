@@ -13,10 +13,13 @@
 | 更新状態 | `.deploy-state/state`、秘密情報なし。手動でsourceしない |
 | 自動起動 / ログ | `unless-stopped` / json-file、10m × 3 |
 | health | `127.0.0.1:3000:3000`、HTTP成功かつJSONの `bot.ready === true` |
+| Bot専用DNS | `192.168.1.1`（LANルーター）、`1.1.1.1`。ホストのDNS設定は変更しない |
 
 日常のhealth確認はSSH経由で行う。Docker 28未満で同一LANから到達する場合も許容し、LAN遮断のためのDocker更新・ファイアウォール追加は行わない。インターネット向けの受信経路は新設しない。
 
-`deploy.yml` はmainのpushまたはmainへのworkflow_dispatchで、npm ci → check → test → ARM64ビルド・architecture検査 → GHCR公開を行う。SHAタグとmainタグは同じ成果物を指す。実行ID・再実行番号のラベルにより同じコミットの再ビルドも別ダイジェストになる。ジョブを直列化し、公開直前にmainと一致しないコミットは公開しない。
+`deploy.yml` はmainのpushまたはmainへのworkflow_dispatchで、npm ci → check → test → ARM64ビルド・architecture検査 → GHCR公開 → Pi更新を行う。SHAタグとmainタグは同じ成果物を指す。実行ID・再実行番号のラベルにより同じコミットの再ビルドも別ダイジェストになる。workflow全体を直列化し、公開直前にmainと一致しないコミットは公開・Pi接続をスキップする。
+
+公開成功時だけGitHub-hosted runnerをTailscaleへ一時接続し、制限付きOpenSSH鍵で更新serviceを起動する。CI成功は公開したダイジェストがPiでhealthyになったことを意味する。接続失敗・更新失敗・切戻し・ダイジェスト不一致はCI失敗にする。
 
 ## 1. 切替準備
 
@@ -36,7 +39,7 @@ PiではDockerの自動起動、yoneのdockerグループ、Compose v2、bash・
 ```bash
 ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ras-pi \
   'install -d -m 700 /home/yone/discord-bot'
-git archive "$deploy_commit" docker-compose.yml scripts/pi-update.sh scripts/install-pi-env.sh deploy/systemd \
+git archive "$deploy_commit" docker-compose.yml scripts/pi-update.sh scripts/pi-ci-deploy.sh scripts/install-pi-env.sh deploy/systemd \
   | ssh ras-pi 'tar -xf - -C /home/yone/discord-bot'
 ssh ras-pi 'sudo install -m 644 /home/yone/discord-bot/deploy/systemd/discord-bot-update.* /etc/systemd/system/ && sudo systemctl daemon-reload'
 ```
@@ -120,7 +123,23 @@ journalctl -u discord-bot-update.service --since today --no-pager
 
 ## 4. 通常更新とPi内復旧
 
-timerは有効化から5分後、その後はservice終了から5分後に実行する。長いpullや切戻しの後にも次回を予約し、実行中は重複起動しない。ネットワーク・pull失敗は稼働中Botを維持し、次回再試行する。mainが同じダイジェストなら再作成しない。変更時だけ最大5分でhealthを確認する。失敗時は候補を停止し、直前の正常版へ戻して最大5分検証する。停止失敗・切戻し失敗・中断・実体との不一致では自動更新をブロックする。
+通常はCIから更新する。取りこぼし確認のtimerはPi起動5分後と毎日05:00（ホストのタイムゾーン）に実行する。日次予定中に停止していた場合もPersistent=trueで復帰時に実行する。5分ごとのポーリングは行わない。PiがオフラインでCIの接続が失敗した場合は、復帰時・日次確認、または公開workflowの再実行で追従する。
+
+CIとtimerは同じsystemd serviceを使い、flockでも更新を排他する。ネットワーク・pull失敗は稼働中Botを維持する。mainが同じダイジェストなら再作成しない。変更時だけ最大5分でhealthを確認する。失敗時は候補を停止し、直前の正常版へ戻して最大5分検証する。停止失敗・切戻し失敗・中断・実体との不一致では自動更新をブロックする。
+
+### CI接続の設定
+
+- Pi: Tailscaleをインストールし、`--accept-dns=false`で登録。`tag:discord-bot-pi`を付与する。通常のOpenSSHを利用し、Tailscale SSH・Funnel・サブネットルートは有効にしない。
+- tailnet: `deploy/tailscale/policy.hujson`を新規個人tailnetへ適用。既存tailnetは他用途のルールを保ったまま統合し、CIタグに全許可が及ばないことを確認する。CIからはPiのTCP 22だけ許可。
+- OpenID Connect: issuer `https://token.actions.githubusercontent.com`、subject `repo:yone-k/yone-discord-bot:ref:refs/heads/main`、custom claim `workflow_ref=yone-k/yone-discord-bot/.github/workflows/deploy.yml@refs/heads/main`、scope `auth_keys` write、tag `tag:discord-bot-ci`。
+- GitHub Secrets: `TS_OAUTH_CLIENT_ID`、`TS_AUDIENCE`、CI専用の`PI_DEPLOY_SSH_KEY`。OIDCのClient IDとAudienceは秘密ではないが認証設定としてSecretsに保管する。
+- GitHub Variables: `PI_TAILSCALE_HOST`（PiのTailscale IPv4）、`PI_SSH_KNOWN_HOSTS`（そのIPに対応する、LANの既存SSH接続で取得・照合したホスト公開鍵）。接続時の鍵自動受入はしない。
+- Piのyoneのauthorized_keysにCI公開鍵を`restrict,command="/bin/bash /home/yone/discord-bot/scripts/pi-ci-deploy.sh"`付きで登録。既存管理鍵は維持する。CI入口は`deploy sha256:<64桁>`のみ受け付け、シェル・転送は許可しない。
+- `pi-ci-deploy.sh`は同期的にserviceを起動後、`pi-update.sh --verify IMAGE@sha256:DIGEST`で状態・実コンテナ・healthを照合する。未初期化・blocked・pending・ロック競合も検証失敗とする。
+
+Tailscaleへの接続はビルド終了後のdeploy job内だけに限定する。無料Personalプランの一時リソース枠（月1,000分、2026-09確認）は接続時間に注意する。CI用キーのローテーション時は新しい制限付き公開鍵とGitHub Secretを配置・検証してから旧公開鍵だけを削除する。
+
+導入時は先にPiへ`pi-update.sh`と`pi-ci-deploy.sh`を配置し、制限付き鍵で任意コマンドの拒否・正常ダイジェストの検証を確認する。CIからの実更新に成功してから日次timerへ切り替える。
 
 | 状態項目 | 意味 |
 |---|---|
@@ -136,9 +155,10 @@ timerは有効化から5分後、その後はservice終了から5分後に実行
 
 稼働中Botを維持したまま更新だけを固定する場合は `bash scripts/pi-update.sh --block` を使う。再開時は正常ダイジェストの `--recover` でhealthを確認して解除する。
 
-手動復旧・設定変更の前はtimerを停止する。service停止により更新が中断した場合もpendingで検出する。
+手動復旧・設定変更の前は`.deploy-state/ci-disabled`を作成してCI入口を停止し、進行中のdeploy jobがないことを確認してからtimer・serviceを停止する。service停止により更新が中断した場合もpendingで検出する。作業完了後にci-disabledを削除してCI入口を再開する。
 
 ```bash
+touch /home/yone/discord-bot/.deploy-state/ci-disabled
 sudo systemctl disable --now discord-bot-update.timer
 sudo systemctl stop discord-bot-update.service
 bash scripts/pi-update.sh --status
@@ -148,6 +168,8 @@ bash scripts/pi-update.sh --recover "$BOT_IMAGE"
 
 `--recover` はブロック中も利用可能。現在のBotを停止後、指定版を再作成してhealthyを確認し、成功時だけブロックを解除する。失敗時は停止のまま調査し、別版を同時起動しない。成功後にDiscord/Sheetsを確認してtimerを再有効化する。
 
+CI入口も再開する場合は`rm /home/yone/discord-bot/.deploy-state/ci-disabled`を実行する。GCEへ切り戻している間は削除しない。
+
 失敗版を再試行する場合は原因修正後、非ブロック状態で `bash scripts/pi-update.sh --retry '失敗したGHCRダイジェスト'` を実行する。rejectedと一致する指定だけを解除し、その時点のmainを再評価する。mainが既に別版なら別版が対象になる。ブロック中はまず `--recover` を使う。
 
 設定変更は同じ移送手順で.envを更新し、`--recover "$BOT_IMAGE"` で現在の正常版を明示的に再作成する。ホストのCompose/script/unit更新もtimer・service停止後、レビュー済みコミットから「切替準備」の配置手順で再配置し、daemon-reload・unit検証を行う。イメージ更新だけではホストファイルは変わらない。
@@ -156,7 +178,7 @@ bash scripts/pi-update.sh --recover "$BOT_IMAGE"
 
 ## 5. GCEへの切戻し（保持期間中のみ）
 
-初回受入失敗や移行不具合時、**Piを確実に停止してから**GCEを再起動する。Pi上で:
+初回受入失敗や移行不具合時、CI入口を上記のci-disabledで停止し、進行中のdeploy jobがないことを確認する。**Piを確実に停止してから**GCEを再起動する。Pi上で:
 
 ```bash
 sudo systemctl disable --now discord-bot-update.timer
@@ -178,7 +200,7 @@ gcloud compute instances start "$gce_instance" --project "$gce_project" --zone "
 
 停止GCE・ブートディスク・startup/envメタデータ・旧Artifact Registryイメージ・必要な実行権限を成功時刻から7日以上保持する。停止中もディスクの費用は残る。
 
-保持期間中に、Discord/Sheets・既存通知と状態更新・Home Assistantの継続稼働を記録する。timerで同じ版ならコンテナIDが変わらないことを確認する。次に承認を得てmainのworkflow_dispatchを1回実行し、新ダイジェストを次の5分周期で検知・更新して正常版に記録することを確認する。同じコードでもビルド実行ラベルによりダイジェストが変わるため、#36や追加コード変更を待つ必要はない。
+保持期間中に、Discord/Sheets・既存通知と状態更新・Home Assistantの継続稼働を記録する。timerで同じ版ならコンテナIDが変わらないことを確認する。次に承認を得てmainのworkflow_dispatchを1回実行し、公開後のCIからPi更新が起動して、新ダイジェストを正常版に記録することを確認する。同じコードでもビルド実行ラベルによりダイジェストが変わるため、#36や追加コード変更を待つ必要はない。
 
 7日経過・通常更新成功・未解決の移行不具合なしを確認した後、Bot専用と確認できた対象の削除一覧を提示し、承認後に撤去する。
 
@@ -207,4 +229,4 @@ docker image inspect --format '{{.Os}}/{{.Architecture}} {{.Config.User}} {{json
 
 テストにはDocker Compose CLIが必要（env解析だけなのでデーモンは不要）。Linuxでは実flockの競合も検証する。macOSでは `/bin/bash` のBash 3.2で更新処理を実行し、flock競合だけLinux CIへ委ねる。`npm run build` / `npm run dev` はDiscordコマンド登録を伴うため、この検証では実行しない。
 
-参考: [Dockerのポート公開](https://docs.docker.com/engine/network/port-publishing/)、[Composeの補間](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/)、[GHCR](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)。
+参考: [Dockerのポート公開](https://docs.docker.com/engine/network/port-publishing/)、[Composeの補間](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/)、[GHCR](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)、[Tailscale GitHub Action](https://tailscale.com/docs/integrations/github/github-action)、[Tailscale OIDC](https://tailscale.com/docs/features/workload-identity-federation)、[Tailscale料金](https://tailscale.com/pricing?plan=personal)。

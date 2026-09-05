@@ -5,6 +5,10 @@ services:
     image: ${BOT_IMAGE:?Set BOT_IMAGE to the GHCR image digest}
     env_file: ${BOT_ENV_FILE:-.env}
     restart: unless-stopped
+    # Avoid the Pi host's unresponsive resolver delaying Discord replies.
+    dns:
+      - 192.168.1.1
+      - 1.1.1.1
     ports:
       - "127.0.0.1:3000:3000"
     logging:

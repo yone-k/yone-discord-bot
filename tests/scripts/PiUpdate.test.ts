@@ -81,6 +81,18 @@ function clearCalls(): void { writeFileSync(join(dir, 'calls'), ''); }
 function upCalls(): string[][] { return calls().filter(c => c.includes('up')); }
 
 describe('Pi update lifecycle', () => {
+  it('verifies the deployed digest and health without pulling or recreating', () => {
+    initialize(); clearCalls();
+    expect(run('--verify', old).status).toBe(0);
+    expect(calls().some(c => c[0] === 'pull' || c.includes('up'))).toBe(false);
+  });
+  it.each(['unhealthy', 'wrong-digest', 'blocked', 'busy', 'uninitialized'])('fails CI verification for %s', reason => {
+    if (reason !== 'uninitialized') initialize();
+    if (reason === 'unhealthy') fixture.failed = [old];
+    if (reason === 'blocked') writeFileSync(join(dir, '.deploy-state/state'), state().replace('blocked=0', 'blocked=1'));
+    if (reason === 'busy') fixture.busy = true;
+    expect(run('--verify', reason === 'wrong-digest' ? next : old).status).not.toBe(0);
+  });
   it('does not start or pull a bot before initial acceptance', () => {
     expect(run().status).toBe(0);
     expect(calls()).toEqual([]);

@@ -98,8 +98,15 @@ afterEach(async () => {
   if (restored) { await restored.end(); restored = undefined; }
   if (source) await source.end();
   if (admin) {
-    if (sourceDatabase) await admin.query(`DROP DATABASE IF EXISTS ${sourceDatabase} WITH (FORCE)`);
-    if (targetDatabase) await admin.query(`DROP DATABASE IF EXISTS ${targetDatabase} WITH (FORCE)`);
+    for (const database of [sourceDatabase, targetDatabase].filter(Boolean)) {
+      // Pool.end() may resolve before the server observes every socket closing.
+      // Wait for normal disconnects instead of terminating those clients with FORCE.
+      await expect.poll(async () => {
+        const result = await admin.query('SELECT count(*)::integer AS count FROM pg_stat_activity WHERE datname=$1', [database]);
+        return result.rows[0].count;
+      }, { timeout: 5000 }).toBe(0);
+      await admin.query(`DROP DATABASE IF EXISTS ${database}`);
+    }
     if (botRole) await admin.query(`DROP ROLE IF EXISTS ${botRole}`);
     await admin.end();
   }

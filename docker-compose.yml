@@ -1,0 +1,14 @@
+name: discord-bot
+
+services:
+  bot:
+    image: ${BOT_IMAGE:?Set BOT_IMAGE to the GHCR image digest}
+    env_file: ${BOT_ENV_FILE:-.env}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -24,7 +24,14 @@ test-results/
 *~
 
 # Version control
-.git/
+.git
+.agent_tmp/
+.takt/
+.worktree/
+.deploy-state/
+deploy/
+*.pem
+*.key
 .gitignore
 
 # Documentation and configuration

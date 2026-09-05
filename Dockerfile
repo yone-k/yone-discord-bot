@@ -44,7 +44,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD ["node", "-e", "fetch('http://localhost:3000/health', {signal: AbortSignal.timeout(5000)}).then(async r => { if (!r.ok || (await r.json()).bot?.ready !== true) process.exit(1); }).catch(() => process.exit(1));"]
 
 # Start the application
 CMD ["node", "dist/index.js"]

@@ -35,6 +35,12 @@ cp .env.example .env
 
 ## 使用方法
 
+### 本番環境（Raspberry Pi 5）
+
+デプロイ・GCEからの切替・障害復旧は[運用手順](docs/raspberry-pi-deployment.md)を参照してください。
+GitHub ActionsがARM64イメージをGHCRへ公開し、Piが5分周期で更新します。
+Sheetsの保存先と認証は継続します。DB移行はIssue #36で扱います。
+
 ### 開発環境での実行
 ```bash
 npm run dev

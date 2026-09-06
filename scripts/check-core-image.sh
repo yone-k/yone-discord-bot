@@ -70,8 +70,10 @@ start_api() {
   wait_api
 }
 probe_bot() {
+  # Bot health can wait for the full 5s upstream timeout. Leave time for the
+  # response and ARM64 emulation overhead; application timeouts stay unchanged.
   docker exec "$bot" node -e \
-    'fetch("http://127.0.0.1:3000/health", {signal:AbortSignal.timeout(6000)}).then(async r=>{const b=await r.json();if(r.status!==Number(process.argv[1])||b.bot?.ready!==(r.status===200))process.exit(1);}).catch(()=>process.exit(1));' "$1" bot-health
+    'fetch("http://127.0.0.1:3000/health", {signal:AbortSignal.timeout(15000)}).then(async r=>{const b=await r.json();if(r.status!==Number(process.argv[1])||b.bot?.ready!==(r.status===200)){console.error("bot-health: unexpected response",r.status,b);process.exit(1);}}).catch(e=>{console.error("bot-health: probe failed",e.name);process.exit(1);});' "$1" bot-health
 }
 wait_bot() {
   local attempt

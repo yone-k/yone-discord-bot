@@ -18,18 +18,17 @@ import { SelectMenuManager } from './services/SelectMenuManager';
 import { registerAllSelectMenus } from './registry/RegisterSelectMenus';
 import { OperationLogService } from './services/OperationLogService';
 import { ListChannelStore } from './services/ListChannelStore';
-import { RemindScheduler } from './services/RemindScheduler';
-import { ListDueReminderScheduler } from './services/ListDueReminderScheduler';
+import { NotificationScheduler } from './services/NotificationScheduler';
 import { AutocompleteManager } from './services/AutocompleteManager';
 import { registerAllAutocompletes } from './registry/RegisterAutocompletes';
-import { getPool, closePool } from './db/pool';
-import { assertReady } from './db/schema';
-import { DatabaseLifecycle } from './services/DatabaseLifecycle';
+import { coreClient } from './api/CoreClient';
+import { CoreLifecycle } from './services/CoreLifecycle';
 import { refreshStoredDisplays } from './services/StartupDisplayRefresh';
-import { InventoryChannelStore } from './services/InventoryChannelStore';
 import { RemindChannelStore } from './services/RemindChannelStore';
-import { PostgresListRepository } from './repositories/PostgresListRepository';
-import { InventoryRepository } from './services/InventoryRepository';
+import { hydrateListItem, hydrateTask } from './api/Repositories';
+import type { Schema } from './api/contracts';
+import { fromStoredTask, RemindTaskRepository } from './services/RemindTaskRepository';
+import { RemindInitializationService } from './services/RemindInitializationService';
 import { MessageManager } from './services/MessageManager';
 import { InventoryMessageManager } from './services/InventoryMessageManager';
 import { RemindMessageManager } from './services/RemindMessageManager';
@@ -50,9 +49,8 @@ class DiscordBot {
   private server: Server | null = null;
   private operationLogService!: OperationLogService;
   private metadataManager!: ListChannelStore;
-  private remindScheduler!: RemindScheduler;
-  private listDueReminderScheduler!: ListDueReminderScheduler;
-  private databaseLifecycle = new DatabaseLifecycle(() => assertReady(getPool()));
+  private remindScheduler!: NotificationScheduler;
+  private coreLifecycle = new CoreLifecycle(() => coreClient().assertReady());
 
   constructor() {
     try {
@@ -119,19 +117,19 @@ class DiscordBot {
     this.httpServer = express();
     
     this.httpServer.get('/health', async (req, res) => {
-      const databaseHealth = await this.databaseLifecycle.health(this.client.isReady());
+      const apiHealth = await this.coreLifecycle.health(this.client.isReady());
       const healthStatus = {
-        status: databaseHealth.ready ? 'ok' : 'unavailable',
+        status: apiHealth.ready ? 'ok' : 'unavailable',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         bot: {
-          ready: databaseHealth.ready,
+          ready: apiHealth.ready,
           guilds: this.client.guilds.cache.size
         },
-        database: databaseHealth.database
+        api: apiHealth.api
       };
       
-      res.status(databaseHealth.statusCode).json(healthStatus);
+      res.status(apiHealth.statusCode).json(healthStatus);
     });
 
     this.httpServer.get('/', (req, res) => {
@@ -232,19 +230,15 @@ class DiscordBot {
       // 起動時に統計情報をログ出力
       this.commandManager.logExecutionSummary();
 
-      try {
-        await this.refreshDisplays();
-        this.databaseLifecycle.displaysReady = true;
-      } catch (error) {
-        this.logger.error('Startup database enumeration failed', { error: error instanceof Error ? error.message : 'Unknown error' });
-        return;
-      }
+      this.coreLifecycle.initializeDisplays(
+        () => this.refreshDisplays(),
+        () => {
+          this.remindScheduler = new NotificationScheduler();
+          this.remindScheduler.start(this.client);
+        },
+        error => this.logger.error('Startup display refresh failed; retrying in 60 seconds', { error: error instanceof Error ? error.message : 'Unknown error' })
+      );
 
-      this.remindScheduler = new RemindScheduler();
-      this.remindScheduler.start(this.client);
-
-      this.listDueReminderScheduler = new ListDueReminderScheduler();
-      this.listDueReminderScheduler.start(this.client);
     });
 
     this.client.on(Events.InteractionCreate, async (interaction) => {
@@ -348,7 +342,7 @@ class DiscordBot {
       });
       
       const token = this.config.getDiscordToken();
-      await this.databaseLifecycle.connect(() => this.client.login(token));
+      await this.coreLifecycle.connect(() => this.client.login(token));
       
       this.logger.info('Discord Bot started successfully');
     } catch (error) {
@@ -368,8 +362,7 @@ class DiscordBot {
       // シャットダウン前に統計情報を出力
       this.commandManager.logExecutionSummary();
       this.remindScheduler?.stop();
-      this.listDueReminderScheduler?.stop();
-      this.databaseLifecycle.displaysReady = false;
+      this.coreLifecycle.stop();
       
       // HTTPサーバーを停止
       if (this.server) {
@@ -382,7 +375,6 @@ class DiscordBot {
       }
       
       this.client.destroy();
-      await closePool();
       
       this.logger.info('Discord Bot shutdown complete');
       process.exit(0);
@@ -393,37 +385,40 @@ class DiscordBot {
   }
 
   private async refreshDisplays(): Promise<void> {
-    const listStore = this.metadataManager;
-    const inventoryStore = InventoryChannelStore.getInstance();
     const remindStore = RemindChannelStore.getInstance();
-    const listRepository = new PostgresListRepository();
-    const inventoryRepository = new InventoryRepository();
+    const snapshot = await coreClient().request<Schema['Initialization']>('GET', '/v1/display/initialization');
     const messages = new MessageManager();
     const reminderMessages = new RemindMessageManager();
+    const reminderInitialization = new RemindInitializationService(new RemindTaskRepository(), remindStore, reminderMessages);
     const failures = await refreshStoredDisplays([
-      { list: (): Promise<{ channelId: string }[]> => listStore.listChannelMetadata(), render: async ({ channelId }): Promise<void> => {
-        const { metadata } = await listStore.getChannelMetadata(channelId);
-        if (!metadata) throw new Error('一覧チャンネル設定が見つかりません');
-        const items = (await listRepository.fetchAll(channelId)).map(toDisplayListItem);
+      { list: (): Promise<{ channelId: string }[]> => Promise.resolve(snapshot.lists.map(display => display.channel)), render: async ({ channelId }): Promise<void> => {
+        const display = snapshot.lists.find(value => value.channel.channelId === channelId)!;
+        const metadata = display.channel;
+        const items = display.items.map(hydrateListItem).map(toDisplayListItem);
         const content = await ListFormatter.formatDataListContent(metadata.listTitle, items, channelId, metadata.defaultCategory);
         const result = await messages.createOrUpdateMessageWithMetadataV2(channelId, ListFormatter.buildListComponents(content), metadata.listTitle, this.client, 'list');
         if (!result.success) throw new Error(result.errorMessage);
       } },
-      { list: (): Promise<{ channelId: string }[]> => inventoryStore.listChannelMetadata(), render: async ({ channelId }): Promise<void> => {
-        const metadata = await inventoryStore.getChannelMetadata(channelId);
-        if (!metadata) throw new Error('在庫チャンネル設定が見つかりません');
-        const result = await InventoryMessageManager.getInstance().createOrUpdateMessage(channelId, await inventoryRepository.fetchAll(channelId), metadata.listTitle, this.client);
+      { list: (): Promise<{ channelId: string }[]> => Promise.resolve(snapshot.inventories.map(display => display.channel)), render: async ({ channelId }): Promise<void> => {
+        const display = snapshot.inventories.find(value => value.channel.channelId === channelId)!;
+        const items = display.items.map(item => ({ ...item, category: item.category ?? '' }));
+        const result = await InventoryMessageManager.getInstance().createOrUpdateMessage(channelId, items, display.channel.listTitle, this.client);
         if (!result.success) throw new Error(result.errorMessage);
       } },
-      { list: (): Promise<{ channelId: string }[]> => remindStore.listChannelMetadata(), render: async ({ channelId }): Promise<void> => {
-        const { metadata } = await remindStore.getChannelMetadata(channelId);
-        if (!metadata) throw new Error('リマインドチャンネル設定が見つかりません');
-        const result = await reminderMessages.ensureReminderThread(channelId, this.client, metadata.remindNoticeThreadId, metadata.remindNoticeMessageId);
+      { list: (): Promise<{ channelId: string }[]> => Promise.resolve(snapshot.remindChannels), render: async ({ channelId }): Promise<void> => {
+        const metadata = snapshot.remindChannels.find(channel => channel.channelId === channelId)!;
+        const result = await reminderMessages.ensureReminderThread(channelId, this.client, metadata.remindNoticeThreadId ?? undefined, metadata.remindNoticeMessageId ?? undefined);
         if (!result.success || !result.threadId || !result.parentMessageId) throw new Error(result.message);
         await remindStore.updateChannelMetadata(channelId, { remindNoticeThreadId: result.threadId, remindNoticeMessageId: result.parentMessageId });
+        for (const display of snapshot.reminders.filter(value => value.channel.channelId === channelId)) {
+          const task = fromStoredTask(hydrateTask(display.task));
+          const rendered = await reminderInitialization.syncTaskMessage(channelId, task, this.client);
+          if (!rendered.success) throw new Error(rendered.message);
+        }
       } }
     ]);
-    for (const failure of failures) this.logger.error('Startup display refresh failed; retry the channel initialization command', failure);
+    for (const failure of failures) this.logger.error('Startup display refresh failed', failure);
+    if (failures.length) throw new Error('起動時の表示更新が完了しませんでした');
   }
 }
 

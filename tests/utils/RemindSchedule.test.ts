@@ -1,50 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { calculateStartAt, calculateNextDueAt, normalizeTimeOfDay } from '../../src/utils/RemindSchedule';
+import { describe, expect, it } from 'vitest';
+import { normalizeTimeOfDay } from '../../src/utils/RemindSchedule';
 
-describe('RemindSchedule', () => {
-  it('calculates startAt using Tokyo date with timeOfDay', () => {
-    const createdAt = new Date('2025-12-29T00:30:00Z');
-    const startAt = calculateStartAt(createdAt, '08:30');
-
-    expect(startAt.toISOString()).toBe('2025-12-28T23:30:00.000Z');
+describe('時刻入力の表記', () => {
+  it.each([['9:5', '09:05'], ['0:0', '00:00'], ['23:59', '23:59']])('%sを%sへ揃える', (input, expected) => {
+    expect(normalizeTimeOfDay(input)).toBe(expected);
   });
-
-  it('calculates nextDueAt from startAt when lastDoneAt is empty', () => {
-    const startAt = new Date('2025-12-29T08:30:00+09:00');
-    const now = new Date('2025-12-29T09:00:00+09:00');
-
-    const nextDueAt = calculateNextDueAt(
-      {
-        intervalDays: 2,
-        timeOfDay: '08:30',
-        startAt,
-        lastDoneAt: null
-      },
-      now
-    );
-
-    expect(nextDueAt.toISOString()).toBe('2025-12-30T23:30:00.000Z');
-  });
-
-  it('rolls forward nextDueAt until it is in the future', () => {
-    const startAt = new Date('2025-12-29T08:30:00+09:00');
-    const now = new Date('2025-12-31T10:00:00+09:00');
-
-    const nextDueAt = calculateNextDueAt(
-      {
-        intervalDays: 1,
-        timeOfDay: '08:30',
-        startAt,
-        lastDoneAt: null
-      },
-      now
-    );
-
-    expect(nextDueAt.toISOString()).toBe('2025-12-31T23:30:00.000Z');
-  });
-
-  it('normalizes timeOfDay with single digit hour/minute', () => {
-    expect(normalizeTimeOfDay('0:0')).toBe('00:00');
-    expect(normalizeTimeOfDay('9:5')).toBe('09:05');
+  it.each(['24:00', '12:60', '-1:00', '09:00:00', '9', ''])('HH:mmへ変換できない入力%sを拒否する', input => {
+    expect(() => normalizeTimeOfDay(input)).toThrow('Invalid timeOfDay');
   });
 });

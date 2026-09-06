@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskDeleteModalHandler } from '../../src/modals/RemindTaskDeleteModalHandler';
 import { Logger } from '../../src/utils/logger';
-import { createRemindTask } from '../../src/models/RemindTask';
+import { createRemindTask } from '../helpers/RemindTask';
 
 describe('RemindTaskDeleteModalHandler', () => {
   it('deletes task and message when confirmed', async () => {

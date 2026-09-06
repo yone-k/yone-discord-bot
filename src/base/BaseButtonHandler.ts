@@ -1,3 +1,4 @@
+import { withInteractionDeadline, CoreApiError } from '../api/CoreClient';
 import { ButtonInteraction } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { OperationLogService } from '../services/OperationLogService';
@@ -35,7 +36,7 @@ export abstract class BaseButtonHandler {
       }
 
       // 操作を実行してOperationResultを取得
-      const result = await this.executeAction(context);
+      const result = await withInteractionDeadline(context.interaction, () => this.executeAction(context));
 
       // 操作ログの記録を試行
       await this.tryLogOperation(context, result);
@@ -81,10 +82,14 @@ export abstract class BaseButtonHandler {
       );
       
       try {
-        if (!context.interaction.replied && !context.interaction.deferred) {
+        if (error instanceof CoreApiError && context.interaction.deferred) {
+          await context.interaction.editReply({ content: error.message });
+        } else if (error instanceof CoreApiError && context.interaction.replied) {
+          await context.interaction.followUp({ content: error.message, flags: ['Ephemeral'] as const });
+        } else if (!context.interaction.replied && !context.interaction.deferred) {
           const replyOptions = this.ephemeral
-            ? { content: 'エラーが発生しました。もう一度お試しください。', flags: ['Ephemeral'] as const }
-            : { content: 'エラーが発生しました。もう一度お試しください。' };
+            ? { content: error instanceof CoreApiError ? error.message : 'エラーが発生しました。もう一度お試しください。', flags: ['Ephemeral'] as const }
+            : { content: error instanceof CoreApiError ? error.message : 'エラーが発生しました。もう一度お試しください。' };
           await context.interaction.reply(replyOptions);
         }
       } catch (replyError) {

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Client } from 'discord.js';
-import { createRemindTask, type RemindTask } from '../../src/models/RemindTask';
+import type { RemindTask } from '../../src/models/RemindTask';
+import { createRemindTask } from '../helpers/RemindTask';
 import { RemindTaskRefreshService } from '../../src/services/RemindTaskRefreshService';
 
 describe('RemindTaskRefreshService', () => {

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { Client } from 'discord.js';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import type { InventoryItem } from '../models/InventoryItem';
@@ -11,7 +10,7 @@ import { parseInventoryAddCsvText } from '../utils/InventoryParser';
 import { Logger } from '../utils/logger';
 
 interface InventoryServicePort {
-  create(channelId: string, item: InventoryItem): Promise<{ success: boolean; message?: string }>;
+  create(channelId: string, item: Omit<InventoryItem, 'id'>): Promise<{ success: boolean; message?: string }>;
 }
 
 interface InventoryRepositoryPort {
@@ -82,7 +81,6 @@ export class InventoryAddModalHandler extends BaseModalHandler {
 
     for (const item of parsed) {
       const result = await this.inventoryService.create(channelId, {
-        id: randomUUID(),
         name: item.name,
         stock: item.stock,
         category: unifiedCategory

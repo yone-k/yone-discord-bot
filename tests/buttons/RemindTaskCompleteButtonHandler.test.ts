@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskCompleteButtonHandler } from '../../src/buttons/RemindTaskCompleteButtonHandler';
 import { RemindTaskRepository } from '../../src/services/RemindTaskRepository';
-import { createRemindTask } from '../../src/models/RemindTask';
+import { createRemindTask } from '../helpers/RemindTask';
 import { Logger } from '../../src/utils/logger';
 import { parseCompletionInput } from '../../src/utils/RemindInventory';
 const now = new Date('2026-01-01T00:00:00Z');
@@ -35,7 +35,7 @@ function setup(consume = '0.3', inventoryName = '米'): {
 } {
   const t = task();
   t.inventoryItems[0].consume = consume;
-  const db = { findTaskByMessageId: vi.fn().mockResolvedValue({ ...t, channelId: '123', position: 0, description: null, overdueNotifyLimit: null }), complete: vi.fn().mockResolvedValue(undefined) };
+  const db = { findTaskByMessageId: vi.fn().mockResolvedValue({ ...t, channelId: '123', position: 0, description: null, overdueNotifyLimit: null }), complete: vi.fn().mockResolvedValue({ ...t, revision: '8', channelId: '123', position: 0, description: null, overdueNotifyLimit: null }) };
   const repository = new RemindTaskRepository(db as any);
   const messages = { updateTaskMessage: vi.fn().mockResolvedValue({ success: true }) };
   const metadata = { getChannelMetadata: vi.fn().mockResolvedValue({ success: true, metadata: { linkedInventoryChannelId: '789' } }) };
@@ -44,6 +44,15 @@ function setup(consume = '0.3', inventoryName = '米'): {
   return { handler, db, messages, interaction };
 }
 describe('task completion from Discord button through domain adapter', () => {
+  it('refreshes consumed inventory even when the completed task display rejects', async () => {
+    const x = setup();
+    const inventoryDisplay = (x.handler as any).inventoryMessageManager.createOrUpdateMessage;
+    x.messages.updateTaskMessage.mockRejectedValue(new Error('Discord unavailable'));
+    await x.handler.handle({ interaction: x.interaction } as any);
+    expect(x.db.complete).toHaveBeenCalledTimes(1);
+    expect(inventoryDisplay).toHaveBeenCalledTimes(1);
+    expect(x.interaction.editReply).toHaveBeenCalledWith({ content: expect.stringContaining('完了は保存されました') });
+  });
   it.each([' milk ', 'a,b', 'a"b', 'a\nb', 'a;b'])('prefills exact CSV completion name %j', async name => {
     const x = setup('0', name);
     await x.handler.handle({ interaction: x.interaction } as any);
@@ -57,7 +66,7 @@ describe('task completion from Discord button through domain adapter', () => {
   it('atomically completes before updating Discord', async () => {
     const x = setup();
     await x.handler.handle({ interaction: x.interaction } as any);
-    expect(x.db.complete).toHaveBeenCalledWith('123', 'task', '7', expect.any(Date), expect.any(Date), undefined);
+    expect(x.db.complete).toHaveBeenCalledWith('123', 'task', '7', undefined);
     expect(x.messages.updateTaskMessage).toHaveBeenCalled();
     expect(x.db.complete.mock.invocationCallOrder[0]).toBeLessThan(x.messages.updateTaskMessage.mock.invocationCallOrder[0]);
   });

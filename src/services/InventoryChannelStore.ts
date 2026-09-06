@@ -1,6 +1,6 @@
 import type { InventoryChannelMetadata } from '../models/InventoryChannelMetadata';
-import type { InventoryChannel, InventoryChannelRepository, OperationResult } from '../repositories/contracts';
-import { PostgresInventoryChannelRepository } from '../repositories/PostgresInventoryChannelRepository';
+import type { InventoryChannel, InventoryChannelRepository, OperationResult } from '../api/contracts';
+import { ApiInventoryChannelRepository } from '../api/Repositories';
 export type { InventoryChannelMetadata } from '../models/InventoryChannelMetadata';
 
 const toMetadata = (channel: InventoryChannel): InventoryChannelMetadata => ({
@@ -10,7 +10,7 @@ const toMetadata = (channel: InventoryChannel): InventoryChannelMetadata => ({
 
 export class InventoryChannelStore {
   private static instance: InventoryChannelStore | undefined;
-  constructor(private readonly repository: InventoryChannelRepository = new PostgresInventoryChannelRepository()) {}
+  constructor(private readonly repository: InventoryChannelRepository = new ApiInventoryChannelRepository()) {}
   static getInstance(): InventoryChannelStore { return this.instance ??= new InventoryChannelStore(); }
   async getChannelMetadata(channelId: string): Promise<InventoryChannelMetadata | null> {
     const channel = await this.repository.get(channelId);

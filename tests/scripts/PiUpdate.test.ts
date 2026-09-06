@@ -8,12 +8,17 @@ import { once } from 'node:events';
 const repo = 'ghcr.io/yone-k/yone-discord-bot';
 const old = `${repo}@sha256:${'a'.repeat(64)}`;
 const next = `${repo}@sha256:${'b'.repeat(64)}`;
+const commandTimeoutMs = 15000;
+// A scenario invokes at most three bounded lifecycle commands (for example,
+// initialize, failed update, retry). Include 5s for fixture and assertion work.
+const scenarioTimeoutMs = commandTimeoutMs * 3 + 5000;
 let dir: string;
 let bin: string;
 type Fixture = {
   current: string; target: string; failed: string[];
   pullFail?: boolean; configFail?: boolean; stopFail?: boolean; busy?: boolean; missing?: boolean;
-  starting?: string[]; platform?: string; upFail?: string[]; incompatible?: string[];
+  starting?: string[]; platform?: string; upFail?: string[]; incompatible?: string[]; apiCurrent?: string; failedService?: string;
+  stopFailImage?: string; stopFailService?: string; interruptOnStart?: boolean;
 };
 let fixture: Fixture;
 
@@ -35,14 +40,16 @@ if(a[0] === 'image' && a[1] === 'inspect') {
 if(a[0] === 'compose') {
   if(a.includes('run')) finish(s.incompatible?.includes(process.env.BOT_IMAGE) ? 1 : 0);
   if(a.includes('config')) finish(s.configFail ? 1 : 0);
-  if(a.includes('ps')) finish(0, s.missing ? '' : 'container');
-  if(a.includes('stop')) { if(s.stopFail) finish(1); s.stopped=true; fs.writeFileSync(f,JSON.stringify(s)); finish(); }
-  if(a.includes('up')) { if(s.upFail?.includes(process.env.BOT_IMAGE)) finish(1); s.current=process.env.BOT_IMAGE; s.stopped=false; fs.writeFileSync(f,JSON.stringify(s)); finish(); }
+  if(a.includes('ps')) finish(0, s.missing ? '' : a[a.length-1]);
+  if(a.includes('stop')) { if(s.stopFail || s.stopFailImage===process.env.BOT_IMAGE || s.stopFailService===a[a.length-1]) finish(1); s['stopped_'+a[a.length-1]]=true; fs.writeFileSync(f,JSON.stringify(s)); finish(); }
+  if(a.includes('up')) { if(s.interruptOnStart) { process.kill(process.ppid,'SIGTERM'); finish(1); } if(s.upFail?.includes(process.env.BOT_IMAGE)) finish(1); if(a[a.length-1]==='api') s.apiCurrent=process.env.BOT_IMAGE; else s.current=process.env.BOT_IMAGE; s['stopped_'+a[a.length-1]]=false; fs.writeFileSync(f,JSON.stringify(s)); finish(); }
 }
 if(a[0] === 'inspect') {
-  const state=s.stopped?'exited':'running';
-  const health=s.starting?.includes(s.current)?'starting':s.failed.includes(s.current)?'unhealthy':'healthy';
-  finish(0, s.current+'|'+state+'|'+health);
+  const service=a[a.length-1];
+  const current=service==='api'?(s.apiCurrent||s.current):s.current;
+  const state=s['stopped_'+service]?'exited':'running';
+  const health=s.starting?.includes(current)?'starting':(s.failed.includes(current)||s.failedService===service&&current===s.target)?'unhealthy':'healthy';
+  finish(0, current+'|'+state+'|'+health);
 }
 finish(2);
 `;
@@ -67,7 +74,7 @@ afterEach(() => rmSync(dir, { recursive: true, force: true }));
 function run(...args: string[]): ReturnType<typeof spawnSync> {
   writeFileSync(join(dir, 'docker.json'), JSON.stringify(fixture));
   const result = spawnSync('/bin/bash', [join(dir, 'scripts/pi-update.sh'), ...args], {
-    cwd: dir, encoding: 'utf8', timeout: 15000,
+    cwd: dir, encoding: 'utf8', timeout: commandTimeoutMs,
     env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, FIXTURE_DIR: dir }
   });
   fixture = JSON.parse(readFileSync(join(dir, 'docker.json'), 'utf8'));
@@ -82,19 +89,77 @@ function initialize(): void { expect(run('--initialize', old).status).toBe(0); }
 function clearCalls(): void { writeFileSync(join(dir, 'calls'), ''); }
 function upCalls(): string[][] { return calls().filter(c => c.includes('up')); }
 
-describe('Pi update lifecycle', () => {
+describe('Pi update lifecycle', { timeout: scenarioTimeoutMs }, () => {
+  it('stops Bot then API and starts healthy API before Bot', () => {
+    initialize(); clearCalls();
+    expect(run().status).toBe(0);
+    expect(calls().filter(c => c.includes('stop') || c.includes('up')).map(c => `${c.includes('stop') ? 'stop' : 'up'} ${c.at(-1)}`))
+      .toEqual(['stop bot', 'stop api', 'up api', 'up bot']);
+    expect(fixture.apiCurrent).toBe(next);
+    expect(fixture.current).toBe(next);
+  });
+  it.each(['api', 'bot'])('rolls both services back if %s is unhealthy', service => {
+    initialize(); clearCalls(); fixture.failedService = service;
+    expect(run().status).not.toBe(0);
+    expect(fixture.apiCurrent).toBe(old);
+    expect(fixture.current).toBe(old);
+    expect(state()).toContain('blocked=0');
+  });
+  it('refuses initial acceptance when the API uses a different digest', () => {
+    fixture.apiCurrent = next;
+    expect(run('--initialize', old).status).not.toBe(0);
+  });
+  it('archives an old state and accepts the v2 pair without a previous digest', () => {
+    initialize();
+    writeFileSync(join(dir, '.deploy-state/ci-disabled'), '');
+    expect(run('--block').status).toBe(0);
+    fixture.current = next; fixture.apiCurrent = next;
+    expect(run('--accept-v2', next).status).toBe(0);
+    expect(state()).toContain(`current=${next}\nprevious=\n`);
+    expect(readFileSync(join(dir, '.deploy-state/state.before-v2'), 'utf8')).toContain(`current=${old}`);
+  });
+  it('persists blocked immediately when an in-progress process receives TERM', () => {
+    initialize(); fixture.interruptOnStart = true;
+    expect(run().status).not.toBe(0);
+    expect(state()).toContain('blocked=1');
+    expect(state()).toContain('pending=1');
+  });
+  it('blocks before rollback when the failed candidate cannot be stopped', () => {
+    initialize(); fixture.failedService = 'bot'; fixture.stopFailImage = next; clearCalls();
+    expect(run().status).not.toBe(0);
+    expect(state()).toContain('blocked=1');
+    expect(fixture.apiCurrent).toBe(next);
+    expect(upCalls()).toHaveLength(2);
+  });
+  it('blocks when API stop fails after successfully stopping Bot', () => {
+    initialize(); fixture.stopFailService = 'api'; clearCalls();
+    expect(run().status).not.toBe(0);
+    expect(state()).toContain('blocked=1');
+    expect(upCalls()).toHaveLength(0);
+  });
+  it.each(['ci-enabled', 'unblocked', 'mismatched-api', 'schema', 'archived'])('refuses unsafe v2 acceptance: %s', reason => {
+    initialize();
+    if (reason !== 'ci-enabled') writeFileSync(join(dir, '.deploy-state/ci-disabled'), '');
+    if (reason !== 'unblocked') expect(run('--block').status).toBe(0);
+    fixture.current = next; fixture.apiCurrent = reason === 'mismatched-api' ? old : next;
+    if (reason === 'schema') fixture.incompatible = [next];
+    if (reason === 'archived') writeFileSync(join(dir, '.deploy-state/state.before-v2'), 'preserved');
+    expect(run('--accept-v2', next).status).not.toBe(0);
+    expect(state()).toContain(`current=${old}`);
+  });
+
   it('refuses a schema-incompatible candidate before replacing the running Bot', () => {
     initialize(); fixture.incompatible = [next]; clearCalls();
     expect(run().status).not.toBe(0);
     expect(upCalls()).toHaveLength(0);
     expect(fixture.current).toBe(old);
   });
-  it('never rolls back to a Sheets image without the DB schema checker', () => {
+  it('never rolls back to an incompatible image without the DB schema checker', () => {
     initialize(); fixture.incompatible = [old]; fixture.failed = [next]; clearCalls();
     expect(run().status).not.toBe(0);
     expect(upCalls()).toHaveLength(0);
   });
-  it('rejects manual recovery to an incompatible or Sheets image', () => {
+  it('rejects manual recovery to an incompatible image', () => {
     initialize(); fixture.incompatible = [next]; clearCalls();
     expect(run('--recover', next).status).not.toBe(0);
     expect(upCalls()).toHaveLength(0);
@@ -174,7 +239,7 @@ describe('Pi update lifecycle', () => {
     initialize(); fixture.failed = [next]; fixture.stopFail = true;
     expect(run().status).not.toBe(0);
     expect(state()).toContain('blocked=1');
-    expect(upCalls()).toHaveLength(1);
+    expect(upCalls()).toHaveLength(0);
   });
   it('does not restart an unchanged unhealthy bot', () => {
     initialize(); fixture.target = old; fixture.failed = [old]; clearCalls();
@@ -241,7 +306,7 @@ describe('Pi update lifecycle', () => {
     expect(run().status).toBe(1);
     expect(fixture.current).toBe(old);
     expect(state()).toContain('blocked=0');
-    expect(upCalls()).toHaveLength(2);
+    expect(upCalls()).toHaveLength(3);
   });
   it('requires explicit retry before applying a previously rejected version', () => {
     initialize(); fixture.failed = [next];

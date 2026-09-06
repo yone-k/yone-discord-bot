@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskUpdateOverrideModalHandler } from '../../src/modals/RemindTaskUpdateOverrideModalHandler';
 import { Logger } from '../../src/utils/logger';
-import { createRemindTask } from '../../src/models/RemindTask';
+import { createRemindTask } from '../helpers/RemindTask';
 
 describe('RemindTaskUpdateOverrideModalHandler', () => {
   it('overrides last done, next due, and limit using modal input', async () => {
@@ -21,7 +21,7 @@ describe('RemindTaskUpdateOverrideModalHandler', () => {
 
     const mockRepository = {
       findTaskByMessageId: vi.fn().mockResolvedValue(task),
-      patchTask: vi.fn().mockResolvedValue({ success: true })
+      patchTask: vi.fn().mockResolvedValue({ success: true, task: { ...task, revision: '1' } })
     };
     const mockMessageManager = {
       updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
@@ -60,8 +60,8 @@ describe('RemindTaskUpdateOverrideModalHandler', () => {
     const updatedTask = { ...task, ...mockRepository.patchTask.mock.calls[0][2] };
     const expectedLastDoneAt = new Date('2025-12-01T09:00:00+09:00');
     const expectedNextDueAt = new Date('2026-01-01T09:00:00+09:00');
-    expect(updatedTask.lastDoneAt?.getTime()).toBe(expectedLastDoneAt.getTime());
-    expect(updatedTask.nextDueAt.getTime()).toBe(expectedNextDueAt.getTime());
+    expect(new Date(updatedTask.lastDoneAt!).getTime()).toBe(expectedLastDoneAt.getTime());
+    expect(new Date(updatedTask.nextDueAt).getTime()).toBe(expectedNextDueAt.getTime());
     expect(updatedTask.overdueNotifyLimit).toBe(2);
     expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();
   });
@@ -85,7 +85,7 @@ describe('RemindTaskUpdateOverrideModalHandler', () => {
 
     const mockRepository = {
       findTaskByMessageId: vi.fn().mockResolvedValue(task),
-      patchTask: vi.fn().mockResolvedValue({ success: true })
+      patchTask: vi.fn().mockResolvedValue({ success: true, task: { ...task, revision: '1' } })
     };
     const mockMessageManager = {
       updateTaskMessage: vi.fn().mockResolvedValue({ success: true })

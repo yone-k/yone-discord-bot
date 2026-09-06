@@ -51,11 +51,13 @@ export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
     if (!task) {
       return { success: false, message: 'タスクが見つかりません' };
     }
-    if (context.interaction.customId.split(':')[2] !== task.revision) return { success: false, message: 'タスクが変更されました。開き直してください。' };
+    const expectedRevision = context.interaction.customId.split(':')[2];
+    if (!expectedRevision) return { success: false, message: 'タスクが変更されました。開き直してください。' };
+    task.revision = expectedRevision;
 
 
-    let lastDoneAt: Date | undefined;
-    let nextDueAt: Date | undefined;
+    let lastDoneAt: string | undefined;
+    let nextDueAt: string | undefined;
     const limitText = context.interaction.fields.getTextInputValue('overdue-notify-limit').trim();
     let overdueNotifyLimit: number | undefined;
     try {
@@ -87,35 +89,12 @@ export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
       return { success: false, message: '前回完了日、次回期限、上限回数のいずれかを入力してください' };
     }
 
-    const shouldResetNotifications = !!lastDoneAt || !!nextDueAt;
-    const resolvedLastDoneAt = lastDoneAt ?? task.lastDoneAt;
-    const resolvedNextDueAt = nextDueAt ?? task.nextDueAt;
-
-    if (resolvedLastDoneAt && resolvedLastDoneAt.getTime() > resolvedNextDueAt.getTime()) {
-      return { success: false, message: '前回完了日は次回期限より前の日付を指定してください' };
-    }
-
-    const now = new Date();
-    const updatedTask = {
-      ...task,
-      lastDoneAt: resolvedLastDoneAt,
-      nextDueAt: resolvedNextDueAt,
-      overdueNotifyLimit,
-      lastRemindDueAt: shouldResetNotifications ? null : task.lastRemindDueAt,
-      overdueNotifyCount: shouldResetNotifications ? 0 : task.overdueNotifyCount,
-      lastOverdueNotifiedAt: shouldResetNotifications ? null : task.lastOverdueNotifiedAt,
-      updatedAt: now
-    };
-
     const updateResult = await this.repository.patchTask(channelId, task, {
-      lastDoneAt: resolvedLastDoneAt, nextDueAt: resolvedNextDueAt, overdueNotifyLimit: overdueNotifyLimit ?? null,
-      ...(shouldResetNotifications ? { lastRemindDueAt: null, overdueNotifyCount: 0, lastOverdueNotifiedAt: null } : {})
+      ...(lastDoneAt ? { lastDoneAt } : {}),
+      ...(nextDueAt ? { nextDueAt } : {}),
+      overdueNotifyLimit: overdueNotifyLimit ?? null
     });
-    if (!updateResult.success) {
-      return { success: false, message: updateResult.message };
-    }
-
-    await this.messageManager.updateTaskMessage(channelId, messageId, updatedTask, context.interaction.client, now);
+    await this.messageManager.updateTaskMessage(channelId, messageId, updateResult.task, context.interaction.client, new Date());
 
     return { success: true };
   }
@@ -125,7 +104,7 @@ export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
     return parts.length >= 2 && parts[1] ? parts[1] : null;
   }
 
-  private parseOverrideDate(input: string, fallbackTimeOfDay: string, label: string): Date | undefined {
+  private parseOverrideDate(input: string, fallbackTimeOfDay: string, label: string): string | undefined {
     const trimmed = input.trim();
     if (trimmed === '') {
       return undefined;
@@ -143,21 +122,6 @@ export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
     const normalizedTime = normalizeTimeOfDay(timeOfDay);
     const [hours, minutes] = normalizedTime.split(':').map((value) => Number(value));
 
-    const iso = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00+09:00`;
-    const date = new Date(iso);
-    if (isNaN(date.getTime())) {
-      throw new Error(`${label}が無効です`);
-    }
-
-    const tokyoDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-    if (
-      tokyoDate.getUTCFullYear() !== year
-      || tokyoDate.getUTCMonth() + 1 !== month
-      || tokyoDate.getUTCDate() !== day
-    ) {
-      throw new Error(`${label}が無効です`);
-    }
-
-    return date;
+    return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00.000+09:00`;
   }
 }

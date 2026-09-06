@@ -2,7 +2,7 @@ import { BaseCommand, CommandExecutionContext } from '../base/BaseCommand';
 import { Logger } from '../utils/logger';
 import { MessageManager } from '../services/MessageManager';
 import { ListChannelStore } from '../services/ListChannelStore';
-import { PostgresListRepository } from '../repositories/PostgresListRepository';
+import { ApiListRepository } from '../api/Repositories';
 import { ListInitializationService } from '../services/ListInitializationService';
 import { validateCategory, DEFAULT_CATEGORY } from '../models/CategoryType';
 import { SlashCommandBuilder } from 'discord.js';
@@ -13,7 +13,7 @@ export class InitListCommand extends BaseCommand {
     return builder.addStringOption(option => option.setName('default-category').setDescription('デフォルトカテゴリーを設定します').setRequired(false))
       .addBooleanOption(option => option.setName('enable-log').setDescription('操作ログを有効にします').setRequired(false)) as SlashCommandBuilder;
   }
-  constructor(logger: Logger, private metadataManager: ListChannelStore = ListChannelStore.getInstance(), private listInitializationService: ListInitializationService = new ListInitializationService(new PostgresListRepository(), new MessageManager(), metadataManager)) {
+  constructor(logger: Logger, private metadataManager: ListChannelStore = ListChannelStore.getInstance(), private listInitializationService: ListInitializationService = new ListInitializationService(new ApiListRepository(), new MessageManager(), metadataManager)) {
     super('init-list', 'リストの初期化を行います', logger);
     this.deleteOnSuccess = true;
     this.ephemeral = true;

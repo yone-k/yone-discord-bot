@@ -9,13 +9,13 @@ describe('在庫編集snapshot', () => {
     const saved = parseInventoryEditCsv(csv.replace('洗剤', '石鹸'), original);
     expect(saved).toEqual([{ ...original[0], name: '石鹸' }]);
   });
-  it('変更数量だけを1桁丸めし、新規行にはIDを付ける', () => {
+  it('変更数量の精度を維持し、新規行はAPIの採番に任せる', () => {
     const saved = parseInventoryEditCsv('1,洗剤,1.26,\n,米,3.45,食品', original);
-    expect(saved[0].stock).toBe('1.3');
-    expect(saved[1]).toMatchObject({ name: '米', stock: '3.5', category: '食品' });
-    expect(saved[1].id).not.toBe(original[0].id);
+    expect(saved[0].stock).toBe('1.26');
+    expect(saved[1]).toMatchObject({ name: '米', stock: '3.45', category: '食品' });
+    expect(saved[1].id).toBe('');
   });
-  it.each(['2,洗剤,1,', '1,洗剤,1,\n1,米,2,', '1,洗剤,1,\n,洗剤,2,'])('不正番号と重複は全拒否 %s', csv => expect(() => parseInventoryEditCsv(csv, original)).toThrow());
+  it.each(['2,洗剤,1,', '1,洗剤,1,\n1,米,2,'])('不正番号と重複は全拒否 %s', csv => expect(() => parseInventoryEditCsv(csv, original)).toThrow());
   it('利用者・チャンネル・期限を照合する', () => {
     const store = new InventoryEditSession(1000);
     const token = store.open('1', '2', original, 0);

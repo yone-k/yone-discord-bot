@@ -2,7 +2,7 @@ import { Logger } from '../utils/logger';
 import { CommandExecutionContext } from '../base/BaseCommand';
 import { MessageManager } from './MessageManager';
 import { ListChannelStore } from './ListChannelStore';
-import { ListRepository } from '../repositories/contracts';
+import { ListRepository } from '../api/contracts';
 import { ListFormatter } from '../ui/ListFormatter';
 import { toDisplayListItem } from '../utils/ListInput';
 import { CategoryType } from '../models/CategoryType';

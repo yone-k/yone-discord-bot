@@ -1,3 +1,13 @@
+FROM --platform=$BUILDPLATFORM golang:1.27.1-alpine AS go-builder
+ARG TARGETOS
+ARG TARGETARCH
+WORKDIR /src/backend
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+COPY backend/ ./
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -o /out/core-api ./cmd/api && \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -o /out/db-migrate ./cmd/db-migrate
+
 # Build stage
 FROM node:24-alpine AS builder
 
@@ -20,7 +30,7 @@ FROM node:24-alpine AS production
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S discord-bot -u 1001
+    adduser -S discord-bot -u 1001 && apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 
@@ -28,11 +38,12 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/db ./db
+COPY --from=go-builder /out/ ./bin/
 
 # Change ownership to non-root user
 RUN chown -R discord-bot:nodejs /app

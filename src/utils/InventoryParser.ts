@@ -1,7 +1,5 @@
 import type { InventoryItem } from '../models/InventoryItem';
 import { DEFAULT_CATEGORY } from '../models/CategoryType';
-import { formatDecimal, normalizeDecimal } from './Decimal';
-import { randomUUID } from 'node:crypto';
 import { parseCsvRecords, quoteCsvCell } from './Csv';
 export interface InventoryAddCsvItem {
     name: string;
@@ -23,10 +21,7 @@ const parseNameAndStock = (name: string, stockText: string, index: number): Inve
   if (!/^-?\d+(?:\.\d+)?$/.test(stockText)) {
     throw new Error(`${index + 1}行目: 在庫数は数値で入力してください`);
   }
-  if (stockText.startsWith('-')) {
-    throw new Error(`${index + 1}行目: 在庫数は0以上で入力してください`);
-  }
-  const stock = formatDecimal(stockText);
+  const stock = stockText;
   return {
     name,
     stock,
@@ -76,7 +71,7 @@ export function formatInventoryEditCsv(items: InventoryItem[], defaultCategory?:
   return orderInventoryItemsForCsv(items, defaultCategory).map(item => [numbers.get(item.id)!, item.name, item.stock, item.category].map(quoteCsvCell).join(',')).join('\n');
 }
 export function parseInventoryEditCsv(text: string, original: InventoryItem[]): InventoryItem[] {
-  const used = new Set<string>(), names = new Set<string>();
+  const used = new Set<string>();
   return parseCsvRecords(text).map(({ cells, line }) => {
     try {
       if (cells.length !== 4)
@@ -84,10 +79,7 @@ export function parseInventoryEditCsv(text: string, original: InventoryItem[]): 
       const [number, name, stock, category] = cells;
       if (!name)
         throw new Error('名前は必須です');
-      if (names.has(name))
-        throw new Error('名前が重複しています');
-      names.add(name);
-      const normalized = normalizeDecimal(stock);
+      if (!/^-?\d+(?:\.\d+)?$/.test(stock)) throw new Error('在庫数は数値で入力してください');
       let previous: InventoryItem | undefined;
       if (number) {
         if (!/^[1-9]\d*$/.test(number) || !Number.isSafeInteger(Number(number)) || Number(number) > original.length)
@@ -97,7 +89,7 @@ export function parseInventoryEditCsv(text: string, original: InventoryItem[]): 
         used.add(number);
         previous = original[Number(number) - 1];
       }
-      return { id: previous?.id || randomUUID(), name, stock: previous && normalizeDecimal(previous.stock) === normalized ? previous.stock : formatDecimal(stock), category };
+      return { id: previous?.id || '', name, stock, category };
     }
     catch (error) {
       throw new Error(`${line}行目: ${error instanceof Error ? error.message : '入力が不正です'}`);

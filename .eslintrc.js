@@ -1,4 +1,5 @@
 module.exports = {
+  ignorePatterns: ['src/api/generated/**'],
   env: {
     browser: true,
     es2021: true,

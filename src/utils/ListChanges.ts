@@ -1,4 +1,4 @@
-import { ListEditItem } from '../repositories/contracts';
+import { ListEditItem } from '../api/contracts';
 import { OperationDetails } from '../models/types/OperationLog';
 import { toDisplayListItem } from './ListInput';
 export function listChanges(before: ListEditItem[], after: ListEditItem[]): OperationDetails['changes'] {

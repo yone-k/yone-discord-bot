@@ -9,9 +9,7 @@ import { OperationLogService } from '../services/OperationLogService';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
-import { calculateNextDueAt } from '../utils/RemindSchedule';
 import { compareDecimal } from '../utils/Decimal';
-import { type ConsumeForTaskResult } from '../services/InventoryService';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
 import { RemindTaskRefreshService } from '../services/RemindTaskRefreshService';
@@ -77,6 +75,7 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
   protected async executeAction(context: ButtonHandlerContext): Promise<OperationResult> {
     const interaction = context.interaction;
     let hasDeferredReply = Boolean(interaction.deferred);
+    let completionSaved = false;
 
     const replyError = async (message: string): Promise<OperationResult> => {
       try {
@@ -113,31 +112,15 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
       }
 
       const now = new Date();
-      const nextDueAt = calculateNextDueAt(
-        {
-          intervalDays: task.intervalDays,
-          timeOfDay: task.timeOfDay,
-          startAt: task.startAt,
-          lastDoneAt: now
-        },
-        now
-      );
-
-      const updatedTask = {
-        ...task,
-        lastDoneAt: now,
-        nextDueAt,
-        lastRemindDueAt: null,
-        overdueNotifyCount: 0,
-        lastOverdueNotifiedAt: null,
-        updatedAt: now
-      };
-
-      await this.repository.complete(channelId, task, now, nextDueAt);
-      const latest = await this.repository.findTaskByMessageId(channelId, messageId);
-      await this.messageManager.updateTaskMessage(channelId, messageId, latest ?? updatedTask, interaction.client, now);
-      const metadata = await this.metadataManager?.getChannelMetadata(channelId);
-      await this.refreshInventoryMessage({ kind: 'success', linkedInventoryChannelId: metadata?.metadata?.linkedInventoryChannelId }, interaction.client, messageId);
+      const latest = await this.repository.complete(channelId, task);
+      completionSaved = true;
+      try {
+        const rendered = await this.messageManager.updateTaskMessage(channelId, messageId, latest, interaction.client, now);
+        if (!rendered.success) throw new Error('表示更新に失敗しました');
+      } finally {
+        const metadata = await this.metadataManager?.getChannelMetadata(channelId);
+        await this.refreshInventoryMessage({ linkedInventoryChannelId: metadata?.metadata?.linkedInventoryChannelId }, interaction.client, messageId);
+      }
 
       try {
         await interaction.deleteReply();
@@ -147,7 +130,7 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
 
       return { success: true };
     } catch (error) {
-      return await replyError(error instanceof Error ? error.message : '処理中にエラーが発生しました');
+      return await replyError(completionSaved ? '完了は保存されましたが、タスクまたは在庫の表示更新に失敗しました。完了操作を繰り返さず、初期化で再表示してください。' : error instanceof Error ? error.message : '処理中にエラーが発生しました');
     }
   }
 
@@ -213,11 +196,11 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
   }
 
   private async refreshInventoryMessage(
-    inventoryResult: ConsumeForTaskResult,
+    inventoryResult: { linkedInventoryChannelId?: string },
     client: ButtonHandlerContext['interaction']['client'],
     messageId: string
   ): Promise<void> {
-    if (inventoryResult.kind !== 'success' || !inventoryResult.linkedInventoryChannelId) {
+    if (!inventoryResult.linkedInventoryChannelId) {
       return;
     }
 

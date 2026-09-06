@@ -6,22 +6,28 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 if [ -f "$root/.env.storage" ]; then set -a; . "$root/.env.storage"; set +a; fi
 : "${BOT_IMAGE:?Set the selected GHCR digest}"
+role=${1:-bot}
+case "$role" in
+  bot) names='DISCORD_BOT_TOKEN CLIENT_ID CORE_API_URL CORE_API_TOKEN NODE_ENV'; count=5; target=.env ;;
+  api) names='DATABASE_URL CORE_API_TOKEN'; count=2; target=.env.api ;;
+  *) exit 1 ;;
+esac
 temp=$(mktemp "$root/.env.XXXXXX")
 trap 'rm -f "$temp"' EXIT
 cat > "$temp"
-# The producer emits these four complete lines, with NODE_ENV last. Reject EOF
-# partway through a transfer before asking Compose to parse the temporary file.
-[ "$(wc -l < "$temp" | tr -d ' ')" = 4 ] || exit 1
+# Reject a truncated transfer before parsing or replacing the role file.
+[ "$(wc -l < "$temp" | tr -d ' ')" = "$count" ] || exit 1
 {
-  for name in DISCORD_BOT_TOKEN CLIENT_ID DATABASE_URL NODE_ENV; do
+  for name in $names; do
     IFS= read -r line || exit 1
     case "$line" in "$name=\""*'"') ;; *) exit 1 ;; esac
     [ "$line" != "$name=\"\"" ] || exit 1
   done
-  [ "$line" = 'NODE_ENV="production"' ] || exit 1
+  [ "$role" != bot ] || [ "$line" = 'NODE_ENV="production"' ] || exit 1
 } < "$temp"
-BOT_ENV_FILE="$temp" docker compose --env-file "$temp" --project-directory "$root" \
+if [ "$role" = bot ]; then export BOT_ENV_FILE="$temp"; else export API_ENV_FILE="$temp"; fi
+docker compose --env-file "$temp" --project-directory "$root" \
   -f "$root/docker-compose.yml" -p discord-bot config --quiet >/dev/null 2>&1
 chmod 600 "$temp"
-mv -f "$temp" "$root/.env"
-printf '%s\n' 'Configuration installed; recreate the bot explicitly to apply it'
+mv -f "$temp" "$root/$target"
+printf '%s\n' 'Configuration installed; recreate both services explicitly to apply it'

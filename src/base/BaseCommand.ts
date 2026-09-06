@@ -1,3 +1,4 @@
+import { withInteractionDeadline, CoreApiError } from '../api/CoreClient';
 import { ChatInputCommandInteraction, ThreadChannel, SlashCommandBuilder } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { CommandError, CommandErrorType } from '../utils/CommandError';
@@ -63,7 +64,7 @@ export abstract class BaseCommand {
         executionContext = { ...context, thread };
       }
 
-      await this.execute(executionContext);
+      await withInteractionDeadline(context?.interaction, () => this.execute(executionContext));
       
       // コマンド成功時、削除オプションが有効な場合はスレッド全体と初期メッセージを削除
       if (this.deleteOnSuccess && this.useThread && context?.interaction) {
@@ -106,7 +107,7 @@ export abstract class BaseCommand {
           CommandErrorType.EXECUTION_FAILED,
           this.name,
           `Command execution failed: ${error.message}`,
-          undefined,
+          error instanceof CoreApiError ? error.message : undefined,
           error
         );
       } else {

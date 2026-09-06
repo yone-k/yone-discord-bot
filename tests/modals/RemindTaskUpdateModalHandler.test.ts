@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskUpdateModalHandler } from '../../src/modals/RemindTaskUpdateModalHandler';
 import { Logger } from '../../src/utils/logger';
-import { createRemindTask } from '../../src/models/RemindTask';
+import { createRemindTask } from '../helpers/RemindTask';
 
 describe('RemindTaskUpdateModalHandler', () => {
   it('updates task from modal input', async () => {

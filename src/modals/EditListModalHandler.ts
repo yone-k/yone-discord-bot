@@ -1,7 +1,7 @@
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import { Logger } from '../utils/logger';
-import { ListRepository, RepositoryError } from '../repositories/contracts';
-import { PostgresListRepository } from '../repositories/PostgresListRepository';
+import { ListRepository, RepositoryError } from '../api/contracts';
+import { ApiListRepository } from '../api/Repositories';
 import { MessageManager } from '../services/MessageManager';
 import { ListChannelStore } from '../services/ListChannelStore';
 import { OperationLogService } from '../services/OperationLogService';
@@ -10,7 +10,7 @@ import { parseListCsv } from '../utils/ListInput';
 import { redrawList } from '../utils/ListDisplay';
 import { listChanges, listLogItems } from '../utils/ListChanges';
 export class EditListModalHandler extends BaseModalHandler {
-  constructor(logger: Logger, private repository: ListRepository = new PostgresListRepository(), private messageManager: MessageManager = new MessageManager(), metadataManager: ListChannelStore = ListChannelStore.getInstance(), operationLogService?: OperationLogService) {
+  constructor(logger: Logger, private repository: ListRepository = new ApiListRepository(), private messageManager: MessageManager = new MessageManager(), metadataManager: ListChannelStore = ListChannelStore.getInstance(), operationLogService?: OperationLogService) {
     super('edit-list-modal', logger, operationLogService, metadataManager);
   }
   public shouldHandle(context: ModalHandlerContext): boolean {

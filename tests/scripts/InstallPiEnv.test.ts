@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 
 let dir: string;
 const content = ['DISCORD_BOT_TOKEN="dummy"', 'CLIENT_ID="123"',
-  'DATABASE_URL="postgresql://bot:dummy@db/discord_bot"', 'NODE_ENV="production"'].join('\n') + '\n';
+  'CORE_API_URL="http://api:8080"', 'CORE_API_TOKEN="synthetic-token"', 'NODE_ENV="production"'].join('\n') + '\n';
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'install-pi-env-'));
   mkdirSync(join(dir, 'scripts')); mkdirSync(join(dir, 'bin'));
@@ -35,4 +35,16 @@ it('preserves existing configuration if Compose validation fails', () => {
   expect(result.status).not.toBe(0);
   expect(readFileSync(join(dir, '.env'), 'utf8')).toBe('existing');
   expect(`${result.stdout}${result.stderr}`).not.toContain('dummy');
+});
+
+it('installs the API role to its own file while retaining Bot configuration', () => {
+  const input = 'DATABASE_URL="postgresql://bot:dummy@db/discord_bot"\nCORE_API_TOKEN="synthetic-token"\n';
+  const result = spawnSync('/bin/bash', [join(dir, 'scripts/install-pi-env.sh'), 'api'], {
+    input, encoding: 'utf8', env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}`,
+      BOT_IMAGE: `ghcr.io/yone-k/yone-discord-bot@sha256:${'a'.repeat(64)}` }
+  });
+  expect(result.status).toBe(0);
+  expect(readFileSync(join(dir, '.env.api'), 'utf8')).toBe(input);
+  expect(readFileSync(join(dir, '.env'), 'utf8')).toBe('existing');
+  expect(statSync(join(dir, '.env.api')).mode & 0o777).toBe(0o600);
 });

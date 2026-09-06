@@ -1,0 +1,11 @@
+package: generated
+compatibility:
+  always-prefix-enum-values: true
+generate:
+  models: true
+  std-http-server: true
+  strict-server: true
+  embedded-spec: true # Request validation loads this exact compiled contract.
+output-options:
+  nullable-type: true
+output: internal/transport/http/generated/api.gen.go

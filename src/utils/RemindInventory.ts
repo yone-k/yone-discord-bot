@@ -1,6 +1,6 @@
 import { parseCsvRecords } from './Csv';
 import type { ShortageItem } from '../services/InventoryService';
-import { normalizeDecimal, formatDecimal, subtractDecimal, compareDecimal } from './Decimal';
+import { formatDecimal, subtractDecimal, compareDecimal } from './Decimal';
 export interface InventoryInputItem {
   name: string;
   stock?: string;
@@ -8,24 +8,22 @@ export interface InventoryInputItem {
 }
 
 const parseInventoryNumber = (token: string, label: string): string | null => {
-  const pattern = new RegExp(`^${label}\\s*[:=]?\\s*(\\d+(?:\\.\\d+)?)$`);
+  const pattern = new RegExp(`^${label}\\s*[:=]?\\s*(-?\\d+(?:\\.\\d+)?)$`);
   const match = token.match(pattern);
   if (!match) {
     return null;
   }
-  return normalizeDecimal(match[1]);
+  return match[1];
 };
 
 const parseNumericToken = (token: string): string | null => {
-  if (!/^\d+(?:\.\d+)?$/.test(token)) {
+  if (!/^-?\d+(?:\.\d+)?$/.test(token)) {
     return null;
   }
-  return normalizeDecimal(token);
+  return token;
 };
 
-const roundInventoryValue = formatDecimal;
-
-export const parseInventoryInput = (input: string, options: { preservePrecision?: boolean } = {}): InventoryInputItem[] => {
+export const parseInventoryInput = (input: string): InventoryInputItem[] => {
   if (!input) {
     return [];
   }
@@ -70,31 +68,12 @@ export const parseInventoryInput = (input: string, options: { preservePrecision?
     if (consume === null) {
       throw new Error('消費が不足しています');
     }
-    const roundedConsume = options.preservePrecision ? consume : roundInventoryValue(consume);
-    if (compareDecimal(roundedConsume, '0') < 0) {
-      throw new Error('消費は0以上の数値で入力してください');
-    }
-    const roundedStock = stock === null ? undefined : options.preservePrecision ? stock : roundInventoryValue(stock);
-    if (roundedStock !== undefined && (compareDecimal(roundedStock, '0') < 0)) {
-      throw new Error('在庫は0以上の数値で入力してください');
-    }
-
-    return { name, stock: roundedStock, consume: roundedConsume };
+    return { name, stock: stock ?? undefined, consume };
   });
-
-  const seen = new Set<string>();
-  for (const item of items) {
-    const key = item.name;
-    if (seen.has(key)) {
-      throw new Error('アイテム名が重複しています');
-    }
-    seen.add(key);
-  }
-
   return items;
 };
 
-export const parseCompletionInput = (input: string, options: { preservePrecision?: boolean } = {}): Array<{ name: string; consume: string | null }> => {
+export const parseCompletionInput = (input: string): Array<{ name: string; consume: string | null }> => {
   if (!input) {
     return [];
   }
@@ -117,21 +96,12 @@ export const parseCompletionInput = (input: string, options: { preservePrecision
     }
 
     const consume = parseNumericToken(consumeToken);
-    if (consume === null || compareDecimal(consume, '0') < 0) {
-      throw new Error('消費は0以上の数値で入力してください');
+    if (consume === null) {
+      throw new Error('消費は数値で入力してください');
     }
 
-    return { name, consume: options.preservePrecision ? consume : formatDecimal(consume) };
+    return { name, consume: consume };
   });
-
-  const seen = new Set<string>();
-  for (const item of items) {
-    if (seen.has(item.name)) {
-      throw new Error('アイテム名が重複しています');
-    }
-    seen.add(item.name);
-  }
-
   return items;
 };
 

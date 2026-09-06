@@ -1,18 +1,14 @@
-import { compareDecimal, formatDecimal } from '../utils/Decimal';
 import { Logger } from '../utils/logger';
 import type { InventoryItem } from '../models/InventoryItem';
-import { type NewRemindInventoryItem } from '../models/RemindTask';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
-import { calculateNextDueAt } from '../utils/RemindSchedule';
 import {
   parseCompletionInput
 } from '../utils/RemindInventory';
-import { type ConsumeForTaskResult } from '../services/InventoryService';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryMessageManager } from '../services/InventoryMessageManager';
 import { RemindTaskRefreshService } from '../services/RemindTaskRefreshService';
@@ -102,7 +98,7 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
     let completionInput: Array<{ name: string; consume: string | null }>;
     try {
       completionInput = parseCompletionInput(
-        context.interaction.fields.getTextInputValue('inventory-items'), { preservePrecision: true }
+        context.interaction.fields.getTextInputValue('inventory-items')
       );
     } catch (error) {
       return {
@@ -111,89 +107,29 @@ export class RemindTaskCompleteModalHandler extends BaseModalHandler {
       };
     }
 
-    const inputMap = new Map<string, string | null>(
-      completionInput.map(item => [item.name, item.consume])
-    );
-    const tempInventoryItems: NewRemindInventoryItem[] = [];
-    const inventoryRepository = this.inventoryRepository ?? new InventoryRepository();
-    const inventoryItems = await inventoryRepository.fetchAll(linkedInventoryChannelId);
-    const inventoryItemMap = new Map<string, InventoryItem>(
-      inventoryItems.map(item => [item.id, item])
-    );
-    const taskInventoryNames = new Set(task.inventoryItems.map(item => inventoryItemMap.get(item.inventoryId)?.name));
-    for (const input of completionInput) {
-      if (!taskInventoryNames.has(input.name)) return { success: false, message: `タスクの在庫設定にないアイテムです: ${input.name}` };
-    }
-
-    for (const item of task.inventoryItems) {
-      const inventoryItem = inventoryItemMap.get(item.inventoryId);
-      if (!inventoryItem) {
-        if (compareDecimal(item.consume, '0') > 0) {
-          tempInventoryItems.push({ inventoryId: item.inventoryId, consume: item.consume });
-        }
-        continue;
-      }
-
-      const input = inputMap.get(inventoryItem.name);
-      try {
-        const effectiveConsume = this.resolveEffectiveConsume(item.consume, input);
-        tempInventoryItems.push({ inventoryId: item.inventoryId, consume: effectiveConsume });
-      } catch (error) {
-        return { success: false, message: `${inventoryItem.name}: ${(error as Error).message}` };
-      }
-    }
-
-    const now = new Date();
-    const nextDueAt = calculateNextDueAt(
-      {
-        intervalDays: task.intervalDays,
-        timeOfDay: task.timeOfDay,
-        startAt: task.startAt,
-        lastDoneAt: now
-      },
-      now
-    );
-
-    const updatedTask = {
-      ...task,
-      inventoryItems: task.inventoryItems,
-      lastDoneAt: now,
-      nextDueAt,
-      lastRemindDueAt: null,
-      overdueNotifyCount: 0,
-      lastOverdueNotifiedAt: null,
-      updatedAt: now
-    };
-
     const expectedRevision = context.interaction.customId.split(':')[2];
-    if (!expectedRevision || task.revision !== expectedRevision) return { success: false, message: 'タスクが変更されました。開き直してください。' };
+    if (!expectedRevision) return { success: false, message: 'タスクが変更されました。開き直してください。' };
+    let completionSaved = false;
     try {
-      await this.repository.complete(channelId, task, now, nextDueAt, tempInventoryItems);
+      const latest = await this.repository.complete(channelId, { ...task, revision: expectedRevision }, completionInput);
+      completionSaved = true;
+      const rendered = await this.messageManager.updateTaskMessage(channelId, messageId, latest, context.interaction.client, new Date());
+      if (!rendered.success) throw new Error('表示更新に失敗しました');
     } catch (error) {
-      return { success: false, message: error instanceof Error ? error.message : '完了に失敗しました' };
+      return { success: false, message: completionSaved ? '完了は保存されましたが表示更新に失敗しました。完了操作を繰り返さず、初期化で再表示してください。' : error instanceof Error ? error.message : '完了結果を確認できません。画面を開き直してください。' };
+    } finally {
+      if (completionSaved) await this.refreshInventoryMessage({ linkedInventoryChannelId }, context.interaction.client, messageId);
     }
-    const latest = await this.repository.findTaskByMessageId(channelId, messageId);
-    await this.messageManager.updateTaskMessage(channelId, messageId, latest ?? updatedTask, context.interaction.client, now);
-    await this.refreshInventoryMessage({ kind: 'success', linkedInventoryChannelId }, context.interaction.client, messageId);
 
     return { success: true };
   }
 
-  private resolveEffectiveConsume(originalConsume: string, input: string | null | undefined): string {
-    if (input === null || input === undefined) {
-      if (compareDecimal(originalConsume, '0') === 0) throw new Error('今回の消費数を入力してください');
-      return originalConsume;
-    }
-    if (compareDecimal(input, originalConsume) === 0) return originalConsume;
-    return formatDecimal(input);
-  }
-
   private async refreshInventoryMessage(
-    inventoryResult: ConsumeForTaskResult,
+    inventoryResult: { linkedInventoryChannelId?: string },
     client: ModalHandlerContext['interaction']['client'],
     messageId: string
   ): Promise<void> {
-    if (inventoryResult.kind !== 'success' || !inventoryResult.linkedInventoryChannelId) {
+    if (!inventoryResult.linkedInventoryChannelId) {
       return;
     }
 

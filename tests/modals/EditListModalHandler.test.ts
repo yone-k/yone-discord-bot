@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EditListModalHandler } from '../../src/modals/EditListModalHandler';
 import { Logger } from '../../src/utils/logger';
-import { RepositoryError } from '../../src/repositories/contracts';
+import { RepositoryError } from '../../src/api/contracts';
 const setup = (customId = 'edit-list-modal:123:456:7', text = '牛乳,,,'): {
     repo: {
         save: ReturnType<typeof vi.fn>;
@@ -22,9 +22,9 @@ const setup = (customId = 'edit-list-modal:123:456:7', text = '牛乳,,,'): {
 };
 describe('編集モーダルDB保存', () => {
   it('開いた版を保存に渡す', async () => { const { repo, handler, context } = setup(); expect((await (handler as any).executeAction(context)).success).toBe(true); expect(repo.save).toHaveBeenCalledWith('123', '7', [{ name: '牛乳', category: null, until: null, isCompleted: false }]); });
-  it('競合は再読込を促し再保存しない', async () => { const { repo, handler, context, messages } = setup(); repo.save.mockRejectedValue(new RepositoryError('conflict', 'stale')); const result = await (handler as any).executeAction(context); expect(result.success).toBe(false); expect(result.message).toContain('開き直'); expect(messages.createOrUpdateMessageWithMetadataV2).not.toHaveBeenCalled(); });
+  it('競合は再読込を促し再保存しない', async () => { const { repo, handler, context, messages } = setup(); repo.save.mockRejectedValue(new RepositoryError('conflict', 409)); const result = await (handler as any).executeAction(context); expect(result.success).toBe(false); expect(result.message).toContain('開き直'); expect(messages.createOrUpdateMessageWithMetadataV2).not.toHaveBeenCalled(); });
   it.each(['edit-list-modal:123:999:7', 'edit-list-modal:999:456:7', 'edit-list-modal'])('他人・別チャンネル・旧モーダルは拒否 %s', async (id) => { const { repo, handler, context } = setup(id); expect((await (handler as any).executeAction(context)).success).toBe(false); expect(repo.save).not.toHaveBeenCalled(); });
-  it('重複を1件も保存しない', async () => { const { repo, handler, context } = setup(undefined, '牛乳,,,\n牛乳,,,'); expect((await (handler as any).executeAction(context)).success).toBe(false); expect(repo.save).not.toHaveBeenCalled(); });
+  it('APIによる重複拒否を表示し再送しない', async () => { const { repo, handler, context } = setup(undefined, '牛乳,,,\n牛乳,,,'); repo.save.mockRejectedValue(new RepositoryError('invalid_input', 422)); expect((await (handler as any).executeAction(context)).success).toBe(false); expect(repo.save).toHaveBeenCalledOnce(); });
   it('空は全削除として保存する', async () => { const { repo, handler, context } = setup(undefined, ''); expect((await (handler as any).executeAction(context)).success).toBe(true); expect(repo.save).toHaveBeenCalledWith('123', '7', []); });
 });
 it('ボタンで開いたCSVをモーダル送信から保存・再描画する', async () => {

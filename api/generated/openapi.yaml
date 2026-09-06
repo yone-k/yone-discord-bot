@@ -1,0 +1,4209 @@
+openapi: 3.0.0
+info:
+  title: Discord Core API
+  version: 1.0.0
+tags: []
+paths:
+  /health:
+    get:
+      operationId: health
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+      security:
+        - {}
+  /v1/display/initialization:
+    get:
+      operationId: getInitialization
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Initialization'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/inventories:
+    get:
+      operationId: listInventoryChannels
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InventoryChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/inventories/{channelId}:
+    get:
+      operationId: getInventoryChannel
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    put:
+      operationId: createInventoryChannel
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryChannel'
+    patch:
+      operationId: patchInventoryChannel
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryChannelPatch'
+    delete:
+      operationId: deleteInventoryChannel
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/inventories/{channelId}/apply:
+    post:
+      operationId: applyInventory
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoredInventoryItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyInventoryInput'
+  /v1/inventories/{channelId}/bulk:
+    post:
+      operationId: bulkUpdateInventory
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoredInventoryItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkInventoryInput'
+  /v1/inventories/{channelId}/by-name:
+    get:
+      operationId: getInventoryByName
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+          explode: false
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredInventoryItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/inventories/{channelId}/items:
+    get:
+      operationId: getInventoryItems
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoredInventoryItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    post:
+      operationId: appendInventoryItem
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredInventoryItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryItemInput'
+  /v1/inventories/{channelId}/items/{id}:
+    get:
+      operationId: getInventoryItem
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredInventoryItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    put:
+      operationId: updateInventoryItem
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredInventoryItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryItemInput'
+    delete:
+      operationId: deleteInventoryItem
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoredInventoryItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/inventories/{channelId}/items/{id}/references:
+    get:
+      operationId: getInventoryReferences
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoredRemindTask'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/inventories/{channelId}/linked-reminders:
+    get:
+      operationId: getLinkedReminders
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RemindChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/inventories/{channelId}/related-tasks:
+    get:
+      operationId: getRelatedTasks
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskDisplay'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/inventories/{channelId}/reorder:
+    post:
+      operationId: reorderInventory
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoredInventoryItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderInput'
+  /v1/inventories/{channelId}/resolve:
+    post:
+      operationId: resolveInventory
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredInventoryItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveInventoryInput'
+  /v1/lists:
+    get:
+      operationId: listListChannels
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ListChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/lists/{channelId}:
+    get:
+      operationId: getListChannel
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    put:
+      operationId: createListChannel
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListChannelInput'
+    patch:
+      operationId: patchListChannel
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListChannelPatch'
+    delete:
+      operationId: deleteListChannel
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/lists/{channelId}/items:
+    get:
+      operationId: getListItems
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoredListItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    post:
+      operationId: appendListItem
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredListItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListEditItem'
+  /v1/lists/{channelId}/items/{id}:
+    put:
+      operationId: updateListItem
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredListItem'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListEditItem'
+    delete:
+      operationId: deleteListItem
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSnapshot'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/lists/{channelId}/reorder:
+    post:
+      operationId: reorderList
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSnapshot'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderInput'
+  /v1/lists/{channelId}/save:
+    post:
+      operationId: saveList
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSnapshot'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveListInput'
+  /v1/lists/{channelId}/snapshot:
+    get:
+      operationId: getListSnapshot
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSnapshot'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/notifications/ack:
+    post:
+      operationId: ackNotification
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationAckResult'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationToken'
+  /v1/notifications/poll:
+    post:
+      operationId: pollNotifications
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPlan'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/reminders:
+    get:
+      operationId: listRemindChannels
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RemindChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/reminders/{channelId}:
+    get:
+      operationId: getRemindChannel
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemindChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    put:
+      operationId: createRemindChannel
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemindChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemindChannel'
+    patch:
+      operationId: patchRemindChannel
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemindChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemindChannelPatch'
+    delete:
+      operationId: deleteRemindChannel
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/reminders/{channelId}/by-message:
+    get:
+      operationId: getTaskByMessage
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: messageId
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Id'
+          explode: false
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredRemindTask'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/reminders/{channelId}/inventory-link:
+    put:
+      operationId: linkInventory
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemindChannel'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkInventoryInput'
+  /v1/reminders/{channelId}/reorder:
+    post:
+      operationId: reorderTasks
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoredRemindTask'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderInput'
+  /v1/reminders/{channelId}/tasks:
+    get:
+      operationId: getTasks
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoredRemindTask'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    post:
+      operationId: createTask
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredRemindTask'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskInput'
+  /v1/reminders/{channelId}/tasks/{id}:
+    get:
+      operationId: getTask
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredRemindTask'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    patch:
+      operationId: patchTask
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredRemindTask'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaskInput'
+    delete:
+      operationId: deleteTask
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/reminders/{channelId}/tasks/{id}/complete:
+    post:
+      operationId: completeTask
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredRemindTask'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteTaskInput'
+  /v1/reminders/{channelId}/tasks/{id}/inventory-settings:
+    post:
+      operationId: editTaskInventory
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemindInventoryEditResult'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditTaskInventoryInput'
+  /v1/reminders/{channelId}/tasks/{id}/pause:
+    post:
+      operationId: pauseTask
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredRemindTask'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpectedRevisionInput'
+  /v1/reminders/{channelId}/tasks/{id}/resume:
+    post:
+      operationId: resumeTask
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredRemindTask'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpectedRevisionInput'
+  /v1/reminders/{channelId}/tasks/{id}/shortage-check:
+    get:
+      operationId: checkTaskShortage
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortageResult'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+security:
+  - BearerAuth: []
+components:
+  parameters:
+    RequestOptions:
+      name: X-Core-Timeout-Ms
+      in: header
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 5000
+  schemas:
+    ApiError:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          enum:
+            - invalid_input
+            - not_found
+            - conflict
+            - shortage
+            - referenced
+            - unauthorized
+            - unavailable
+            - internal
+        reason:
+          type: string
+          enum:
+            - duplicate_name
+          description: duplicate_name distinguishes a duplicate name from other invalid_input failures. Inventory-add callers can skip that item and continue; other failures must not be silently skipped.
+        target:
+          type: string
+        channelId:
+          $ref: '#/components/schemas/Id'
+        id:
+          $ref: '#/components/schemas/Id'
+        shortages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Shortage'
+        references:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoredRemindTask'
+    ApplyInventoryInput:
+      type: object
+      required:
+        - expected
+        - items
+      properties:
+        expected:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryEditItem'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplyInventoryItem'
+    ApplyInventoryItem:
+      type: object
+      required:
+        - name
+        - stock
+        - category
+      properties:
+        name:
+          type: string
+        stock:
+          $ref: '#/components/schemas/Quantity'
+        category:
+          type: string
+          nullable: true
+        id:
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          minLength: 1
+          description: Omit for a new item; the server allocates UUIDv7. Otherwise identify an existing item.
+    BulkInventoryInput:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryEditItem'
+    BusinessDate:
+      type: string
+      pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+    BusinessTime:
+      type: string
+      pattern: ^(?:[01][0-9]|2[0-3]):[0-5][0-9]$
+    ChannelPatch:
+      type: object
+      properties:
+        messageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        listTitle:
+          type: string
+        operationLogThreadId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+    ChannelSettings:
+      type: object
+      required:
+        - channelId
+        - messageId
+        - listTitle
+        - operationLogThreadId
+      properties:
+        channelId:
+          $ref: '#/components/schemas/Id'
+        messageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        listTitle:
+          type: string
+        operationLogThreadId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+    CompleteTaskInput:
+      type: object
+      required:
+        - expectedRevision
+      properties:
+        expectedRevision:
+          $ref: '#/components/schemas/Revision'
+        consumeOverrides:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsumptionOverride'
+    ConsumptionOverride:
+      type: object
+      required:
+        - name
+        - consume
+      properties:
+        name:
+          type: string
+        consume:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Quantity'
+          nullable: true
+      description: Parsed completion entry. null means the user omitted a quantity; the server applies the stored consumption rules.
+    CreateTaskInput:
+      type: object
+      required:
+        - title
+        - description
+        - intervalDays
+        - timeOfDay
+        - remindBeforeMinutes
+        - inventoryItems
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        intervalDays:
+          $ref: '#/components/schemas/IntervalDays'
+        timeOfDay:
+          $ref: '#/components/schemas/BusinessTime'
+        remindBeforeMinutes:
+          $ref: '#/components/schemas/ReminderMinutes'
+        inventoryItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryConsumption'
+    EditTaskInventoryInput:
+      type: object
+      required:
+        - expectedRevision
+        - items
+      properties:
+        expectedRevision:
+          $ref: '#/components/schemas/Revision'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RemindInventoryEdit'
+    ExpectedRevisionInput:
+      type: object
+      required:
+        - expectedRevision
+      properties:
+        expectedRevision:
+          $ref: '#/components/schemas/Revision'
+    Health:
+      type: object
+      required:
+        - ready
+      properties:
+        ready:
+          type: boolean
+    Id:
+      type: string
+      description: Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+    Initialization:
+      type: object
+      required:
+        - lists
+        - inventories
+        - reminders
+        - remindChannels
+      properties:
+        lists:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListDisplay'
+        inventories:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryDisplay'
+        reminders:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskDisplay'
+        remindChannels:
+          type: array
+          items:
+            $ref: '#/components/schemas/RemindChannel'
+    IntervalDays:
+      type: integer
+      format: int32
+      minimum: 1
+    InventoryChannel:
+      type: object
+      required:
+        - channelId
+        - messageId
+        - listTitle
+        - operationLogThreadId
+        - defaultCategory
+      properties:
+        channelId:
+          $ref: '#/components/schemas/Id'
+        messageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        listTitle:
+          type: string
+        operationLogThreadId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        defaultCategory:
+          type: string
+    InventoryChannelPatch:
+      type: object
+      properties:
+        messageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        listTitle:
+          type: string
+        operationLogThreadId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        defaultCategory:
+          type: string
+    InventoryConsumption:
+      type: object
+      required:
+        - inventoryId
+        - consume
+      properties:
+        inventoryId:
+          $ref: '#/components/schemas/Id'
+        consume:
+          $ref: '#/components/schemas/Quantity'
+    InventoryDisplay:
+      type: object
+      required:
+        - channel
+        - items
+      properties:
+        channel:
+          $ref: '#/components/schemas/InventoryChannel'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoredInventoryItem'
+    InventoryEditItem:
+      type: object
+      required:
+        - name
+        - stock
+        - category
+        - id
+      properties:
+        name:
+          type: string
+        stock:
+          $ref: '#/components/schemas/Quantity'
+        category:
+          type: string
+          nullable: true
+        id:
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          minLength: 1
+          description: Existing opaque ID.
+    InventoryItemInput:
+      type: object
+      required:
+        - name
+        - stock
+        - category
+      properties:
+        name:
+          type: string
+        stock:
+          $ref: '#/components/schemas/Quantity'
+        category:
+          type: string
+          nullable: true
+    LinkInventoryInput:
+      type: object
+      required:
+        - inventoryChannelId
+      properties:
+        inventoryChannelId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+    ListChannel:
+      type: object
+      required:
+        - channelId
+        - messageId
+        - listTitle
+        - operationLogThreadId
+        - defaultCategory
+        - editVersion
+      properties:
+        channelId:
+          $ref: '#/components/schemas/Id'
+        messageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        listTitle:
+          type: string
+        operationLogThreadId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        defaultCategory:
+          type: string
+        editVersion:
+          $ref: '#/components/schemas/Revision'
+    ListChannelInput:
+      type: object
+      required:
+        - channelId
+        - messageId
+        - listTitle
+        - operationLogThreadId
+        - defaultCategory
+      properties:
+        channelId:
+          $ref: '#/components/schemas/Id'
+        messageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        listTitle:
+          type: string
+        operationLogThreadId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        defaultCategory:
+          type: string
+    ListChannelPatch:
+      type: object
+      properties:
+        messageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        listTitle:
+          type: string
+        operationLogThreadId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        defaultCategory:
+          type: string
+    ListDisplay:
+      type: object
+      required:
+        - channel
+        - items
+      properties:
+        channel:
+          $ref: '#/components/schemas/ListChannel'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoredListItem'
+    ListEditItem:
+      type: object
+      required:
+        - name
+        - category
+        - until
+        - isCompleted
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+          nullable: true
+        until:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/BusinessDate'
+          nullable: true
+        isCompleted:
+          type: boolean
+    ListSnapshot:
+      type: object
+      required:
+        - items
+        - editVersion
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoredListItem'
+        editVersion:
+          $ref: '#/components/schemas/Revision'
+    NonnegativeInteger:
+      type: integer
+      format: int32
+      minimum: 0
+    Notification:
+      type: object
+      required:
+        - kind
+        - channelId
+        - id
+        - evaluatedAt
+        - targetDueAt
+        - expectedRevision
+        - list
+        - item
+        - reminder
+      properties:
+        kind:
+          type: string
+          enum:
+            - list
+            - before
+            - overdue
+        channelId:
+          $ref: '#/components/schemas/Id'
+        id:
+          $ref: '#/components/schemas/Id'
+        evaluatedAt:
+          $ref: '#/components/schemas/Timestamp'
+        targetDueAt:
+          allOf:
+            - $ref: '#/components/schemas/NotificationDeadline'
+          description: BusinessDate for list notifications, Timestamp for reminder notifications.
+        expectedRevision:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Revision'
+          nullable: true
+          description: null for list notifications; the captured task revision for reminders.
+        list:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ListDisplay'
+          nullable: true
+        item:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/StoredListItem'
+          nullable: true
+        reminder:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/TaskDisplay'
+          nullable: true
+      description: kind=list requires non-null list and item with null reminder. kind=before or overdue requires non-null reminder with null list and item. Reminder deadlines are timestamps and revisions are non-null; list deadlines are dates and revisions are null.
+    NotificationAckResult:
+      type: object
+      required:
+        - item
+        - task
+      properties:
+        item:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/StoredListItem'
+          nullable: true
+        task:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/StoredRemindTask'
+          nullable: true
+    NotificationDeadline:
+      type: string
+      pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}(?:T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}(?:Z|[+-][0-9]{2}:[0-9]{2}))?$
+      description: List deadline (YYYY-MM-DD) or reminder deadline (RFC3339 with milliseconds). kind selects the applicable representation.
+    NotificationPlan:
+      type: object
+      required:
+        - evaluatedAt
+        - notifications
+        - progress
+      properties:
+        evaluatedAt:
+          $ref: '#/components/schemas/Timestamp'
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        progress:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgressUpdate'
+    NotificationToken:
+      type: object
+      required:
+        - kind
+        - channelId
+        - id
+        - evaluatedAt
+        - targetDueAt
+        - expectedRevision
+      properties:
+        kind:
+          type: string
+          enum:
+            - list
+            - before
+            - overdue
+        channelId:
+          $ref: '#/components/schemas/Id'
+        id:
+          $ref: '#/components/schemas/Id'
+        evaluatedAt:
+          $ref: '#/components/schemas/Timestamp'
+        targetDueAt:
+          allOf:
+            - $ref: '#/components/schemas/NotificationDeadline'
+          description: BusinessDate for list notifications, Timestamp for reminder notifications.
+        expectedRevision:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Revision'
+          nullable: true
+          description: null for list notifications; the captured task revision for reminders.
+    PatchTaskInput:
+      type: object
+      required:
+        - expectedRevision
+        - patch
+      properties:
+        expectedRevision:
+          $ref: '#/components/schemas/Revision'
+        patch:
+          $ref: '#/components/schemas/TaskPatch'
+    PathId:
+      type: string
+      description: Path representation of an ID. For '.', '..', an ID containing '/' or '%', or an ID starting with '~', use '~' followed by unpadded base64url of the UTF-8 ID. Otherwise use ordinary URI component encoding. JSON and query IDs retain their original values.
+    ProgressUpdate:
+      type: object
+      required:
+        - kind
+        - reminder
+        - evaluatedAt
+      properties:
+        kind:
+          type: string
+          enum:
+            - progress
+        reminder:
+          $ref: '#/components/schemas/TaskDisplay'
+        evaluatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    Quantity:
+      type: string
+      pattern: ^[0-9]+(?:\.[0-9]+)?$
+      description: Arbitrary precision, unsigned decimal. Never convert through a binary float.
+    RemindChannel:
+      type: object
+      required:
+        - channelId
+        - messageId
+        - listTitle
+        - operationLogThreadId
+        - remindNoticeThreadId
+        - remindNoticeMessageId
+        - linkedInventoryChannelId
+      properties:
+        channelId:
+          $ref: '#/components/schemas/Id'
+        messageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        listTitle:
+          type: string
+        operationLogThreadId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        remindNoticeThreadId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        remindNoticeMessageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        linkedInventoryChannelId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+    RemindChannelPatch:
+      type: object
+      properties:
+        messageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        listTitle:
+          type: string
+        operationLogThreadId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        remindNoticeThreadId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        remindNoticeMessageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+    RemindInventoryEdit:
+      type: object
+      required:
+        - name
+        - consume
+      properties:
+        name:
+          type: string
+        stock:
+          $ref: '#/components/schemas/Quantity'
+        consume:
+          $ref: '#/components/schemas/Quantity'
+    RemindInventoryEditResult:
+      type: object
+      required:
+        - task
+        - inventoryChannelId
+        - stockChanged
+      properties:
+        task:
+          $ref: '#/components/schemas/StoredRemindTask'
+        inventoryChannelId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        stockChanged:
+          type: boolean
+    ReminderMinutes:
+      type: integer
+      format: int32
+      minimum: 0
+      maximum: 10080
+    ReorderInput:
+      type: object
+      required:
+        - ids
+      properties:
+        ids:
+          type: array
+          items:
+            $ref: '#/components/schemas/Id'
+    ResolveInventoryInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+    Revision:
+      type: string
+      pattern: ^[0-9]+$
+    SaveListInput:
+      type: object
+      required:
+        - expectedVersion
+        - items
+      properties:
+        expectedVersion:
+          $ref: '#/components/schemas/Revision'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListEditItem'
+    Shortage:
+      type: object
+      required:
+        - inventoryId
+        - name
+        - required
+        - available
+      properties:
+        inventoryId:
+          $ref: '#/components/schemas/Id'
+        name:
+          type: string
+        required:
+          $ref: '#/components/schemas/Quantity'
+        available:
+          $ref: '#/components/schemas/Quantity'
+    ShortageResult:
+      type: object
+      required:
+        - shortages
+      properties:
+        shortages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Shortage'
+    StoredInventoryItem:
+      type: object
+      required:
+        - name
+        - stock
+        - category
+        - id
+        - channelId
+        - position
+      properties:
+        name:
+          type: string
+        stock:
+          $ref: '#/components/schemas/Quantity'
+        category:
+          type: string
+          nullable: true
+        id:
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          minLength: 1
+          description: Existing opaque ID.
+        channelId:
+          $ref: '#/components/schemas/Id'
+        position:
+          $ref: '#/components/schemas/NonnegativeInteger'
+    StoredListItem:
+      type: object
+      required:
+        - name
+        - category
+        - until
+        - isCompleted
+        - id
+        - channelId
+        - lastNotifiedAt
+        - position
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+          nullable: true
+        until:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/BusinessDate'
+          nullable: true
+        isCompleted:
+          type: boolean
+        id:
+          $ref: '#/components/schemas/Id'
+        channelId:
+          $ref: '#/components/schemas/Id'
+        lastNotifiedAt:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Timestamp'
+          nullable: true
+        position:
+          $ref: '#/components/schemas/NonnegativeInteger'
+    StoredRemindTask:
+      type: object
+      required:
+        - title
+        - description
+        - intervalDays
+        - timeOfDay
+        - remindBeforeMinutes
+        - inventoryItems
+        - channelId
+        - id
+        - messageId
+        - startAt
+        - nextDueAt
+        - lastDoneAt
+        - lastRemindDueAt
+        - overdueNotifyCount
+        - overdueNotifyLimit
+        - lastOverdueNotifiedAt
+        - isPaused
+        - createdAt
+        - updatedAt
+        - revision
+        - position
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        intervalDays:
+          $ref: '#/components/schemas/IntervalDays'
+        timeOfDay:
+          $ref: '#/components/schemas/BusinessTime'
+        remindBeforeMinutes:
+          $ref: '#/components/schemas/ReminderMinutes'
+        inventoryItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryConsumption'
+        channelId:
+          $ref: '#/components/schemas/Id'
+        id:
+          $ref: '#/components/schemas/Id'
+        messageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        startAt:
+          $ref: '#/components/schemas/Timestamp'
+        nextDueAt:
+          $ref: '#/components/schemas/Timestamp'
+        lastDoneAt:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Timestamp'
+          nullable: true
+        lastRemindDueAt:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Timestamp'
+          nullable: true
+        overdueNotifyCount:
+          $ref: '#/components/schemas/NonnegativeInteger'
+        overdueNotifyLimit:
+          type: integer
+          allOf:
+            - $ref: '#/components/schemas/NonnegativeInteger'
+          nullable: true
+        lastOverdueNotifiedAt:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Timestamp'
+          nullable: true
+        isPaused:
+          type: boolean
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+        revision:
+          $ref: '#/components/schemas/Revision'
+        position:
+          $ref: '#/components/schemas/NonnegativeInteger'
+    TaskDisplay:
+      type: object
+      required:
+        - channel
+        - task
+        - shortages
+      properties:
+        channel:
+          $ref: '#/components/schemas/RemindChannel'
+        task:
+          $ref: '#/components/schemas/StoredRemindTask'
+        shortages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Shortage'
+    TaskPatch:
+      type: object
+      properties:
+        messageId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        intervalDays:
+          $ref: '#/components/schemas/IntervalDays'
+        timeOfDay:
+          $ref: '#/components/schemas/BusinessTime'
+        remindBeforeMinutes:
+          $ref: '#/components/schemas/ReminderMinutes'
+        overdueNotifyLimit:
+          type: integer
+          allOf:
+            - $ref: '#/components/schemas/NonnegativeInteger'
+          nullable: true
+        lastDoneAt:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Timestamp'
+          nullable: true
+          description: Explicit manual override from the task detail settings UI, not task completion.
+        nextDueAt:
+          allOf:
+            - $ref: '#/components/schemas/Timestamp'
+          description: Explicit manual deadline override from the task detail settings UI.
+      description: Setting lastDoneAt or nextDueAt resets lastRemindDueAt, overdueNotifyCount and lastOverdueNotifiedAt. lastDoneAt must not exceed nextDueAt; invalid overrides return 422 invalid_input.
+    Timestamp:
+      type: string
+      pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}(?:Z|[+-][0-9]{2}:[0-9]{2})$
+      description: RFC3339 timestamp with exactly millisecond precision; business timezone is Asia/Tokyo.
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Shared service token. The lowercase scheme is compatible with OpenAPI validators.

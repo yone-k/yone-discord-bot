@@ -4,7 +4,8 @@ export interface BotConfig {
   guildId?: string
   nodeEnv: string
   logLevel: string
-  databaseUrl: string
+  coreApiUrl: string
+  coreApiToken: string
 }
 
 export class ConfigError extends Error {
@@ -12,6 +13,21 @@ export class ConfigError extends Error {
     super(message);
     this.name = 'ConfigError';
   }
+}
+
+export function readCoreApiConfig(): Pick<BotConfig, 'coreApiUrl' | 'coreApiToken'> {
+  const coreApiUrl = process.env.CORE_API_URL?.trim();
+  const coreApiToken = process.env.CORE_API_TOKEN?.trim();
+  if (!coreApiUrl || !coreApiToken) {
+    throw new ConfigError('CORE_API_URL and CORE_API_TOKEN are required');
+  }
+  try {
+    const parsed = new URL(coreApiUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname || parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) throw new Error();
+  } catch {
+    throw new ConfigError('CORE_API_URL must be an HTTP(S) origin without credentials');
+  }
+  return { coreApiUrl, coreApiToken };
 }
 
 export class Config {
@@ -30,7 +46,7 @@ export class Config {
   }
 
   private loadConfig(): BotConfig {
-    const requiredEnvVars = ['DISCORD_BOT_TOKEN', 'CLIENT_ID', 'DATABASE_URL'];
+    const requiredEnvVars = ['DISCORD_BOT_TOKEN', 'CLIENT_ID', 'CORE_API_URL', 'CORE_API_TOKEN'];
     const missingVars: string[] = [];
 
     for (const envVar of requiredEnvVars) {
@@ -52,13 +68,7 @@ export class Config {
     const nodeEnv = process.env.NODE_ENV || 'development';
     const logLevel = process.env.LOG_LEVEL || 'info';
 
-    const databaseUrl = process.env.DATABASE_URL!.trim();
-    try {
-      const parsed = new URL(databaseUrl);
-      if (!['postgresql:', 'postgres:'].includes(parsed.protocol) || !parsed.hostname || parsed.pathname.length < 2) throw new Error();
-    } catch {
-      throw new ConfigError('DATABASE_URL must use postgresql:// or postgres:// with a host and database name');
-    }
+    const { coreApiUrl, coreApiToken } = readCoreApiConfig();
 
     return {
       discordToken,
@@ -66,7 +76,8 @@ export class Config {
       guildId,
       nodeEnv,
       logLevel,
-      databaseUrl
+      coreApiUrl,
+      coreApiToken
     };
   }
 
@@ -102,5 +113,6 @@ export class Config {
     return this.config.nodeEnv === 'production';
   }
 
-  public getDatabaseUrl(): string { return this.config.databaseUrl; }
+  public getCoreApiUrl(): string { return this.config.coreApiUrl; }
+  public getCoreApiToken(): string { return this.config.coreApiToken; }
 }

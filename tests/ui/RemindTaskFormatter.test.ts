@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskFormatter } from '../../src/ui/RemindTaskFormatter';
-import { createRemindTask } from '../../src/models/RemindTask';
+import { createRemindTask } from '../helpers/RemindTask';
 
 describe('RemindTaskFormatter', () => {
   it('renders detail text with deadline, interval, and remind-before', () => {

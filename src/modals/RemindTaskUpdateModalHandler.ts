@@ -6,7 +6,7 @@ import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { parseRemindBeforeInput } from '../utils/RemindDuration';
-import { calculateStartAt, normalizeTimeOfDay } from '../utils/RemindSchedule';
+import { normalizeTimeOfDay } from '../utils/RemindSchedule';
 
 export class RemindTaskUpdateModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
@@ -52,7 +52,9 @@ export class RemindTaskUpdateModalHandler extends BaseModalHandler {
     if (!task) {
       return { success: false, message: 'タスクが見つかりません' };
     }
-    if (context.interaction.customId.split(':')[2] !== task.revision) return { success: false, message: 'タスクが変更されました。開き直してください。' };
+    const expectedRevision = context.interaction.customId.split(':')[2];
+    if (!expectedRevision) return { success: false, message: 'タスクが変更されました。開き直してください。' };
+    task.revision = expectedRevision;
 
 
     const title = context.interaction.fields.getTextInputValue('title').trim();
@@ -80,31 +82,8 @@ export class RemindTaskUpdateModalHandler extends BaseModalHandler {
       return { success: false, message: error instanceof Error ? error.message : '時刻の形式が無効です' };
     }
 
-    const now = new Date();
-    const startAt = calculateStartAt(task.createdAt, timeOfDay);
-    const nextDueAt = task.nextDueAt;
-
-    const updatedTask = {
-      ...task,
-      title,
-      description: description || undefined,
-      intervalDays,
-      timeOfDay,
-      remindBeforeMinutes,
-      startAt,
-      nextDueAt,
-      lastRemindDueAt: task.lastRemindDueAt,
-      overdueNotifyCount: task.overdueNotifyCount,
-      lastOverdueNotifiedAt: task.lastOverdueNotifiedAt,
-      updatedAt: now
-    };
-
-    const updateResult = await this.repository.patchTask(channelId, task, { title, description: description || null, intervalDays, timeOfDay, remindBeforeMinutes, startAt });
-    if (!updateResult.success) {
-      return { success: false, message: updateResult.message };
-    }
-
-    await this.messageManager.updateTaskMessage(channelId, messageId, updatedTask, context.interaction.client, now);
+    const updateResult = await this.repository.patchTask(channelId, task, { title, description: description || null, intervalDays, timeOfDay, remindBeforeMinutes });
+    await this.messageManager.updateTaskMessage(channelId, messageId, updateResult.task, context.interaction.client, new Date());
 
     return { success: true };
   }

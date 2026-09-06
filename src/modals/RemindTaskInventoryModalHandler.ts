@@ -86,13 +86,15 @@ export class RemindTaskInventoryModalHandler extends BaseModalHandler {
     if (!task) {
       return { success: false, message: 'タスクが見つかりません' };
     }
-    if (context.interaction.customId.split(':')[2] !== task.revision) return { success: false, message: 'タスクが変更されました。開き直してください。' };
+    const expectedRevision = context.interaction.customId.split(':')[2];
+    if (!expectedRevision) return { success: false, message: 'タスクが変更されました。開き直してください。' };
+    task.revision = expectedRevision;
 
 
     const input = context.interaction.fields.getTextInputValue('inventory-items');
     let result: { task: RemindTask; inventoryChannelId: string | null; stockChanged: boolean };
     try {
-      const items = parseInventoryInput(input, { preservePrecision: true });
+      const items = parseInventoryInput(input);
       result = await this.repository.editInventorySettings(channelId, task, items);
     } catch (error) {
       return { success: false, message: error instanceof Error ? error.message : '在庫の更新に失敗しました' };

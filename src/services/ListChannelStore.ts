@@ -1,6 +1,6 @@
 import type { ChannelMetadata } from '../models/ChannelMetadata';
-import type { ListChannel, ListChannelRepository } from '../repositories/contracts';
-import { PostgresListChannelRepository } from '../repositories/PostgresListChannelRepository';
+import type { ListChannel, ListChannelRepository } from '../api/contracts';
+import { ApiListChannelRepository } from '../api/Repositories';
 import type { MetadataProvider } from './MetadataProvider';
 
 export interface MetadataOperationResult { success: boolean; metadata?: ChannelMetadata; message?: string }
@@ -11,7 +11,7 @@ const toMetadata = (channel: ListChannel): ChannelMetadata => ({
 
 export class ListChannelStore implements MetadataProvider {
   private static instance: ListChannelStore | undefined;
-  constructor(private readonly repository: ListChannelRepository = new PostgresListChannelRepository()) {}
+  constructor(private readonly repository: ListChannelRepository = new ApiListChannelRepository()) {}
   static getInstance(): ListChannelStore { return this.instance ??= new ListChannelStore(); }
   async getChannelMetadata(channelId: string): Promise<MetadataOperationResult> {
     const channel = await this.repository.get(channelId);

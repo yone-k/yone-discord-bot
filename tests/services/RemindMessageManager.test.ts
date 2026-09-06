@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindMessageManager } from '../../src/services/RemindMessageManager';
 import { ButtonStyle, ComponentType, MessageFlags } from 'discord.js';
-import { createRemindTask, type RemindTask } from '../../src/models/RemindTask';
+import type { RemindTask } from '../../src/models/RemindTask';
+import { createRemindTask } from '../helpers/RemindTask';
 
 describe('RemindMessageManager', () => {
   const createTask = (): { now: Date; task: RemindTask } => {

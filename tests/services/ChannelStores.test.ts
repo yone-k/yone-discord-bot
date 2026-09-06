@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ListChannelStore } from '../../src/services/ListChannelStore';
 import { RemindChannelStore } from '../../src/services/RemindChannelStore';
-import type { ListChannelRepository, RemindChannelRepository } from '../../src/repositories/contracts';
+import type { ListChannelRepository, RemindChannelRepository } from '../../src/api/contracts';
 
 describe('DB channel settings', () => {
   it('updates only the changed message ID without replacing business settings', async () => {
@@ -27,8 +27,8 @@ describe('DB channel settings', () => {
 
   it('preserves link-deletion constraint errors for the command to report', async () => {
     const patch = vi.fn().mockRejectedValue(new Error('referenced inventory'));
-    const store = new RemindChannelStore({ patch } as unknown as RemindChannelRepository);
+    const store = new RemindChannelStore({ linkInventory: patch } as unknown as RemindChannelRepository);
     await expect(store.updateChannelMetadata('123', { linkedInventoryChannelId: '' })).rejects.toThrow('referenced inventory');
-    expect(patch).toHaveBeenCalledWith('123', { linkedInventoryChannelId: null });
+    expect(patch).toHaveBeenCalledWith('123', null);
   });
 });

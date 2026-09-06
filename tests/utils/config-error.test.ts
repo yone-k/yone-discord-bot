@@ -7,7 +7,8 @@ describe('Config Error Handling Tests', () => {
   beforeEach(() => {
     // 環境変数を保存
     originalEnv = { ...process.env };
-    process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
+    process.env.CORE_API_URL = 'http://api:8080';
+    process.env.CORE_API_TOKEN = 'synthetic-token';
     // Configのシングルトンをリセット
     (Config as any).instance = undefined;
   });

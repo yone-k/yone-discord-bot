@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="個人用Discord BotのGoogle Driveバックアップツール、discord-bot-backupの説明とデータの取り扱い。">
+<title>discord-bot-backup</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><nav aria-label="サイト内ナビゲーション"><a href="index.html">discord-bot-backup</a><a href="privacy.html">プライバシー</a><a href="terms.html">利用条件</a></nav></header>
+<main>
+<p class="eyebrow">個人用バックアップツール</p>
+<h1>discord-bot-backup</h1>
+<p>discord-bot-backupは、yone-kが自分専用に運用するDiscord Botのデータベースを、Google Driveへバックアップするツールです。</p>
+<h2>機能</h2>
+<p>一覧・在庫・リマインドなどのBotデータをバックアップファイルにまとめ、認証した本人のGoogle Driveに保存します。保存後はファイルを再取得して整合性を確認し、障害時の復元に利用します。</p>
+<p>検証済みのバックアップを通常3世代保持し、新しいバックアップの検証後に古い世代を削除します。</p>
+<h2>Google Driveへのアクセス</h2>
+<p>Googleアカウントでの同意に基づき、<code>drive.file</code>権限を利用します。このツールが作成した専用フォルダ内のバックアップファイルと検証用の管理情報を保存・取得・削除します。</p>
+<h2>利用対象と運営者</h2>
+<p>運営者は<a href="https://github.com/yone-k">yone-k</a>です。運営者本人の利用を目的とし、一般向けのアカウント登録やサービス提供は行っていません。</p>
+<p><a href="privacy.html">プライバシーポリシー</a>と<a href="terms.html">利用条件</a>をご確認ください。</p>
+<p>ソースコード・お問い合わせ：<a href="https://github.com/yone-k/yone-discord-bot">yone-discord-bot</a>。お問い合わせにはリポジトリのIssuesをご利用ください。認証情報やバックアップの内容は投稿しないでください。</p>
+</main>
+<footer>discord-bot-backup · yone-k</footer>
+</body>
+</html>
+

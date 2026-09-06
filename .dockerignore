@@ -6,6 +6,9 @@ yarn-error.log*
 
 # Build output
 dist
+backend/bin/
+backend/coverage*
+backend/**/*.test
 
 # Environment files
 .env*

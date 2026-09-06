@@ -1,3 +1,4 @@
+import { withApiDeadline } from '../api/CoreClient';
 import { AutocompleteInteraction } from 'discord.js';
 import { BaseAutocompleteHandler } from '../base/BaseAutocompleteHandler';
 
@@ -19,6 +20,6 @@ export class AutocompleteManager {
       return;
     }
 
-    await handler.handle(interaction);
+    await withApiDeadline(2000, () => handler.handle(interaction));
   }
 }

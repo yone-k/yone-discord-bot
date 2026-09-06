@@ -1,3 +1,4 @@
+import { CoreApiError } from '../api/CoreClient';
 import { ModalSubmitInteraction } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { OperationLogService } from '../services/OperationLogService';
@@ -105,7 +106,7 @@ export abstract class BaseModalHandler {
       
       try {
         await context.interaction.editReply({
-          content: '❌ 処理中にエラーが発生しました。しばらく時間を置いてから再試行してください。'
+          content: error instanceof CoreApiError ? `❌ ${error.message}` : '❌ 処理中にエラーが発生しました。しばらく時間を置いてから再試行してください。'
         });
       } catch (replyError) {
         this.logger.error('Failed to send modal response', {

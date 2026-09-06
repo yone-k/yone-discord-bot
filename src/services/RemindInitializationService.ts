@@ -1,4 +1,4 @@
-import { Client } from 'discord.js';
+import { Client, RESTJSONErrorCodes } from 'discord.js';
 import { RemindTask } from '../models/RemindTask';
 import { RemindChannelStore } from './RemindChannelStore';
 import { RemindMessageManager } from './RemindMessageManager';
@@ -54,24 +54,20 @@ export class RemindInitializationService {
     return { success: true };
   }
 
-  private async syncTaskMessage(channelId: string, task: RemindTask, client: Client): Promise<{ success: boolean; message?: string }> {
+  public async syncTaskMessage(channelId: string, task: RemindTask, client: Client): Promise<{ success: boolean; message?: string }> {
     if (task.messageId) {
       try {
         const updateResult = await this.messageManager.updateTaskMessage(channelId, task.messageId, task, client);
-        if (updateResult.success) {
-          return { success: true };
-        }
-      } catch {
-        // fall through to recreate message
+        return updateResult;
+      } catch (error) {
+        if (!error || typeof error !== 'object' || !('code' in error) || error.code !== RESTJSONErrorCodes.UnknownMessage) throw error;
       }
     }
 
     const createResult = await this.messageManager.createTaskMessage(channelId, task, client);
     if (createResult.success && createResult.messageId) {
-      const updateResult = await this.repository.patchTask(channelId, task, { messageId: createResult.messageId });
-      if (!updateResult.success) {
-        return { success: false, message: updateResult.message };
-      }
+      // Persistence errors reject initialization; the caller keeps readiness false.
+      await this.repository.patchTask(channelId, task, { messageId: createResult.messageId });
       return { success: true };
     }
     return { success: false, message: createResult.message };

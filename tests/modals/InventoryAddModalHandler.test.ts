@@ -3,16 +3,6 @@ import { InventoryAddModalHandler } from '../../src/modals/InventoryAddModalHand
 import type { ModalHandlerContext } from '../../src/base/BaseModalHandler';
 import type { Logger } from '../../src/utils/logger';
 
-vi.mock('node:crypto', async importOriginal => ({
-  ...(await importOriginal<typeof import('node:crypto')>()),
-  randomUUID: vi.fn(() => '00000000-0000-4000-8000-000000000029')
-}));
-
-vi.mock('crypto', async importOriginal => ({
-  ...(await importOriginal<typeof import('crypto')>()),
-  randomUUID: vi.fn(() => '00000000-0000-4000-8000-000000000029')
-}));
-
 class MockLogger {
   debug = vi.fn();
   info = vi.fn();
@@ -116,13 +106,11 @@ describe('InventoryAddModalHandler', () => {
     expect(interaction.fields.getTextInputValue).toHaveBeenCalledWith('category');
     expect(metadataReader.getChannelMetadata).toHaveBeenCalledWith('channel-1');
     expect(inventoryService.create).toHaveBeenNthCalledWith(1, 'channel-1', {
-      id: '00000000-0000-4000-8000-000000000029',
       name: '洗剤',
       stock: '5',
       category: '日用品'
     });
     expect(inventoryService.create).toHaveBeenNthCalledWith(2, 'channel-1', {
-      id: '00000000-0000-4000-8000-000000000029',
       name: 'パン',
       stock: '3',
       category: '日用品'
@@ -147,7 +135,6 @@ describe('InventoryAddModalHandler', () => {
 
     // Then
     expect(inventoryService.create).toHaveBeenCalledWith('channel-1', {
-      id: '00000000-0000-4000-8000-000000000029',
       name: '歯磨き粉',
       stock: '2',
       category: '未分類'
@@ -166,7 +153,6 @@ describe('InventoryAddModalHandler', () => {
 
     // Then
     expect(inventoryService.create).toHaveBeenCalledWith('channel-1', {
-      id: '00000000-0000-4000-8000-000000000029',
       name: '歯磨き粉',
       stock: '2',
       category: ''
@@ -220,13 +206,11 @@ describe('InventoryAddModalHandler', () => {
     // Then
     expect(inventoryService.create).toHaveBeenCalledTimes(2);
     expect(inventoryService.create).toHaveBeenNthCalledWith(1, 'channel-1', {
-      id: '00000000-0000-4000-8000-000000000029',
       name: '洗剤',
       stock: '5',
       category: '日用品'
     });
     expect(inventoryService.create).toHaveBeenNthCalledWith(2, 'channel-1', {
-      id: '00000000-0000-4000-8000-000000000029',
       name: 'パン',
       stock: '3',
       category: '日用品'

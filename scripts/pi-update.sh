@@ -14,7 +14,7 @@ lock_status=0
 flock -n 9 || lock_status=$?
 if [ "$lock_status" = 1 ]; then
   printf '%s\n' 'update: already-running'
-  case "${1:-}" in --verify|--block|--recover|--initialize) exit 1 ;; esac
+  case "${1:-}" in --verify|--block|--recover|--initialize|--accept-v2) exit 1 ;; esac
   exit 0
 fi
 [ "$lock_status" = 0 ] || { printf '%s\n' 'update: lock-failed' >&2; exit 1; }
@@ -75,21 +75,26 @@ image_available() {
 }
 snapshot() {
   local id
-  id=$(compose "$1" ps -q bot 2>/dev/null) || return 1
+  id=$(compose "$1" ps -q "$2" 2>/dev/null) || return 1
   case "$id" in ''|*$'\n'*) return 1 ;; esac
   docker inspect --format '{{.Config.Image}}|{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$id" 2>/dev/null
 }
 matches_running() {
-  local info
-  info=$(snapshot "$1") || return 1
-  case "$info" in "$1|running|"*) return 0 ;; *) return 1 ;; esac
+  local service info
+  for service in api bot; do
+    info=$(snapshot "$1" "$service") || return 1
+    case "$info" in "$1|running|"*) ;; *) return 1 ;; esac
+  done
 }
-healthy() { [ "$(snapshot "$1")" = "$1|running|healthy" ]; }
+healthy() {
+  [ "$(snapshot "$1" api)" = "$1|running|healthy" ] &&
+    [ "$(snapshot "$1" bot)" = "$1|running|healthy" ]
+}
 wait_healthy() {
   local deadline info
   deadline=$(($(date +%s) + 300))
   while [ "$(date +%s)" -lt "$deadline" ]; do
-    info=$(snapshot "$1") || info=
+    info=$(snapshot "$1" "$2") || info=
     case "$info" in
       "$1|running|healthy") return 0 ;;
       "$1|running|unhealthy"|*'|exited|'*|*'|dead|'*) return 1 ;;
@@ -98,19 +103,38 @@ wait_healthy() {
   done
   return 1
 }
+stop_image() {
+  compose "$1" stop bot >/dev/null 2>&1 &&
+    compose "$1" stop api >/dev/null 2>&1
+}
 start_image() {
   bash "$root/scripts/pi-db-preflight.sh" || return 1
-  compose "$1" up -d --no-deps --force-recreate --no-build --pull never bot >/dev/null 2>&1
+  compose "$1" up -d --no-deps --force-recreate --no-build --pull never api >/dev/null 2>&1 &&
+    wait_healthy "$1" api &&
+    compose "$1" up -d --no-deps --force-recreate --no-build --pull never bot >/dev/null 2>&1 &&
+    wait_healthy "$1" bot && healthy "$1"
 }
 schema_compatible() {
   bash "$root/scripts/pi-db-preflight.sh" >/dev/null 2>&1 &&
     compose "$1" --profile ops run --rm --no-deps ops --check >/dev/null 2>&1
 }
 
+# Any exit while a replacement is pending requires explicit recovery. Persist
+# this immediately for catchable interruptions; pending also guards power loss.
+finish() {
+  local status=$?
+  trap - EXIT
+  if [ "$pending" = 1 ]; then blocked=1; write_state || true; fi
+  exit "$status"
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
+
 action=${1:---update}
 case "$action" in
-  --initialize|--recover|--retry|--verify)
-    [ "$#" -eq 2 ] || fail 'usage: --initialize|--recover|--retry|--verify IMAGE@sha256:DIGEST'
+  --initialize|--recover|--retry|--verify|--accept-v2)
+    [ "$#" -eq 2 ] || fail 'usage: --initialize|--recover|--retry|--verify|--accept-v2 IMAGE@sha256:DIGEST'
     valid_image "$2" || fail invalid-image
     ;;
   --update|--status|--block) [ "$#" -le 1 ] || fail invalid-arguments ;;
@@ -126,6 +150,19 @@ if [ "$action" = --verify ]; then
   [ "$initialized" = 1 ] && [ "$blocked" = 0 ] && [ "$pending" = 0 ] || fail not-ready
   [ "$current" = "$2" ] && healthy "$2" || fail deployed-version-not-healthy
   log verified
+  exit 0
+fi
+
+if [ "$action" = --accept-v2 ]; then
+  [ "$initialized" = 1 ] && [ "$blocked" = 1 ] && [ "$pending" = 0 ] || fail cutover-requires-blocked-state
+  [ -f "$state_dir/ci-disabled" ] || fail cutover-requires-disabled-ci
+  [ ! -e "$state_dir/state.before-v2" ] || fail cutover-already-recorded
+  image_available "$2" && healthy "$2" || fail initial-digest-not-healthy
+  schema_compatible "$2" || fail initial-schema-incompatible
+  cp -p "$state_dir/state" "$state_dir/state.before-v2"
+  current=$2 previous= rejected= pending=0 blocked=0
+  write_state
+  log accepted-v2
   exit 0
 fi
 
@@ -152,16 +189,19 @@ if [ "$action" = --block ]; then
   exit 0
 fi
 
-# Explicit operator recovery is the only path allowed to replace a blocked bot.
+# Explicit operator recovery is the only path allowed to replace a blocked pair.
 if [ "$action" = --recover ]; then
   image_available "$2" || fail recovery-image-unavailable
   compose "$2" config --quiet >/dev/null 2>&1 || fail recovery-config-invalid
   schema_compatible "$2" || fail recovery-schema-incompatible
   blocked=1 pending=1
   write_state
-  compose "$current" stop bot >/dev/null 2>&1 || fail recovery-stop-failed
-  if ! start_image "$2" || ! wait_healthy "$2"; then fail recovery-failed; fi
-  if [ "$current" != "$2" ]; then previous=$current; fi
+  stop_image "$current" || fail recovery-stop-failed
+  if ! start_image "$2"; then fail recovery-failed; fi
+  if [ "$current" != "$2" ]; then
+    previous=
+    if schema_compatible "$current"; then previous=$current; fi
+  fi
   current=$2 pending=0 blocked=0
   if [ "$rejected" = "$2" ]; then rejected=; fi
   write_state
@@ -199,7 +239,8 @@ schema_compatible "$current" || fail rollback-schema-incompatible
 
 pending=1
 write_state
-if start_image "$candidate" && wait_healthy "$candidate"; then
+stop_image "$current" || block current-version-stop-failed
+if start_image "$candidate"; then
   previous=$current current=$candidate pending=0
   write_state
   log updated
@@ -208,8 +249,8 @@ fi
 
 rejected=$candidate
 write_state
-compose "$candidate" stop bot >/dev/null 2>&1 || block failed-version-stop-failed
-if start_image "$current" && wait_healthy "$current"; then
+stop_image "$candidate" || block failed-version-stop-failed
+if start_image "$current"; then
   pending=0
   write_state
   fail update-failed-rolled-back

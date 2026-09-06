@@ -1,6 +1,6 @@
 import type { RemindChannelMetadata } from '../models/RemindChannelMetadata';
-import type { RemindChannel, RemindChannelRepository } from '../repositories/contracts';
-import { PostgresRemindChannelRepository } from '../repositories/PostgresRemindChannelRepository';
+import type { RemindChannel, RemindChannelRepository } from '../api/contracts';
+import { ApiRemindChannelRepository } from '../api/Repositories';
 import type { MetadataProvider, MetadataProviderResult } from './MetadataProvider';
 export type { RemindChannelMetadata } from '../models/RemindChannelMetadata';
 export interface RemindMetadataOperationResult extends MetadataProviderResult { metadata?: RemindChannelMetadata }
@@ -14,7 +14,7 @@ const toMetadata = (channel: RemindChannel): RemindChannelMetadata => ({
 
 export class RemindChannelStore implements MetadataProvider {
   private static instance: RemindChannelStore | undefined;
-  constructor(private readonly repository: RemindChannelRepository = new PostgresRemindChannelRepository()) {}
+  constructor(private readonly repository: RemindChannelRepository = new ApiRemindChannelRepository()) {}
   static getInstance(): RemindChannelStore { return this.instance ??= new RemindChannelStore(); }
   async getChannelMetadata(channelId: string): Promise<RemindMetadataOperationResult> {
     const channel = await this.repository.get(channelId);
@@ -32,10 +32,11 @@ export class RemindChannelStore implements MetadataProvider {
   async updateChannelMetadata(channelId: string, updates: Partial<Omit<RemindChannelMetadata, 'channelId'>>): Promise<RemindMetadataOperationResult> {
     const patch: Partial<Omit<RemindChannel, 'channelId'>> = {};
     if (updates.listTitle !== undefined) patch.listTitle = updates.listTitle;
-    for (const key of ['messageId', 'operationLogThreadId', 'remindNoticeThreadId', 'remindNoticeMessageId', 'linkedInventoryChannelId'] as const) {
+    for (const key of ['messageId', 'operationLogThreadId', 'remindNoticeThreadId', 'remindNoticeMessageId'] as const) {
       if (key in updates) patch[key] = updates[key] || null;
     }
-    await this.repository.patch(channelId, patch);
+    if ('linkedInventoryChannelId' in updates) await this.repository.linkInventory(channelId, updates.linkedInventoryChannelId || null);
+    if (Object.keys(patch).length) await this.repository.patch(channelId, patch);
     return this.getChannelMetadata(channelId);
   }
 }

@@ -2,14 +2,14 @@ import { ChatInputCommandInteraction } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { ListInitializationService } from '../services/ListInitializationService';
-import { PostgresListRepository } from '../repositories/PostgresListRepository';
+import { ApiListRepository } from '../api/Repositories';
 import { MessageManager } from '../services/MessageManager';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
 import { ListChannelStore } from '../services/ListChannelStore';
 import { DEFAULT_CATEGORY } from '../models/CategoryType';
 export class InitListButtonHandler extends BaseButtonHandler {
-  constructor(logger: Logger, operationLogService?: OperationLogService, metadataManager: ListChannelStore = ListChannelStore.getInstance(), private listInitializationService = new ListInitializationService(new PostgresListRepository(), new MessageManager(), metadataManager)) {
+  constructor(logger: Logger, operationLogService?: OperationLogService, metadataManager: ListChannelStore = ListChannelStore.getInstance(), private listInitializationService = new ListInitializationService(new ApiListRepository(), new MessageManager(), metadataManager)) {
     super('init-list-button', logger, operationLogService, metadataManager);
     this.ephemeral = true;
   }

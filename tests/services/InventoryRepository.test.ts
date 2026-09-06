@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { InventoryRepository } from '../../src/services/InventoryRepository';
-import type { InventoryRepository as Port } from '../../src/repositories/contracts';
+import type { InventoryRepository as Port } from '../../src/api/contracts';
 describe('InventoryRepository domain conversion', () => {
   it('preserves stored precision and default-category following', async () => {
     const db = { fetchAll: vi.fn().mockResolvedValue([{ channelId: '123', id: 'x', name: '米', stock: '1.1234567890123456789', category: null, position: 0 }]) };

@@ -1,11 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { parseListCsv, serializeListCsv, parseListAdd, toDisplayListItem } from '../../src/utils/ListInput';
 describe('ListInput', () => {
+  it('空の名前を含む行番号を表示する', () => {
+    expect(() => parseListCsv('米,,,\n,食品,,')).toThrow('2行目: 名前は必須です');
+    expect(() => parseListAdd('米\n,2026-01-01', '')).toThrow('2行目: 名前は必須です');
+  });
   it('CSVの引用符・カンマ・改行と明示カテゴリを往復する', () => {
     const items = [{ name: 'a,"b\nc', category: '食品', until: '2026-01-01', isCompleted: true }];
     expect(parseListCsv(serializeListCsv(items))).toEqual(items);
   });
-  it.each(['a,,,\na,,,', 'a,,2026-02-30,', 'a,,,yes', 'a,,,,extra', '"unfinished'])('不正入力を部分採用しない: %s', text => expect(() => parseListCsv(text)).toThrow());
+  it.each(['a,,,yes', 'a,,,,extra', '"unfinished'])('不正入力を部分採用しない: %s', text => expect(() => parseListCsv(text)).toThrow());
   it('空欄は全削除、通常名のヘッダー語や例を捨てない', () => {
     expect(parseListCsv('')).toEqual([]);
     expect(parseListCsv('name入り,,,\n例: 牛乳,,,').map(x => x.name)).toEqual(['name入り', '例: 牛乳']);
@@ -19,9 +23,8 @@ describe('ListInput', () => {
     expect(item.until?.toISOString()).toBe('2025-12-31T15:00:00.000Z');
   });
 });
-it('不正行と重複はCSV行位置を報告する', () => {
-  expect(() => parseListCsv('a,,,\nb,,2026-02-30,')).toThrow('2行目');
-  expect(() => parseListCsv('a,,,\na,,,')).toThrow('2行目');
+it('実在日付と名前重複の判定をAPIへ渡す', () => {
+  expect(parseListCsv('a,,,\na,,2026-02-30,')).toHaveLength(2);
 });
 it('保存済み一覧の前後空白をCSV往復で保持する', () => {
   const items = [{name:' milk ',category:' food ',until:null,isCompleted:false}];

@@ -1,14 +1,14 @@
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
-import { ListRepository } from '../repositories/contracts';
-import { PostgresListRepository } from '../repositories/PostgresListRepository';
+import { ListRepository } from '../api/contracts';
+import { ApiListRepository } from '../api/Repositories';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { OperationLogService } from '../services/OperationLogService';
 import { ListChannelStore } from '../services/ListChannelStore';
 import { serializeListCsv } from '../utils/ListInput';
 export class EditListButtonHandler extends BaseButtonHandler {
-  constructor(logger: Logger, operationLogService?: OperationLogService, metadataManager?: ListChannelStore, private repository: ListRepository = new PostgresListRepository()) {
+  constructor(logger: Logger, operationLogService?: OperationLogService, metadataManager?: ListChannelStore, private repository: ListRepository = new ApiListRepository()) {
     super('edit-list-button', logger, operationLogService, metadataManager);
   }
   protected getOperationInfo(): OperationInfo { return { operationType: 'edit', actionName: 'アイテム編集' }; }

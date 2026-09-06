@@ -1,5 +1,5 @@
 import { Client } from 'discord.js';
-import { ListRepository } from '../repositories/contracts';
+import { ListRepository } from '../api/contracts';
 import { MessageManager } from '../services/MessageManager';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { ListFormatter } from '../ui/ListFormatter';

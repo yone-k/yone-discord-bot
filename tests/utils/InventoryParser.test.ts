@@ -28,13 +28,13 @@ describe('parseInventoryAddCsvText', () => {
     expect(() => parseInventoryAddCsvText('洗剤,abc')).toThrow();
   });
 
-  it('throws on negative stock', () => {
-    expect(() => parseInventoryAddCsvText('洗剤,-1')).toThrow();
+  it('leaves numeric range validation to the API', () => {
+    expect(parseInventoryAddCsvText('洗剤,-1')[0].stock).toBe('-1');
   });
 
-  it('accepts decimal stock and rounds to 1 decimal', () => {
-    expect(parseInventoryAddCsvText('洗剤,5.5')).toEqual([
-      { name: '洗剤', stock: '5.5' },
+  it('preserves decimal stock without rounding API input', () => {
+    expect(parseInventoryAddCsvText('洗剤,5.56789')).toEqual([
+      { name: '洗剤', stock: '5.56789' },
     ]);
   });
 });

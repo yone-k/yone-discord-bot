@@ -173,7 +173,7 @@ def restore_backup(manifest_name, database):
             compose('exec', '-T', 'db', 'sh', '-c',
                 'exec pg_restore --exit-on-error --single-transaction -U "$POSTGRES_USER" -d "$1"',
                 'sh', database, stdin=stream)
-        print('restore: restored to ' + database + '; verify schema, counts, references and readiness before Bot startup')
+        print('restore: restored to ' + database + '; verify schema, counts and references, then start API healthy followed by Bot healthy from the corresponding image')
         print('restore: corresponding-image=' + manifest['bot_image'])
 
 

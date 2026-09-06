@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskInventoryModalHandler } from '../../src/modals/RemindTaskInventoryModalHandler';
 import { Logger } from '../../src/utils/logger';
-import { createRemindTask } from '../../src/models/RemindTask';
+import { createRemindTask } from '../helpers/RemindTask';
 
 class Handler extends RemindTaskInventoryModalHandler { execute = this.executeAction.bind(this); }
 function setup(input = '米,1.234,0.0123'): any {
@@ -48,9 +48,10 @@ describe('RemindTaskInventoryModalHandler', () => {
     expect((await x.handler.execute({ interaction: x.interaction })).success).toBe(true);
     expect(x.repository.editInventorySettings).toHaveBeenCalledWith('3', x.task, []);
   });
-  it('rejects stale modal before invoking persistence', async () => {
+  it('passes the captured revision to the API and reports its conflict', async () => {
     const x = setup(); x.interaction.customId = 'remind-task-inventory-modal:456:6';
+    x.repository.editInventorySettings.mockRejectedValue(new Error('タスクが変更されました'));
     expect((await x.handler.execute({ interaction: x.interaction })).success).toBe(false);
-    expect(x.repository.editInventorySettings).not.toHaveBeenCalled();
+    expect(x.repository.editInventorySettings.mock.calls[0][1].revision).toBe('6');
   });
 });

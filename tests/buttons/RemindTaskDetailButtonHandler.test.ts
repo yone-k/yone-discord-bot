@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskDetailButtonHandler } from '../../src/buttons/RemindTaskDetailButtonHandler';
 import { Logger } from '../../src/utils/logger';
 import { ComponentType, MessageFlags } from 'discord.js';
-import { createRemindTask } from '../../src/models/RemindTask';
+import { createRemindTask } from '../helpers/RemindTask';
 
 describe('RemindTaskDetailButtonHandler', () => {
   it('replies with detail text', async () => {

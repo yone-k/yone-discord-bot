@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskUpdateCancelButtonHandler } from '../../src/buttons/RemindTaskUpdateCancelButtonHandler';
 import { Logger } from '../../src/utils/logger';
-import { createRemindTask } from '../../src/models/RemindTask';
+import { createRemindTask } from '../helpers/RemindTask';
 
 describe('RemindTaskUpdateCancelButtonHandler', () => {
   it('restores task message when cancel is selected', async () => {

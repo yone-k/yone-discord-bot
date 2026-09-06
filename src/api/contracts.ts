@@ -1,0 +1,25 @@
+import type { components } from './generated/schema';
+export type Schema = components['schemas'];
+export type ChannelSettings = Schema['ChannelSettings'];
+export type ListChannel = Schema['ListChannel'];
+export type InventoryChannel = Schema['InventoryChannel'];
+export type RemindChannel = Schema['RemindChannel'];
+export type ListEditItem = Schema['ListEditItem'];
+export type StoredListItem = Omit<Schema['StoredListItem'], 'lastNotifiedAt'> & { lastNotifiedAt: Date | null };
+export type ListSnapshot = { items: StoredListItem[]; editVersion: string };
+export type StoredInventoryItem = Schema['StoredInventoryItem'];
+export type InventoryConsumption = Schema['InventoryConsumption'];
+export type RemindInventoryEdit = Schema['RemindInventoryEdit'];
+type TaskDate = 'startAt' | 'nextDueAt' | 'createdAt' | 'updatedAt';
+type NullableTaskDate = 'lastDoneAt' | 'lastRemindDueAt' | 'lastOverdueNotifiedAt';
+export type StoredRemindTask = Omit<Schema['StoredRemindTask'], TaskDate | NullableTaskDate> & Record<TaskDate, Date> & Record<NullableTaskDate, Date | null>;
+export type RemindTaskPatch = Schema['TaskPatch'];
+export type RemindInventoryEditResult = Omit<Schema['RemindInventoryEditResult'], 'task'> & { task: StoredRemindTask };
+export interface OperationResult { success: boolean; message?: string }
+export type ListRepository = import('./Repositories').ApiListRepository;
+export type ListChannelRepository = import('./Repositories').ApiListChannelRepository;
+export type InventoryRepository = import('./Repositories').ApiInventoryRepository;
+export type InventoryChannelRepository = import('./Repositories').ApiInventoryChannelRepository;
+export type RemindChannelRepository = import('./Repositories').ApiRemindChannelRepository;
+export type RemindTaskRepository = import('./Repositories').ApiRemindTaskRepository;
+export { CoreApiError as RepositoryError } from './CoreClient';

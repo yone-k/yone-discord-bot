@@ -5,7 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    exclude: ['node_modules', 'dist', 'tests/db/**'],
+    exclude: ['node_modules', 'dist', 'tests/api-integration/**'],
     watch: false
   }
 })

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RemindInitializationService } from '../../src/services/RemindInitializationService';
-import { createRemindTask } from '../../src/models/RemindTask';
+import { createRemindTask } from '../helpers/RemindTask';
+import { CoreApiError } from '../../src/api/CoreClient';
 
 describe('RemindInitializationService', () => {
   let mockRepository: any;
@@ -10,7 +11,7 @@ describe('RemindInitializationService', () => {
   beforeEach(() => {
     mockRepository = {
       fetchTasks: vi.fn(),
-      patchTask: vi.fn().mockResolvedValue({ success: true })
+      patchTask: vi.fn().mockImplementation(async (_channel, task, patch) => ({ success: true, task: { ...task, ...patch } }))
     };
     mockMetadataManager = {
       getChannelMetadata: vi.fn().mockResolvedValue({ success: false }),
@@ -64,8 +65,18 @@ describe('RemindInitializationService', () => {
     expect(mockMessageManager.ensureReminderThread).toHaveBeenCalled();
     expect(mockMessageManager.createTaskMessage).toHaveBeenCalled();
     expect(mockRepository.patchTask).toHaveBeenCalled();
+    expect(mockMessageManager.updateTaskMessage).not.toHaveBeenCalled();
     expect(mockMessageManager.ensureReminderThread.mock.invocationCallOrder[0])
       .toBeLessThan(mockRepository.fetchTasks.mock.invocationCallOrder[0]);
+  });
+  it('does not create a duplicate message after a transient update failure', async () => {
+    const task = { id: 'task', messageId: 'existing', revision: '4' };
+    mockRepository.fetchTasks.mockResolvedValue([task]);
+    mockMessageManager.updateTaskMessage.mockRejectedValue(new Error('connection lost'));
+    const service = new RemindInitializationService(mockRepository, mockMetadataManager, mockMessageManager);
+    await expect(service.initialize('channel-1', {} as any, 'リマインドリスト')).rejects.toThrow('connection lost');
+    expect(mockMessageManager.createTaskMessage).not.toHaveBeenCalled();
+    expect(mockRepository.patchTask).not.toHaveBeenCalled();
   });
 
   it('recreates message when existing message is missing', async () => {
@@ -82,7 +93,8 @@ describe('RemindInitializationService', () => {
       updatedAt: new Date('2025-12-29T09:00:00+09:00')
     });
     mockRepository.fetchTasks.mockResolvedValue([task]);
-    mockMessageManager.updateTaskMessage.mockRejectedValue(new Error('Unknown Message'));
+    mockMessageManager.updateTaskMessage.mockRejectedValueOnce(Object.assign(new Error('Unknown Message'), { code: 10008 }));
+    mockRepository.patchTask.mockResolvedValue({ success: true, task: { ...task, revision: '1', messageId: 'msg-new' } });
     mockMessageManager.createTaskMessage.mockResolvedValue({ success: true, messageId: 'msg-new' });
 
     const service = new RemindInitializationService(
@@ -117,8 +129,8 @@ describe('RemindInitializationService', () => {
       updatedAt: new Date('2025-12-29T09:00:00+09:00')
     });
     mockRepository.fetchTasks.mockResolvedValue([task]);
-    mockRepository.patchTask.mockResolvedValue({ success: false, message: 'update failed' });
-    mockMessageManager.updateTaskMessage.mockRejectedValue(new Error('Unknown Message'));
+    mockRepository.patchTask.mockRejectedValue(new CoreApiError('conflict', 409));
+    mockMessageManager.updateTaskMessage.mockRejectedValueOnce(Object.assign(new Error('Unknown Message'), { code: 10008 }));
     mockMessageManager.createTaskMessage.mockResolvedValue({ success: true, messageId: 'msg-new' });
 
     const service = new RemindInitializationService(
@@ -127,9 +139,7 @@ describe('RemindInitializationService', () => {
       mockMessageManager
     );
 
-    const result = await service.initialize('channel-1', {} as any, 'リマインドリスト');
-
-    expect(result.success).toBe(false);
-    expect(result.message).toBe('update failed');
+    await expect(service.initialize('channel-1', {} as any, 'リマインドリスト')).rejects.toMatchObject({ code: 'conflict', status: 409 });
+    expect(mockRepository.patchTask).toHaveBeenCalledTimes(1);
   });
 });

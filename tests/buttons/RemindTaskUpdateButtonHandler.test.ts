@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { ComponentType } from 'discord.js';
 import { RemindTaskUpdateButtonHandler } from '../../src/buttons/RemindTaskUpdateButtonHandler';
 import { Logger } from '../../src/utils/logger';
-import { createRemindTask } from '../../src/models/RemindTask';
+import { createRemindTask } from '../helpers/RemindTask';
 
 describe('RemindTaskUpdateButtonHandler', () => {
   it('updates message with selection options including message id', async () => {

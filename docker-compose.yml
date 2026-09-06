@@ -5,7 +5,7 @@ services:
     image: ${BOT_IMAGE:?Set BOT_IMAGE to the GHCR image digest}
     env_file: ${BOT_ENV_FILE:-.env}
     depends_on:
-      db:
+      api:
         condition: service_healthy
     restart: unless-stopped
     # Avoid the Pi host's unresponsive resolver delaying Discord replies.
@@ -14,6 +14,26 @@ services:
       - 1.1.1.1
     ports:
       - "127.0.0.1:3000:3000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    image: ${BOT_IMAGE:?Set BOT_IMAGE to the GHCR image digest}
+    env_file: ${API_ENV_FILE:-.env.api}
+    entrypoint: ["/app/bin/core-api"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8080/health', {signal: AbortSignal.timeout(5000)}).then(r => {if (!r.ok) process.exit(1);}).catch(() => process.exit(1));"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
     logging:
       driver: json-file
       options:
@@ -77,21 +97,6 @@ services:
     profiles: [ops]
     image: ${BOT_IMAGE:?Set BOT_IMAGE}
     env_file: ${DB_ADMIN_ENV_FILE:-.env.db-admin}
-    entrypoint: ["node", "dist/scripts/db-migrate.js"]
+    entrypoint: ["/app/bin/db-migrate"]
     restart: "no"
-    logging: *bounded-logging
-
-  migration:
-    profiles: [migration]
-    image: ${BOT_IMAGE:?Set BOT_IMAGE}
-    user: "${OPS_UID:-1000}:${OPS_GID:-1000}"
-    env_file: ["${DB_ADMIN_ENV_FILE:-.env.db-admin}", .env.migration]
-    entrypoint: ["node", "dist/scripts/migrate-sheets-to-postgres.js"]
-    restart: "no"
-    volumes:
-      - type: bind
-        source: ${STORAGE_ROOT:-/srv/discord-bot-storage}/migration
-        target: /migration
-        bind:
-          create_host_path: false
     logging: *bounded-logging

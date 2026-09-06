@@ -31,19 +31,45 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres -d discord_bot_test"
           --health-interval 5s --health-timeout 5s --health-retries 12
+          --add-host=host.docker.internal:host-gateway
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.27.1'
+          cache-dependency-path: backend/go.sum
       - run: npm ci
+      - run: npm run api:generate
+      - run: go generate ./...
+        working-directory: backend
+      - name: Check generated artifacts
+        run: |
+          git diff --exit-code -- api/generated src/api/generated backend
+          test -z "$(git ls-files --others --exclude-standard api/generated src/api/generated backend)"
+      - name: Check Go
+        working-directory: backend
+        run: |
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go test ./...
+          go test -race ./...
+          go build ./cmd/...
       - run: npm run check
       - run: npm test
       - run: npm run test:db
         env:
-          DATABASE_URL: postgresql://postgres:synthetic-test-only@localhost:5432/discord_bot_test
+          TEST_DATABASE_URL: postgresql://postgres:synthetic-test-only@localhost:5432/discord_bot_test
           TEST_DB_CONTAINER_ID: ${{ job.services.postgres.id }}
+      - name: Go API, PostgreSQL and Discord UI integration
+        run: npm run test:api-integration
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:synthetic-test-only@localhost:5432/discord_bot_test_http
+          TEST_DB_CONTAINER_ID: ${{ job.services.postgres.id }}
+      - run: npm run build-only
       - uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64
@@ -57,19 +83,20 @@ jobs:
             --tag "$IMAGE:$GITHUB_SHA" .
           test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$IMAGE:$GITHUB_SHA")" = linux/arm64
           docker run --rm --network none --entrypoint node "$IMAGE:$GITHUB_SHA" -e \
-            "require('pg');const fs=require('fs');for(const p of ['db/migrations/001_initial.sql','dist/scripts/db-migrate.js','dist/scripts/migrate-sheets-to-postgres.js']) fs.accessSync(p);"
+            "const fs=require('fs');for(const p of ['db/migrations/001_initial.sql','db/migrations/002_ent_uuidv7.sql','bin/core-api','bin/db-migrate']) fs.accessSync(p);for(const p of ['dist/migration','dist/db','dist/scripts/migrate-sheets-to-postgres.js']) if(fs.existsSync(p)) process.exit(1);"
           test -z "$(docker run --rm --network none --entrypoint sh "$IMAGE:$GITHUB_SHA" -c \
             'find /app -path /app/node_modules -prune -o -type f \( -name ".env*" -o -name "*.dump" -o -name "*.key" -o -name "*.pem" \) -print')"
-          # No Google credentials or real external endpoints are available.
+          # Startup must reject an unavailable Core API before Discord login.
           check_log=$(mktemp)
           if docker run --rm --network none --entrypoint node \
             -e DISCORD_BOT_TOKEN=synthetic -e CLIENT_ID=123 \
-            -e DATABASE_URL=postgresql://synthetic:synthetic@127.0.0.1:1/synthetic \
+            -e CORE_API_URL=http://127.0.0.1:1 -e CORE_API_TOKEN=synthetic \
             "$IMAGE:$GITHUB_SHA" dist/index.js > "$check_log" 2>&1; then
             rm -f "$check_log"; exit 1
           fi
           if grep -q 'GOOGLE_' "$check_log"; then rm -f "$check_log"; exit 1; fi
           rm -f "$check_log"
+          bash scripts/check-core-image.sh "$IMAGE:$GITHUB_SHA"
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -86,7 +113,7 @@ jobs:
     needs: publish
     if: needs.publish.outputs.published == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write

@@ -20,7 +20,7 @@ echo "$*" >> "$CALLS"
 case "$*" in
   *'ps --status running'*) [ "$RUNNING" = 0 ] || echo existing ;;
   *'ops --check'*) exit "$SCHEMA_FAIL" ;;
-  *'up -d --no-build'*) [ -f .deploy-state/db-started ] || exit 9; exit "$START_FAIL" ;;
+  *'up -d --no-deps --no-build'*) [ -f .deploy-state/schema-v2-confirmed ] || exit 9; exit "$START_FAIL" ;;
 esac
 `, { mode: 0o755 });
 });
@@ -40,15 +40,24 @@ it('refuses initialization while a database container is running', () => {
   expect(run('pi-db-init.sh', { RUNNING: '1' }).status).not.toBe(0);
   expect(readFileSync(join(root, 'calls'), 'utf8')).not.toContain('up -d');
 });
-it('does not cross the Sheets rollback cutoff if schema validation fails', () => {
+it('does not start either service if schema validation fails', () => {
   expect(run('pi-start.sh', { SCHEMA_FAIL: '1' }).status).not.toBe(0);
-  expect(existsSync(join(root, '.deploy-state/db-started'))).toBe(false);
+  expect(existsSync(join(root, '.deploy-state/schema-v2-confirmed'))).toBe(false);
 });
-it('records the irreversible start request even if Compose startup fails', () => {
+it('records confirmed v2 even if Compose startup fails', () => {
   expect(run('pi-start.sh', { START_FAIL: '1' }).status).not.toBe(0);
-  expect(existsSync(join(root, '.deploy-state/db-started'))).toBe(true);
+  expect(existsSync(join(root, '.deploy-state/schema-v2-confirmed'))).toBe(true);
 });
-it('requires the old Bot to be stopped before the first DB startup', () => {
+it('requires both services stopped before manual startup', () => {
   expect(run('pi-start.sh', { RUNNING: '1' }).status).not.toBe(0);
-  expect(existsSync(join(root, '.deploy-state/db-started'))).toBe(false);
+  expect(existsSync(join(root, '.deploy-state/schema-v2-confirmed'))).toBe(false);
+});
+
+it('starts and waits for API before starting and waiting for Bot', () => {
+  expect(run('pi-start.sh').status).toBe(0);
+  const calls = readFileSync(join(root, 'calls'), 'utf8');
+  const starts = calls.split('\n').filter(line => line.includes('up -d --no-deps'));
+  expect(starts).toHaveLength(2);
+  expect(starts[0]).toMatch(/--wait --wait-timeout 300 api$/);
+  expect(starts[1]).toMatch(/--wait --wait-timeout 300 bot$/);
 });

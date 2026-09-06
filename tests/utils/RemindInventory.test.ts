@@ -7,16 +7,19 @@ import {
 import { quoteCsvCell } from '../../src/utils/Csv';
 
 describe('RemindInventory', () => {
+  it('passes negative quantities to the API consistently for labeled and positional input', () => {
+    expect(parseInventoryInput('A,在庫-2,消費-1')).toEqual(parseInventoryInput('A,-2,-1'));
+  });
   it.each([' milk ', 'a,b', 'a"b', 'a\nb', 'a;b'])('retains the exact CSV name %j in both input modes', name => {
     const cell = quoteCsvCell(name);
-    expect(parseInventoryInput(`${cell},1.234,0.0123`, { preservePrecision: true })).toEqual([{ name, stock: '1.234', consume: '0.0123' }]);
-    expect(parseCompletionInput(`${cell},0.0123`, { preservePrecision: true })).toEqual([{ name, consume: '0.0123' }]);
+    expect(parseInventoryInput(`${cell},1.234,0.0123`)).toEqual([{ name, stock: '1.234', consume: '0.0123' }]);
+    expect(parseCompletionInput(`${cell},0.0123`)).toEqual([{ name, consume: '0.0123' }]);
   });
   it('preserves original precision for inventory settings until the transactional comparison', () => {
-    expect(parseInventoryInput('A,1.234,0.0123', { preservePrecision: true })).toEqual([{ name: 'A', stock: '1.234', consume: '0.0123' }]);
+    expect(parseInventoryInput('A,1.234,0.0123')).toEqual([{ name: 'A', stock: '1.234', consume: '0.0123' }]);
   });
   it.each(['A,消費1,unexpected', 'A,消費1,消費2', 'A,在庫1,在庫2'])('rejects unconsumed or duplicate quantity tokens %s', input => {
-    expect(() => parseInventoryInput(input, { preservePrecision: true })).toThrow();
+    expect(() => parseInventoryInput(input)).toThrow();
   });
   it('resolves labeled stock and equal unlabeled consume without comparing token values', () => {
     expect(parseInventoryInput('A,在庫5,5')).toEqual([{ name: 'A', stock: '5', consume: '5' }]);
@@ -71,26 +74,26 @@ describe('RemindInventory', () => {
     ]);
   });
 
-  it('parses decimal inventory input and rounds to one decimal', () => {
+  it('preserves decimal inventory input precision', () => {
     const text = 'フィルター,1.44\n替えブラシ,消費0.55';
     const items = parseInventoryInput(text);
 
     expect(items).toEqual([
-      { name: 'フィルター', stock: undefined, consume: '1.4' },
-      { name: '替えブラシ', stock: undefined, consume: '0.6' }
+      { name: 'フィルター', stock: undefined, consume: '1.44' },
+      { name: '替えブラシ', stock: undefined, consume: '0.55' }
     ]);
   });
 
-  it('rejects negative consume values', () => {
-    expect(() => parseInventoryInput('アイテム名,-1')).toThrow();
+  it('preserves signed numeric input for domain range validation', () => {
+    expect(parseInventoryInput('アイテム名,-1')[0].consume).toBe('-1');
   });
 
   it('rejects invalid inventory format', () => {
     expect(() => parseInventoryInput('フィルター')).toThrow('在庫の形式が不正です');
   });
 
-  it('rejects duplicate item names', () => {
-    expect(() => parseInventoryInput('フィルター,1\nフィルター,2')).toThrow('アイテム名が重複しています');
+  it('preserves duplicate names for API validation', () => {
+    expect(parseInventoryInput('フィルター,1\nフィルター,2')).toHaveLength(2);
   });
 
   it('formats inventory shortage notice with counts', () => {
@@ -141,12 +144,12 @@ describe('RemindInventory', () => {
       ]);
     });
 
-    it('rejects duplicate item names', () => {
-      expect(() => parseCompletionInput('A,1\nA,2')).toThrow();
+    it('preserves duplicate names for API validation', () => {
+      expect(parseCompletionInput('A,1\nA,2')).toHaveLength(2);
     });
 
-    it('rejects negative consume values', () => {
-      expect(() => parseCompletionInput('A,-1')).toThrow();
+    it('preserves signed numeric input for domain range validation', () => {
+      expect(parseCompletionInput('A,-1')[0].consume).toBe('-1');
     });
 
     it('rejects invalid consume numbers', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskRepository } from '../../src/services/RemindTaskRepository';
-import { createRemindTask } from '../../src/models/RemindTask';
-import type { RemindTaskRepository as Port } from '../../src/repositories/contracts';
+import { createRemindTask } from '../helpers/RemindTask';
+import type { RemindTaskRepository as Port } from '../../src/api/contracts';
 describe('RemindTaskRepository', () => {
   it('preserves channel identity when adapting inventory JOIN results', async () => {
     const db = { referencingInventory: vi.fn().mockResolvedValue([{ channelId: '123', title: 'Task', messageId: null, description: null, overdueNotifyLimit: null }]) };

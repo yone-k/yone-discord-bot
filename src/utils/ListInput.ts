@@ -1,29 +1,20 @@
 import { ListItem } from '../models/ListItem';
-import { ListEditItem } from '../repositories/contracts';
+import { ListEditItem } from '../api/contracts';
 import { parseCsvRecords, quoteCsvCell } from './Csv';
 function date(value: string): string | null {
   if (!value)
     return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number(value.slice(0, 4)))
     throw new Error('期限はYYYY-MM-DDで入力してください');
-  const parsed = new Date(`${value}T00:00:00Z`);
-  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value)
-    throw new Error('期限が無効です');
   return value;
 }
 function parse(text: string, convert: (cells: string[]) => ListEditItem): ListEditItem[] {
   const input = parseCsvRecords(text);
-  if (input.length > 100)
-    throw new Error('アイテムは最大100件です');
-  const names = new Set<string>();
+  if (input.length > 100) throw new Error('アイテムは最大100件です');
   return input.map(({ cells, line }) => {
     try {
       const item = convert(cells);
-      if (!item.name)
-        throw new Error('名前は必須です');
-      if (names.has(item.name))
-        throw new Error(`名前が重複しています: ${item.name}`);
-      names.add(item.name);
+      if (!item.name) throw new Error('名前は必須です');
       return item;
     }
     catch (error) {

@@ -1,115 +1,59 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { RemindTaskService } from '../../src/services/RemindTaskService';
-
-describe('RemindTaskService', () => {
-  it('uses the database initial revision when recording a newly created message', async () => {
-    const repository = {
-      appendTask: vi.fn().mockResolvedValue({ success: true }),
-      patchTask: vi.fn(async (_channel, task) => {
-        if (task.revision !== '0') throw new Error('revision conflict');
-        return { success: true };
-      })
-    };
-    const metadata = { getChannelMetadata: vi.fn().mockResolvedValue({ success: true }) };
-    const messages = { createTaskMessage: vi.fn().mockResolvedValue({ success: true, messageId: '456' }) };
-    const service = new RemindTaskService(repository as any, metadata as any, messages as any, () => 'task');
-    expect((await service.addTask('123', {title:'米',intervalDays:1}, {} as any, new Date('2026-01-01T00:00:00Z'))).success).toBe(true);
+import { createRemindTask } from '../helpers/RemindTask';
+function setup(): any {
+  const now = new Date('2026-01-01T00:00:00.000Z');
+  const task = createRemindTask({ id: 'server-id', revision: '25', title: '米', intervalDays: 1, timeOfDay: '00:00', remindBeforeMinutes: 1440, startAt: now, nextDueAt: now, createdAt: now, updatedAt: now });
+  const updated = { ...task, revision: '26', messageId: 'message' };
+  const repository = { appendTask: vi.fn().mockResolvedValue(task), patchTask: vi.fn().mockResolvedValue({ success: true, task: updated }) };
+  const metadata = { getChannelMetadata: vi.fn().mockResolvedValue({ success: true }), createChannelMetadata: vi.fn() };
+  const messages = { createTaskMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'message' }), updateTaskMessage: vi.fn().mockResolvedValue({ success: true }) };
+  const logger = { warn: vi.fn() };
+  return { task, updated, repository, metadata, messages, logger, service: new RemindTaskService(repository as any, metadata as any, messages as any, logger) };
+}
+describe('task creation UI orchestration', () => {
+  it('uses backend ID, dates and revision without editing an unchanged new card', async () => {
+    const x = setup();
+    const result = await x.service.addTask('channel', { title: '米', intervalDays: 1 }, {} as any);
+    expect(x.repository.appendTask).toHaveBeenCalledWith('channel', { title: '米', description: null, intervalDays: 1, timeOfDay: '00:00', remindBeforeMinutes: 1440, inventoryItems: [] });
+    expect(x.repository.patchTask).toHaveBeenCalledWith('channel', x.task, { messageId: 'message' });
+    expect(result.task).toEqual(x.updated);
+    expect(x.messages.createTaskMessage.mock.calls[0][1]).toEqual(x.task);
+    expect(x.messages.updateTaskMessage).not.toHaveBeenCalled();
   });
-  let mockRepository: any;
-  let mockMetadataManager: any;
-  let mockMessageManager: any;
-
-  beforeEach(() => {
-    mockRepository = {
-      appendTask: vi.fn().mockResolvedValue({ success: true }),
-      patchTask: vi.fn().mockResolvedValue({ success: true })
-    };
-    mockMetadataManager = {
-      getChannelMetadata: vi.fn().mockResolvedValue({ success: false }),
-      createChannelMetadata: vi.fn().mockResolvedValue({ success: true })
-    };
-    mockMessageManager = {
-      createTaskMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'msg-1' })
-    };
+  it('creates missing channel settings before creating a task', async () => {
+    const x = setup();
+    x.metadata.getChannelMetadata.mockResolvedValue({ success: false });
+    await x.service.addTask('channel', { title: '米', intervalDays: 1 }, {} as any);
+    expect(x.metadata.createChannelMetadata.mock.invocationCallOrder[0]).toBeLessThan(x.repository.appendTask.mock.invocationCallOrder[0]);
   });
-
-  it('adds task and updates message id', async () => {
-    const service = new RemindTaskService(
-      mockRepository,
-      mockMetadataManager,
-      mockMessageManager,
-      () => 'task-1'
-    );
-
-    const result = await service.addTask(
-      'channel-1',
-      {
-        title: '掃除',
-        intervalDays: 7,
-        timeOfDay: '09:00',
-        remindBeforeMinutes: 1440
-      },
-      {} as any,
-      new Date('2025-12-29T09:00:00+09:00'),
-      'リマインドリスト'
-    );
-
-    expect(result.success).toBe(true);
-    expect(mockRepository.appendTask).toHaveBeenCalled();
-    expect(mockMessageManager.createTaskMessage).toHaveBeenCalled();
-    expect(mockRepository.patchTask).toHaveBeenCalled();
+  it('reports a saved task with failed Discord rendering without replaying creation', async () => {
+    const x = setup();
+    x.messages.createTaskMessage.mockResolvedValue({ success: false } as any);
+    const result = await x.service.addTask('channel', { title: '米', intervalDays: 1 }, {} as any);
+    expect(result.message).toContain('タスクは保存されました');
+    expect(x.repository.appendTask).toHaveBeenCalledTimes(1);
+    expect(x.repository.patchTask).not.toHaveBeenCalled();
+    expect(x.logger.warn).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ stage: 'create_message', taskId: 'server-id' }));
   });
-
-  it('defaults timeOfDay to 00:00 when omitted', async () => {
-    const service = new RemindTaskService(
-      mockRepository,
-      mockMetadataManager,
-      mockMessageManager,
-      () => 'task-1'
-    );
-
-    await service.addTask(
-      'channel-1',
-      {
-        title: '掃除',
-        intervalDays: 7,
-        remindBeforeMinutes: 1440
-      },
-      {} as any,
-      new Date('2025-12-29T09:00:00+09:00'),
-      'リマインドリスト'
-    );
-
-    expect(mockRepository.appendTask).toHaveBeenCalledWith(
-      'channel-1',
-      expect.objectContaining({ timeOfDay: '00:00' })
-    );
-  });
-
-  it('returns failure when messageId persistence fails', async () => {
-    mockRepository.patchTask.mockResolvedValue({ success: false, message: 'update failed' });
-
-    const service = new RemindTaskService(
-      mockRepository,
-      mockMetadataManager,
-      mockMessageManager,
-      () => 'task-1'
-    );
-
-    const result = await service.addTask(
-      'channel-1',
-      {
-        title: '掃除',
-        intervalDays: 7,
-        timeOfDay: '09:00',
-        remindBeforeMinutes: 1440
-      },
-      {} as any,
-      new Date('2025-12-29T09:00:00+09:00'),
-      'リマインドリスト'
-    );
-
+  it('does not replay creation or patch when message persistence has an uncertain result', async () => {
+    const x = setup();
+    x.repository.patchTask.mockRejectedValue(new Error('更新結果を確認できません'));
+    const result = await x.service.addTask('channel', { title: '米', intervalDays: 1 }, {} as any);
     expect(result.success).toBe(false);
-    expect(result.message).toBe('update failed');
+    expect(result.message).toContain('タスクは保存されました');
+    expect(x.repository.appendTask).toHaveBeenCalledTimes(1);
+    expect(x.repository.patchTask).toHaveBeenCalledTimes(1);
+    expect(x.messages.updateTaskMessage).not.toHaveBeenCalled();
+    expect(x.logger.warn).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ stage: 'save_message_id', taskId: 'server-id', errorType: 'Error' }));
+  });
+  it('reports saved state when card creation rejects', async () => {
+    const x = setup();
+    x.messages.createTaskMessage.mockRejectedValue(new Error('Discord connection lost'));
+    const result = await x.service.addTask('channel', { title: '米', intervalDays: 1 }, {} as any);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('タスクは保存されました');
+    expect(result.message).toContain('初期化');
+    expect(x.repository.appendTask).toHaveBeenCalledTimes(1);
   });
 });

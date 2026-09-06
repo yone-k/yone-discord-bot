@@ -1,6 +1,6 @@
 #!/bin/bash
 # Local/CI smoke test. Creates only disposable containers, network and data.
-set -euo pipefail
+set -Eeuo pipefail
 umask 077
 [ "$#" = 1 ] || { echo 'Usage: check-core-image.sh LOCAL_IMAGE' >&2; exit 1; }
 image=$1
@@ -16,6 +16,13 @@ network_created=0 database_created=0 api_created=0 bot_created=0
 cleanup() {
   local status=$?
   trap - EXIT
+  if [ "$status" != 0 ]; then
+    echo "core-image: failed (exit $status); disposable container diagnostics follow" >&2
+    for container in "$database" "$api" "$bot"; do
+      docker inspect --format '{{.Name}} {{.State.Status}} {{.State.ExitCode}}' "$container" >&2 2>/dev/null || true
+      docker logs --tail 50 "$container" >&2 || true
+    done
+  fi
   if [ "$bot_created" = 1 ]; then docker rm -f -v "$bot" >/dev/null 2>&1 || status=1; fi
   if [ "$api_created" = 1 ]; then docker rm -f -v "$api" >/dev/null 2>&1 || status=1; fi
   if [ "$database_created" = 1 ]; then docker rm -f -v "$database" >/dev/null 2>&1 || status=1; fi
@@ -24,6 +31,7 @@ cleanup() {
   exit "$status"
 }
 trap cleanup EXIT
+trap 'echo "core-image: failed at line $LINENO: $BASH_COMMAND" >&2' ERR
 trap 'exit 130' INT
 trap 'exit 143' TERM HUP
 docker network create --internal "$network" >/dev/null
@@ -62,8 +70,10 @@ start_api() {
   wait_api
 }
 probe_bot() {
+  # Bot health can wait for the full 5s upstream timeout. Leave time for the
+  # response and ARM64 emulation overhead; application timeouts stay unchanged.
   docker exec "$bot" node -e \
-    'fetch("http://127.0.0.1:3000/health", {signal:AbortSignal.timeout(6000)}).then(async r=>{const b=await r.json();if(r.status!==Number(process.argv[1])||b.bot?.ready!==(r.status===200))process.exit(1);}).catch(()=>process.exit(1));' "$1" bot-health
+    'fetch("http://127.0.0.1:3000/health", {signal:AbortSignal.timeout(15000)}).then(async r=>{const b=await r.json();if(r.status!==Number(process.argv[1])||b.bot?.ready!==(r.status===200)){console.error("bot-health: unexpected response",r.status,b);process.exit(1);}}).catch(e=>{console.error("bot-health: probe failed",e.name);process.exit(1);});' "$1" bot-health
 }
 wait_bot() {
   local attempt

@@ -5,6 +5,7 @@ import { OperationLogService } from '../services/OperationLogService';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
+import { CoreApiError } from '../api/CoreClient';
 
 export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
@@ -35,25 +36,57 @@ export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
   }
 
   protected async executeAction(context: ButtonHandlerContext): Promise<OperationResult> {
-    const channelId = context.interaction.channelId;
-    const messageId = context.interaction.message?.id;
-    if (!channelId || !messageId) {
-      return { success: false, message: 'チャンネル情報が取得できません' };
+    const { interaction } = context;
+    const channelId = interaction.channelId;
+    const messageId = interaction.message?.id;
+    const started = Date.now();
+    let stageStarted = started;
+    let stage = 'received';
+    const log = (level: 'debug' | 'warn' | 'error', errorCode: string | number | null = null): void => {
+      const now = Date.now();
+      this.logger[level]('繰り返し更新ボタンの処理時間', {
+        interactionId: interaction.id ?? null, channelId, messageId: messageId ?? null, selection: null,
+        stage, stageElapsedMs: now - stageStarted, totalElapsedMs: now - started,
+        replied: Boolean(interaction.replied), deferred: Boolean(interaction.deferred), errorCode
+      });
+      stageStarted = now;
+    };
+    const fail = async (message: string): Promise<OperationResult> => {
+      const options = { content: message, flags: ['Ephemeral'] as const };
+      if (interaction.deferred || interaction.replied) await interaction.followUp(options);
+      else await interaction.reply(options);
+      return { success: false, message };
+    };
+    log('debug');
+    try {
+      if (!channelId || !messageId) {
+        log('warn');
+        return await fail('チャンネル情報が取得できません。画面を開き直してください。');
+      }
+      stage = 'initial_response';
+      await interaction.deferUpdate();
+      log('debug');
+      stage = 'task_fetch';
+      const task = await this.repository.findTaskByMessageId(channelId, messageId);
+      if (!task) {
+        log('warn', 'not_found');
+        return await fail('タスクが見つかりません。画面を開き直してください。');
+      }
+      log('debug');
+      stage = 'selection_build';
+      const components = await this.messageManager.buildUpdateSelectionComponents(task, messageId, new Date(), channelId);
+      await interaction.editReply({ components });
+      log('debug');
+      return { success: true, message: '更新選択を表示しました' };
+    } catch (error) {
+      log(error instanceof CoreApiError ? 'warn' : 'error', error instanceof CoreApiError ? error.code : null);
+      try {
+        return await fail(error instanceof CoreApiError ? error.message : '更新画面を開けませんでした。画面を開き直してください。');
+      } catch {
+        // 共有メッセージをエラー文で上書きしない。返信自体の失敗もこの経路で扱う。
+        log('error');
+        return { success: false, message: '更新失敗の通知を送信できませんでした' };
+      }
     }
-
-    const task = await this.repository.findTaskByMessageId(channelId, messageId);
-    if (!task) {
-      return { success: false, message: 'タスクが見つかりません' };
-    }
-
-    const components = await this.messageManager.buildUpdateSelectionComponents(
-      task,
-      messageId,
-      new Date(),
-      channelId
-    );
-    await context.interaction.update({ components });
-
-    return { success: true, message: '更新選択を表示しました' };
   }
 }

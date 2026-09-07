@@ -14,12 +14,13 @@ import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindMessageManager } from '../services/RemindMessageManager';
 import { formatRemindBeforeInput } from '../utils/RemindDuration';
 import { RemindTask } from '../models/RemindTask';
-import { InventoryService } from '../services/InventoryService';
+import { InventoryRepository } from '../services/InventoryRepository';
+import { CoreApiError } from '../api/CoreClient';
 
 export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
   private repository: RemindTaskRepository;
   private messageManager: RemindMessageManager;
-  private inventoryService?: Pick<InventoryService, 'getById'>;
+  private inventoryRepository: Pick<InventoryRepository, 'fetchAll'>;
 
   constructor(
     logger: Logger,
@@ -27,12 +28,12 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
     messageManager?: RemindMessageManager,
-    inventoryService?: Pick<InventoryService, 'getById'>
+    inventoryRepository: Pick<InventoryRepository, 'fetchAll'> = new InventoryRepository()
   ) {
     super('remind-task-update-select', logger, operationLogService, metadataManager);
     this.repository = repository || new RemindTaskRepository();
     this.messageManager = messageManager || new RemindMessageManager();
-    this.inventoryService = inventoryService;
+    this.inventoryRepository = inventoryRepository;
     this.ephemeral = true;
   }
 
@@ -56,45 +57,59 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
   }
 
   protected async executeAction(context: SelectMenuHandlerContext): Promise<OperationResult> {
-    const channelId = context.interaction.channelId;
-    const messageId = this.parseMessageId(context.interaction.customId);
-    if (!channelId || !messageId) {
-      return { success: false, message: 'チャンネル情報が取得できません' };
+    const { interaction } = context;
+    const channelId = interaction.channelId;
+    const messageId = this.parseMessageId(interaction.customId);
+    const selection = interaction.values?.[0];
+    const started = Date.now();
+    let stageStarted = started;
+    let stage = 'received';
+    const log = (level: 'debug' | 'warn' | 'error', errorCode: string | number | null = null): void => {
+      const now = Date.now();
+      this.logger[level]('繰り返し更新フォームの処理時間', {
+        interactionId: interaction.id ?? null, channelId, messageId, selection: selection ?? null,
+        stage, stageElapsedMs: now - stageStarted, totalElapsedMs: now - started,
+        replied: Boolean(interaction.replied), deferred: Boolean(interaction.deferred), errorCode
+      });
+      stageStarted = now;
+    };
+    const fail = async (message: string): Promise<OperationResult> => {
+      log('warn');
+      await interaction.reply({ content: `${message}。画面を開き直してください。`, flags: ['Ephemeral'] });
+      return { success: false, message };
+    };
+    log('debug');
+    try {
+      if (!channelId || !messageId) return await fail('チャンネル情報が取得できません');
+      if (!selection) return await fail('更新内容が選択されていません');
+      if (!['basic', 'advanced', 'inventory'].includes(selection)) return await fail('更新内容が不正です');
+
+      stage = 'task_fetch';
+      const task = await this.repository.findTaskByMessageId(channelId, messageId);
+      if (!task) return await fail('タスクが見つかりません');
+      log('debug');
+      stage = 'modal_prepare';
+      const modal = selection === 'basic' ? this.buildBasicModal(task, messageId)
+        : selection === 'advanced' ? this.buildAdvancedModal(task, messageId)
+          : await this.buildInventoryModal(channelId, task, messageId);
+      log('debug');
+      stage = 'initial_response';
+      await interaction.showModal(modal);
+      log('debug');
+
+      // 再描画の通信は、フォームの初回応答を完了してから行う。
+      stage = 'message_restore';
+      try {
+        const result = await this.messageManager.updateTaskMessage(channelId, messageId, task, interaction.client, new Date());
+        log(result.success ? 'debug' : 'warn');
+      } catch (error) {
+        log(error instanceof CoreApiError ? 'warn' : 'error', error instanceof CoreApiError ? error.code : null);
+      }
+      return { success: true, message: '更新モーダルを表示しました' };
+    } catch (error) {
+      log(error instanceof CoreApiError ? 'warn' : 'error', error instanceof CoreApiError ? error.code : null);
+      throw error;
     }
-
-    const selection = context.interaction.values?.[0];
-    if (!selection) {
-      return { success: false, message: '更新内容が選択されていません' };
-    }
-
-    const task = await this.repository.findTaskByMessageId(channelId, messageId);
-    if (!task) {
-      return { success: false, message: 'タスクが見つかりません' };
-    }
-
-    let modal: ModalBuilder | null = null;
-    if (selection === 'basic') {
-      modal = this.buildBasicModal(task, messageId);
-    } else if (selection === 'advanced') {
-      modal = this.buildAdvancedModal(task, messageId);
-    } else if (selection === 'inventory') {
-      modal = await this.buildInventoryModal(channelId, task, messageId);
-    }
-
-    if (!modal) {
-      return { success: false, message: '更新内容が不正です' };
-    }
-
-    await this.messageManager.updateTaskMessage(
-      channelId,
-      messageId,
-      task,
-      context.interaction.client,
-      new Date()
-    );
-    await context.interaction.showModal(modal);
-
-    return { success: true, message: '更新モーダルを表示しました' };
   }
 
   private buildBasicModal(task: RemindTask, messageId: string): ModalBuilder {
@@ -225,18 +240,20 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
     const metadataResult = await this.metadataManager?.getChannelMetadata(channelId);
     const linkedInventoryChannelId = (metadataResult?.metadata as { linkedInventoryChannelId?: string } | undefined)
       ?.linkedInventoryChannelId;
-    if (!linkedInventoryChannelId) {
+    if (!linkedInventoryChannelId || task.inventoryItems.length === 0) {
       return '';
     }
 
-    const lines = await Promise.all(task.inventoryItems.map(async (item) => {
-      const inventoryItem = await (this.inventoryService ?? InventoryService.getInstance()).getById(linkedInventoryChannelId, item.inventoryId);
+    const inventory = await this.inventoryRepository.fetchAll(linkedInventoryChannelId);
+    const byId = new Map(inventory.map(item => [item.id, item]));
+    const lines = task.inventoryItems.map(item => {
+      const inventoryItem = byId.get(item.inventoryId);
       const name = inventoryItem?.name ?? `[不明な在庫:${item.inventoryId.slice(0, 8)}]`;
       if (!inventoryItem) {
         return `${quoteCsvCell(name)},${item.consume}`;
       }
       return `${quoteCsvCell(name)},${inventoryItem.stock},${item.consume}`;
-    }));
+    });
     return lines.join('\n');
   }
 

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { InventoryUpdateModalHandler } from '../../src/modals/InventoryUpdateModalHandler';
 import { InventoryEditSession } from '../../src/utils/InventoryEditSession';
 import { Logger } from '../../src/utils/logger';
+import { formatInventoryEditCsv } from '../../src/utils/InventoryParser';
 function setup(): any {
   const original = [{ id: 'a', name: 'A', stock: '1.23456789', category: '' }, { id: 'b', name: 'B', stock: '2', category: '' }];
   const sessions = new InventoryEditSession();
@@ -14,6 +15,14 @@ function setup(): any {
   return { original, repo, messages, refresh, handler, interaction };
 }
 describe('在庫編集原子的保存', () => {
+  it('ソート後のCSVを改名送信しても元snapshotとID対応を維持する', async () => {
+    const s = setup();
+    // 元番号2の項目を先頭カテゴリへ移し、ソート済みフォームで名称を変更する。
+    const csv = formatInventoryEditCsv([{ ...s.original[0], category: 'Z' }, { ...s.original[1], category: 'A' }]);
+    s.interaction.fields.getTextInputValue = (): string => csv.replace('2,B,', '2,改名,');
+    expect((await s.handler.executeAction({ interaction: s.interaction })).success).toBe(true);
+    expect(s.repo.apply).toHaveBeenCalledExactlyOnceWith('1', s.original, [{ ...s.original[1], name: '改名', category: 'A' }, { ...s.original[0], category: 'Z' }]);
+  });
   it('行番号対応の同じIDで改名しsnapshotと全件を一回で渡す', async () => { const s = setup(); const result = await s.handler.executeAction({ interaction: s.interaction }); expect(result.success).toBe(true); expect(s.repo.apply).toHaveBeenCalledOnce(); expect(s.repo.apply).toHaveBeenCalledWith('1', s.original, [{ ...s.original[0], name: '改名' }, s.original[1]]); });
   it('原子的保存失敗時に表示更新しない', async () => { const s = setup(); s.repo.apply.mockRejectedValue(new Error('参照中')); const result = await s.handler.executeAction({ interaction: s.interaction }); expect(result.success).toBe(false); expect(s.messages.createOrUpdateMessage).not.toHaveBeenCalled(); });
   it('別人のモーダルは保存しない', async () => { const s = setup(); s.interaction.user.id = '9'; expect((await s.handler.executeAction({ interaction: s.interaction })).success).toBe(false); expect(s.repo.apply).not.toHaveBeenCalled(); });

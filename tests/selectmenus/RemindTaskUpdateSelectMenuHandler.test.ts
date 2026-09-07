@@ -13,7 +13,7 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
     { value: 'basic', expectedCustomId: 'remind-task-update-modal:msg-1:0' },
     { value: 'advanced', expectedCustomId: 'remind-task-update-override-modal:msg-1:0' },
     { value: 'inventory', expectedCustomId: 'remind-task-inventory-modal:msg-1:0' }
-  ])('restores task message before showing modal for %s selection', async ({ value, expectedCustomId }) => {
+  ])('shows modal before restoring task message for %s selection', async ({ value, expectedCustomId }) => {
     vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
 
     const task = createRemindTask({
@@ -33,7 +33,7 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
       findTaskByMessageId: vi.fn().mockResolvedValue(task)
     };
     const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue(undefined)
+      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
     };
 
     const handler = new RemindTaskUpdateSelectMenuHandler(
@@ -67,7 +67,7 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
     expect(modal.toJSON().custom_id).toBe(expectedCustomId);
     const updateOrder = mockMessageManager.updateTaskMessage.mock.invocationCallOrder[0];
     const modalOrder = interaction.showModal.mock.invocationCallOrder[0];
-    expect(updateOrder).toBeLessThan(modalOrder);
+    expect(modalOrder).toBeLessThan(updateOrder);
   });
 
   it.each(['牛乳', ' milk ', 'a,b', 'a"b', 'a\nb', 'a;b'])('prefills exact CSV inventory name %j', async name => {
@@ -88,7 +88,7 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
       findTaskByMessageId: vi.fn().mockResolvedValue(task)
     };
     const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue(undefined)
+      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
     };
     const mockMetadataManager = {
       getChannelMetadata: vi.fn().mockResolvedValue({
@@ -97,12 +97,12 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
       })
     };
     const mockInventoryService = {
-      getById: vi.fn().mockResolvedValue({
+      fetchAll: vi.fn().mockResolvedValue([{
         id: 'inventory-1',
         name,
         stock: '5',
         category: ''
-      })
+      }])
     };
     const handler = new RemindTaskUpdateSelectMenuHandler(
       new Logger(),
@@ -124,7 +124,7 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
     await handler.handle({ interaction } as any);
 
     expect(mockMetadataManager.getChannelMetadata).toHaveBeenCalledWith('channel-1');
-    expect(mockInventoryService.getById).toHaveBeenCalledWith('inventory-channel-1', 'inventory-1');
+    expect(mockInventoryService.fetchAll).toHaveBeenCalledExactlyOnceWith('inventory-channel-1');
     const modal = interaction.showModal.mock.calls[0][0];
     const modalJson = modal.toJSON();
     expect(modalJson.components[0].components[0].label).toBe('在庫CSV（名前,在庫数,消費数。1行1件）');

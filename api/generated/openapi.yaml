@@ -23,60 +23,6 @@ paths:
                 $ref: '#/components/schemas/Health'
       security:
         - {}
-  /v1/display/initialization:
-    get:
-      operationId: getInitialization
-      parameters:
-        - $ref: '#/components/parameters/RequestOptions'
-      responses:
-        '200':
-          description: The request has succeeded.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Initialization'
-        '400':
-          description: The server could not understand the request due to invalid syntax.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
-        '401':
-          description: Access is unauthorized.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
-        '404':
-          description: The server cannot find the requested resource.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
-        '409':
-          description: The request conflicts with the current state of the server.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
-        '422':
-          description: Client error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
-        '503':
-          description: Service unavailable.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
   /v1/inventories:
     get:
       operationId: listInventoryChannels
@@ -196,6 +142,9 @@ paths:
       operationId: createInventoryChannel
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -255,11 +204,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InventoryChannel'
+              $ref: '#/components/schemas/InventoryChannelInput'
     patch:
       operationId: patchInventoryChannel
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -324,6 +276,9 @@ paths:
       operationId: deleteInventoryChannel
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -379,6 +334,9 @@ paths:
       operationId: applyInventory
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -446,6 +404,9 @@ paths:
       operationId: bulkUpdateInventory
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -638,6 +599,9 @@ paths:
       operationId: appendInventoryItem
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -698,6 +662,74 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/InventoryItemInput'
+  /v1/inventories/{channelId}/items/batch:
+    post:
+      operationId: appendInventoryItems
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppendInventoryItemsResult'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppendInventoryItemsInput'
   /v1/inventories/{channelId}/items/{id}:
     get:
       operationId: getInventoryItem
@@ -766,6 +798,9 @@ paths:
       operationId: updateInventoryItem
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -835,6 +870,9 @@ paths:
       operationId: deleteInventoryItem
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -1089,6 +1127,9 @@ paths:
       operationId: reorderInventory
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -1156,6 +1197,9 @@ paths:
       operationId: resolveInventory
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -1335,6 +1379,9 @@ paths:
       operationId: createListChannel
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -1399,6 +1446,9 @@ paths:
       operationId: patchListChannel
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -1463,6 +1513,9 @@ paths:
       operationId: deleteListChannel
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -1578,6 +1631,9 @@ paths:
       operationId: appendListItem
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -1643,6 +1699,9 @@ paths:
       operationId: updateListItem
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -1712,6 +1771,9 @@ paths:
       operationId: deleteListItem
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -1776,6 +1838,9 @@ paths:
       operationId: reorderList
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -1841,6 +1906,9 @@ paths:
       operationId: saveList
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -1960,18 +2028,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
-  /v1/notifications/ack:
+  /v1/outputs/card-view/{channelId}/{targetKind}/{targetId}:
     post:
-      operationId: ackNotification
+      operationId: setOutputCardView
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+        - name: targetKind
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/OutputTargetKind'
+        - name: targetId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
       responses:
         '200':
           description: The request has succeeded.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotificationAckResult'
+                $ref: '#/components/schemas/OutputCardView'
         '400':
           description: The server could not understand the request due to invalid syntax.
           content:
@@ -2019,10 +2105,330 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NotificationToken'
-  /v1/notifications/poll:
+              $ref: '#/components/schemas/OutputCardViewInput'
+  /v1/outputs/delete-all/{channelId}:
     post:
-      operationId: pollNotifications
+      operationId: requestDeleteAll
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutputJob'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/outputs/initialize/{channelId}:
+    post:
+      operationId: initializeOutputs
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutputAccepted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutputInitializeInput'
+  /v1/outputs/jobs/{jobId}:
+    get:
+      operationId: getOutputJob
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutputJob'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/outputs/operation-log-events:
+    post:
+      operationId: recordOutputEvent
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutputAccepted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutputLogEvent'
+  /v1/outputs/redraw/{channelId}:
+    post:
+      operationId: redrawOutputs
+      parameters:
+        - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/PathId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutputAccepted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutputRedrawInput'
+  /v1/outputs/status:
+    get:
+      operationId: getOutputStatus
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
       responses:
@@ -2031,7 +2437,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotificationPlan'
+                $ref: '#/components/schemas/OutputStatus'
         '400':
           description: The server could not understand the request due to invalid syntax.
           content:
@@ -2193,6 +2599,9 @@ paths:
       operationId: createRemindChannel
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -2252,11 +2661,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RemindChannel'
+              $ref: '#/components/schemas/RemindChannelInput'
     patch:
       operationId: patchRemindChannel
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -2321,6 +2733,9 @@ paths:
       operationId: deleteRemindChannel
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -2441,6 +2856,9 @@ paths:
       operationId: linkInventory
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -2506,6 +2924,9 @@ paths:
       operationId: reorderTasks
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -2633,6 +3054,9 @@ paths:
       operationId: createTask
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -2761,6 +3185,9 @@ paths:
       operationId: patchTask
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -2830,6 +3257,9 @@ paths:
       operationId: deleteTask
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -2890,6 +3320,9 @@ paths:
       operationId: completeTask
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -2960,6 +3393,9 @@ paths:
       operationId: editTaskInventory
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -3030,6 +3466,9 @@ paths:
       operationId: pauseTask
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -3100,6 +3539,9 @@ paths:
       operationId: resumeTask
       parameters:
         - $ref: '#/components/parameters/RequestOptions'
+        - $ref: '#/components/parameters/OutputActorHeaders.actorId'
+        - $ref: '#/components/parameters/OutputActorHeaders.operationKind'
+        - $ref: '#/components/parameters/OutputActorHeaders.interactionId'
         - name: channelId
           in: path
           required: true
@@ -3233,6 +3675,24 @@ security:
   - BearerAuth: []
 components:
   parameters:
+    OutputActorHeaders.actorId:
+      name: X-Actor-Id
+      in: header
+      required: true
+      schema:
+        $ref: '#/components/schemas/Id'
+    OutputActorHeaders.interactionId:
+      name: X-Interaction-Id
+      in: header
+      required: false
+      schema:
+        $ref: '#/components/schemas/Id'
+    OutputActorHeaders.operationKind:
+      name: X-Operation-Kind
+      in: header
+      required: true
+      schema:
+        $ref: '#/components/schemas/OutputOperationKind'
     RequestOptions:
       name: X-Core-Timeout-Ms
       in: header
@@ -3278,6 +3738,25 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/StoredRemindTask'
+    AppendInventoryItemsInput:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryItemInput'
+          minItems: 1
+    AppendInventoryItemsResult:
+      type: object
+      required:
+        - skippedNames
+      properties:
+        skippedNames:
+          type: array
+          items:
+            type: string
     ApplyInventoryInput:
       type: object
       required:
@@ -3329,18 +3808,8 @@ components:
     ChannelPatch:
       type: object
       properties:
-        messageId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
         listTitle:
           type: string
-        operationLogThreadId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
     ChannelSettings:
       type: object
       required:
@@ -3442,30 +3911,6 @@ components:
     Id:
       type: string
       description: Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
-    Initialization:
-      type: object
-      required:
-        - lists
-        - inventories
-        - reminders
-        - remindChannels
-      properties:
-        lists:
-          type: array
-          items:
-            $ref: '#/components/schemas/ListDisplay'
-        inventories:
-          type: array
-          items:
-            $ref: '#/components/schemas/InventoryDisplay'
-        reminders:
-          type: array
-          items:
-            $ref: '#/components/schemas/TaskDisplay'
-        remindChannels:
-          type: array
-          items:
-            $ref: '#/components/schemas/RemindChannel'
     IntervalDays:
       type: integer
       format: int32
@@ -3495,21 +3940,24 @@ components:
           nullable: true
         defaultCategory:
           type: string
+    InventoryChannelInput:
+      type: object
+      required:
+        - channelId
+        - listTitle
+        - defaultCategory
+      properties:
+        channelId:
+          $ref: '#/components/schemas/Id'
+        listTitle:
+          type: string
+        defaultCategory:
+          type: string
     InventoryChannelPatch:
       type: object
       properties:
-        messageId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
         listTitle:
           type: string
-        operationLogThreadId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
         defaultCategory:
           type: string
     InventoryConsumption:
@@ -3522,18 +3970,6 @@ components:
           $ref: '#/components/schemas/Id'
         consume:
           $ref: '#/components/schemas/Quantity'
-    InventoryDisplay:
-      type: object
-      required:
-        - channel
-        - items
-      properties:
-        channel:
-          $ref: '#/components/schemas/InventoryChannel'
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/StoredInventoryItem'
     InventoryEditItem:
       type: object
       required:
@@ -3610,56 +4046,22 @@ components:
       type: object
       required:
         - channelId
-        - messageId
         - listTitle
-        - operationLogThreadId
         - defaultCategory
       properties:
         channelId:
           $ref: '#/components/schemas/Id'
-        messageId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
         listTitle:
           type: string
-        operationLogThreadId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
         defaultCategory:
           type: string
     ListChannelPatch:
       type: object
       properties:
-        messageId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
         listTitle:
           type: string
-        operationLogThreadId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
         defaultCategory:
           type: string
-    ListDisplay:
-      type: object
-      required:
-        - channel
-        - items
-      properties:
-        channel:
-          $ref: '#/components/schemas/ListChannel'
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/StoredListItem'
     ListEditItem:
       type: object
       required:
@@ -3696,126 +4098,277 @@ components:
       type: integer
       format: int32
       minimum: 0
-    Notification:
+    OutputAccepted:
       type: object
       required:
-        - kind
-        - channelId
-        - id
-        - evaluatedAt
-        - targetDueAt
-        - expectedRevision
-        - list
-        - item
-        - reminder
+        - taskIds
       properties:
-        kind:
-          type: string
-          enum:
-            - list
-            - before
-            - overdue
-        channelId:
-          $ref: '#/components/schemas/Id'
-        id:
-          $ref: '#/components/schemas/Id'
-        evaluatedAt:
-          $ref: '#/components/schemas/Timestamp'
-        targetDueAt:
-          allOf:
-            - $ref: '#/components/schemas/NotificationDeadline'
-          description: BusinessDate for list notifications, Timestamp for reminder notifications.
-        expectedRevision:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Revision'
-          nullable: true
-          description: null for list notifications; the captured task revision for reminders.
-        list:
-          type: object
-          allOf:
-            - $ref: '#/components/schemas/ListDisplay'
-          nullable: true
-        item:
-          type: object
-          allOf:
-            - $ref: '#/components/schemas/StoredListItem'
-          nullable: true
-        reminder:
-          type: object
-          allOf:
-            - $ref: '#/components/schemas/TaskDisplay'
-          nullable: true
-      description: kind=list requires non-null list and item with null reminder. kind=before or overdue requires non-null reminder with null list and item. Reminder deadlines are timestamps and revisions are non-null; list deadlines are dates and revisions are null.
-    NotificationAckResult:
-      type: object
-      required:
-        - item
-        - task
-      properties:
-        item:
-          type: object
-          allOf:
-            - $ref: '#/components/schemas/StoredListItem'
-          nullable: true
-        task:
-          type: object
-          allOf:
-            - $ref: '#/components/schemas/StoredRemindTask'
-          nullable: true
-    NotificationDeadline:
+        taskIds:
+          type: array
+          items:
+            $ref: '#/components/schemas/Id'
+    OutputCardMode:
       type: string
-      pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}(?:T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}(?:Z|[+-][0-9]{2}:[0-9]{2}))?$
-      description: List deadline (YYYY-MM-DD) or reminder deadline (RFC3339 with milliseconds). kind selects the applicable representation.
-    NotificationPlan:
+      enum:
+        - normal
+        - update_selection
+        - delete_selection
+    OutputCardView:
       type: object
       required:
-        - evaluatedAt
-        - notifications
-        - progress
+        - channelId
+        - targetKind
+        - targetId
+        - mode
+        - page
+        - version
       properties:
-        evaluatedAt:
+        channelId:
+          $ref: '#/components/schemas/Id'
+        targetKind:
+          $ref: '#/components/schemas/OutputTargetKind'
+        targetId:
+          $ref: '#/components/schemas/Id'
+        mode:
+          $ref: '#/components/schemas/OutputCardMode'
+        page:
+          $ref: '#/components/schemas/NonnegativeInteger'
+        version:
+          $ref: '#/components/schemas/Revision'
+    OutputCardViewInput:
+      type: object
+      required:
+        - mode
+      properties:
+        mode:
+          $ref: '#/components/schemas/OutputCardMode'
+        page:
+          type: integer
+    OutputChannelStop:
+      type: object
+      required:
+        - channelId
+        - suspendedAt
+        - suspendedBy
+      properties:
+        channelId:
+          $ref: '#/components/schemas/Id'
+        suspendedAt:
           $ref: '#/components/schemas/Timestamp'
-        notifications:
-          type: array
-          items:
-            $ref: '#/components/schemas/Notification'
-        progress:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProgressUpdate'
-    NotificationToken:
+        suspendedBy:
+          $ref: '#/components/schemas/Id'
+    OutputHold:
+      type: object
+      required:
+        - taskId
+        - channelId
+        - kind
+        - state
+        - reason
+        - dependencyTaskId
+      properties:
+        taskId:
+          $ref: '#/components/schemas/Id'
+        channelId:
+          $ref: '#/components/schemas/Id'
+        kind:
+          $ref: '#/components/schemas/OutputTaskKind'
+        state:
+          $ref: '#/components/schemas/OutputTaskState'
+        reason:
+          type: string
+        dependencyTaskId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+    OutputInitializeInput:
       type: object
       required:
         - kind
-        - channelId
-        - id
-        - evaluatedAt
-        - targetDueAt
-        - expectedRevision
       properties:
         kind:
           type: string
           enum:
             - list
-            - before
-            - overdue
+            - inventory
+            - reminder
+        enableLog:
+          type: boolean
+    OutputJob:
+      type: object
+      required:
+        - jobId
+        - channelId
+        - state
+        - confirmedDeletedCount
+        - firstAttemptFinished
+        - lastError
+      properties:
+        jobId:
+          $ref: '#/components/schemas/Id'
         channelId:
           $ref: '#/components/schemas/Id'
-        id:
+        state:
+          $ref: '#/components/schemas/OutputTaskState'
+        confirmedDeletedCount:
+          $ref: '#/components/schemas/NonnegativeInteger'
+        firstAttemptFinished:
+          type: boolean
+        lastError:
+          type: string
+          nullable: true
+    OutputLogEvent:
+      type: object
+      required:
+        - actorId
+        - channelId
+        - operationKind
+        - interactionId
+        - occurredAt
+        - success
+      properties:
+        actorId:
           $ref: '#/components/schemas/Id'
-        evaluatedAt:
+        channelId:
+          $ref: '#/components/schemas/Id'
+        operationKind:
+          $ref: '#/components/schemas/OutputOperationKind'
+        interactionId:
+          $ref: '#/components/schemas/Id'
+        occurredAt:
           $ref: '#/components/schemas/Timestamp'
-        targetDueAt:
-          allOf:
-            - $ref: '#/components/schemas/NotificationDeadline'
-          description: BusinessDate for list notifications, Timestamp for reminder notifications.
-        expectedRevision:
+        success:
+          type: boolean
+        message:
+          type: string
+        cancelReason:
+          type: string
+    OutputOperationKind:
+      type: string
+      enum:
+        - InitListButtonHandler
+        - AddListModalHandler
+        - EditListModalHandler
+        - RemindTaskAddModalHandler
+        - RemindTaskUpdateModalHandler
+        - RemindTaskUpdateOverrideModalHandler
+        - RemindTaskInventoryModalHandler
+        - RemindTaskCompleteModalHandler
+        - RemindTaskDeleteModalHandler
+        - AddListButtonHandler
+        - EditListButtonHandler
+        - ConfirmationModalHandler
+        - RemindTaskUpdateButtonHandler
+        - RemindTaskUpdateCancelButtonHandler
+        - RemindTaskCompleteButtonHandler
+        - RemindTaskDeleteButtonHandler
+        - RemindTaskDetailButtonHandler
+        - RemindTaskAddButtonHandler
+        - InventoryAddButtonHandler
+        - InventoryUpdateButtonHandler
+        - InventoryDeleteButtonHandler
+        - InventorySelectionCancelButtonHandler
+        - InventoryAddModalHandler
+        - InventoryUpdateModalHandler
+        - InventoryDeleteModalHandler
+        - InventoryDeleteSelectMenuHandler
+        - RemindTaskUpdateSelectMenuHandler
+        - InitListCommand
+        - InitInventoryCommand
+        - InitRemindListCommand
+        - AddListCommand
+        - AddInventoryCommand
+        - UpdateInventoryCommand
+        - DeleteInventoryCommand
+        - AddRemindListCommand
+        - LinkInventoryCommand
+        - UnlinkInventoryCommand
+        - DeleteAllMessageCommand
+        - reaction
+    OutputRedrawInput:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+          enum:
+            - list
+            - inventory
+            - reminder
+    OutputStateCount:
+      type: object
+      required:
+        - state
+        - count
+      properties:
+        state:
+          $ref: '#/components/schemas/OutputTaskState'
+        count:
+          $ref: '#/components/schemas/NonnegativeInteger'
+    OutputStatus:
+      type: object
+      required:
+        - contract
+        - enabled
+        - workerRunning
+        - counts
+        - oldestPendingAt
+        - suspensions
+        - holds
+      properties:
+        contract:
+          type: string
+          enum:
+            - go-discord-output-v1
+        enabled:
+          type: boolean
+        workerRunning:
+          type: boolean
+        counts:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutputStateCount'
+        oldestPendingAt:
           type: string
           allOf:
-            - $ref: '#/components/schemas/Revision'
+            - $ref: '#/components/schemas/Timestamp'
           nullable: true
-          description: null for list notifications; the captured task revision for reminders.
+        suspensions:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutputChannelStop'
+        holds:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutputHold'
+    OutputTargetKind:
+      type: string
+      enum:
+        - task
+        - inventory
+    OutputTaskKind:
+      type: string
+      enum:
+        - list_render
+        - inventory_render
+        - task_card
+        - reminder_notice
+        - list_deadline_notice
+        - operation_log
+        - delete_all
+        - thread_ensure
+    OutputTaskState:
+      type: string
+      enum:
+        - pending
+        - running
+        - retry_wait
+        - uncertain
+        - blocked
+        - succeeded
+        - cancelled
     PatchTaskInput:
       type: object
       required:
@@ -3829,21 +4382,6 @@ components:
     PathId:
       type: string
       description: Path representation of an ID. For '.', '..', an ID containing '/' or '%', or an ID starting with '~', use '~' followed by unpadded base64url of the UTF-8 ID. Otherwise use ordinary URI component encoding. JSON and query IDs retain their original values.
-    ProgressUpdate:
-      type: object
-      required:
-        - kind
-        - reminder
-        - evaluatedAt
-      properties:
-        kind:
-          type: string
-          enum:
-            - progress
-        reminder:
-          $ref: '#/components/schemas/TaskDisplay'
-        evaluatedAt:
-          $ref: '#/components/schemas/Timestamp'
     Quantity:
       type: string
       pattern: ^[0-9]+(?:\.[0-9]+)?$
@@ -3888,31 +4426,27 @@ components:
           allOf:
             - $ref: '#/components/schemas/Id'
           nullable: true
+    RemindChannelInput:
+      type: object
+      required:
+        - channelId
+        - listTitle
+        - linkedInventoryChannelId
+      properties:
+        channelId:
+          $ref: '#/components/schemas/Id'
+        listTitle:
+          type: string
+        linkedInventoryChannelId:
+          type: string
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
     RemindChannelPatch:
       type: object
       properties:
-        messageId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
         listTitle:
           type: string
-        operationLogThreadId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
-        remindNoticeThreadId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
-        remindNoticeMessageId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
     RemindInventoryEdit:
       type: object
       required:
@@ -4166,11 +4700,6 @@ components:
     TaskPatch:
       type: object
       properties:
-        messageId:
-          type: string
-          allOf:
-            - $ref: '#/components/schemas/Id'
-          nullable: true
         title:
           type: string
         description:

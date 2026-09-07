@@ -1,50 +1,22 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RemindTaskUpdateCancelButtonHandler } from '../../src/buttons/RemindTaskUpdateCancelButtonHandler';
 import { Logger } from '../../src/utils/logger';
-import { createRemindTask } from '../helpers/RemindTask';
 
 describe('RemindTaskUpdateCancelButtonHandler', () => {
-  it('restores task message when cancel is selected', async () => {
-    const task = createRemindTask({
-      id: 'task-1',
-      messageId: 'msg-1',
-      title: '掃除',
-      intervalDays: 7,
-      timeOfDay: '09:00',
-      remindBeforeMinutes: 1440,
-      startAt: new Date('2025-12-29T09:00:00+09:00'),
-      nextDueAt: new Date('2026-01-05T09:00:00+09:00'),
-      createdAt: new Date('2025-12-29T09:00:00+09:00'),
-      updatedAt: new Date('2025-12-29T09:00:00+09:00')
-    });
-
-    const mockRepository = {
-      findTaskByMessageId: vi.fn().mockResolvedValue(task)
-    };
-    const mockMessageManager = {
-      buildTaskMessageComponents: vi.fn().mockResolvedValue([{ type: 0 }])
-    };
-
-    const handler = new RemindTaskUpdateCancelButtonHandler(
-      new Logger(),
-      undefined,
-      undefined,
-      mockRepository as any,
-      mockMessageManager as any
-    );
-
+  it('acknowledges before lookup and reserves the shared card view in Go', async () => {
+    const repository = { findTaskByMessageId: vi.fn().mockResolvedValue({ id: 'task-1', messageId: '300' }) };
+    const outputs = { setCardView: vi.fn().mockResolvedValue({}) };
+    const handler = new RemindTaskUpdateCancelButtonHandler(new Logger(), undefined, undefined, repository as any, outputs);
     const interaction = {
-      customId: 'remind-task-update-cancel:msg-1',
-      user: { id: 'user-1', bot: false },
-      channelId: 'channel-1',
-      message: { id: 'msg-1' },
-      client: {} as any,
-      update: vi.fn().mockResolvedValue(undefined)
+      customId: 'remind-task-update-cancel:300', user: { id: '999', bot: false },
+      channelId: '100', message: { id: '300' }, deferUpdate: vi.fn().mockResolvedValue(undefined),
+      update: vi.fn(), editReply: vi.fn()
     };
-
     await handler.handle({ interaction } as any);
-
-    expect(mockMessageManager.buildTaskMessageComponents).toHaveBeenCalledWith(task, expect.any(Date), 'channel-1');
-    expect(interaction.update).toHaveBeenCalledWith({ components: [{ type: 0 }] });
+    expect(interaction.deferUpdate.mock.invocationCallOrder[0]).toBeLessThan(repository.findTaskByMessageId.mock.invocationCallOrder[0]);
+    expect(repository.findTaskByMessageId).toHaveBeenCalledWith('100', '300');
+    expect(outputs.setCardView).toHaveBeenCalledWith('100', 'task', 'task-1', { mode: 'normal' });
+    expect(interaction.update).not.toHaveBeenCalled();
+    expect(interaction.editReply).not.toHaveBeenCalled();
   });
 });

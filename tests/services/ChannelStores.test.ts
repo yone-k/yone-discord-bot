@@ -4,12 +4,12 @@ import { RemindChannelStore } from '../../src/services/RemindChannelStore';
 import type { ListChannelRepository, RemindChannelRepository } from '../../src/api/contracts';
 
 describe('DB channel settings', () => {
-  it('updates only the changed message ID without replacing business settings', async () => {
+  it('updates the title without writing the stored message ID', async () => {
     const patch = vi.fn().mockResolvedValue(undefined);
     const get = vi.fn().mockResolvedValue({ channelId: '123', messageId: '456', listTitle: '買い物', defaultCategory: 'その他', operationLogThreadId: null, editVersion: '2' });
     const store = new ListChannelStore({ patch, get } as unknown as ListChannelRepository);
-    await store.updateChannelMetadata('123', { messageId: '456' });
-    expect(patch).toHaveBeenCalledWith('123', { messageId: '456' });
+    await store.updateChannelMetadata('123', { listTitle: 'new title' });
+    expect(patch).toHaveBeenCalledWith('123', { listTitle: 'new title' });
   });
 
   it('propagates DB outages rather than treating a configured channel as absent', async () => {

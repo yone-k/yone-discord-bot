@@ -3,13 +3,13 @@ import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { ListInitializationService } from '../services/ListInitializationService';
 import { ApiListRepository } from '../api/Repositories';
-import { MessageManager } from '../services/MessageManager';
+import { OutputApi } from '../api/OutputApi';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { ListChannelStore } from '../services/ListChannelStore';
 import { DEFAULT_CATEGORY } from '../models/CategoryType';
 export class InitListButtonHandler extends BaseButtonHandler {
-  constructor(logger: Logger, operationLogService?: OperationLogService, metadataManager: ListChannelStore = ListChannelStore.getInstance(), private listInitializationService = new ListInitializationService(new ApiListRepository(), new MessageManager(), metadataManager)) {
+  constructor(logger: Logger, operationLogService?: UiOperationEvents, metadataManager: ListChannelStore = ListChannelStore.getInstance(), private listInitializationService = new ListInitializationService(new ApiListRepository(), new OutputApi(), metadataManager)) {
     super('init-list-button', logger, operationLogService, metadataManager);
     this.ephemeral = true;
   }
@@ -25,8 +25,6 @@ export class InitListButtonHandler extends BaseButtonHandler {
         throw new Error('リストが初期化されていません');
       const result = await this.listInitializationService.initializeList({ interaction: interaction as unknown as ChatInputCommandInteraction,
         channelId: interaction.channelId, userId: interaction.user.id }, null, metadata.metadata.defaultCategory || DEFAULT_CATEGORY, true);
-      if (!result.success)
-        throw new Error(result.errorMessage || '再描画に失敗しました');
       await interaction.editReply({ content: '✅ リストを再描画しました' });
       return { success: true, affectedItems: result.itemCount };
     }

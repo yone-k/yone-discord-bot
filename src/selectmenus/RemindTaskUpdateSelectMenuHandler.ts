@@ -8,10 +8,10 @@ import { BaseSelectMenuHandler, SelectMenuHandlerContext } from '../base/BaseSel
 import { Logger } from '../utils/logger';
 import { quoteCsvCell } from '../utils/Csv';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
-import { RemindMessageManager } from '../services/RemindMessageManager';
+import { OutputApi } from '../api/OutputApi';
 import { formatRemindBeforeInput } from '../utils/RemindDuration';
 import { RemindTask } from '../models/RemindTask';
 import { InventoryRepository } from '../services/InventoryRepository';
@@ -19,20 +19,20 @@ import { CoreApiError } from '../api/CoreClient';
 
 export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
   private repository: RemindTaskRepository;
-  private messageManager: RemindMessageManager;
+  private outputs: Pick<OutputApi, 'setCardView'>;
   private inventoryRepository: Pick<InventoryRepository, 'fetchAll'>;
 
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
-    messageManager?: RemindMessageManager,
+    outputs?: Pick<OutputApi, 'setCardView'>,
     inventoryRepository: Pick<InventoryRepository, 'fetchAll'> = new InventoryRepository()
   ) {
     super('remind-task-update-select', logger, operationLogService, metadataManager);
     this.repository = repository || new RemindTaskRepository();
-    this.messageManager = messageManager || new RemindMessageManager();
+    this.outputs = outputs ?? new OutputApi();
     this.inventoryRepository = inventoryRepository;
     this.ephemeral = true;
   }
@@ -97,11 +97,11 @@ export class RemindTaskUpdateSelectMenuHandler extends BaseSelectMenuHandler {
       await interaction.showModal(modal);
       log('debug');
 
-      // 再描画の通信は、フォームの初回応答を完了してから行う。
-      stage = 'message_restore';
+      // 通常表示への復帰予約は、フォームの初回応答を完了してから行う。
+      stage = 'output_reservation';
       try {
-        const result = await this.messageManager.updateTaskMessage(channelId, messageId, task, interaction.client, new Date());
-        log(result.success ? 'debug' : 'warn');
+        await this.outputs.setCardView(channelId, 'task', task.id, { mode: 'normal' });
+        log('debug');
       } catch (error) {
         log(error instanceof CoreApiError ? 'warn' : 'error', error instanceof CoreApiError ? error.code : null);
       }

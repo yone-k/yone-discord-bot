@@ -32,8 +32,8 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
     const mockRepository = {
       findTaskByMessageId: vi.fn().mockResolvedValue(task)
     };
-    const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
+    const outputs = {
+      setCardView: vi.fn().mockResolvedValue({})
     };
 
     const handler = new RemindTaskUpdateSelectMenuHandler(
@@ -41,7 +41,7 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
       undefined,
       undefined,
       mockRepository as any,
-      mockMessageManager as any
+      outputs as any
     );
 
     const interaction = {
@@ -55,17 +55,16 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
 
     await handler.handle({ interaction } as any);
 
-    expect(mockMessageManager.updateTaskMessage).toHaveBeenCalledWith(
+    expect(outputs.setCardView).toHaveBeenCalledWith(
       'channel-1',
-      'msg-1',
-      task,
-      interaction.client,
-      expect.any(Date)
+      'task',
+      'task-1',
+      { mode: 'normal' }
     );
     expect(interaction.showModal).toHaveBeenCalled();
     const modal = interaction.showModal.mock.calls[0][0];
     expect(modal.toJSON().custom_id).toBe(expectedCustomId);
-    const updateOrder = mockMessageManager.updateTaskMessage.mock.invocationCallOrder[0];
+    const updateOrder = outputs.setCardView.mock.invocationCallOrder[0];
     const modalOrder = interaction.showModal.mock.invocationCallOrder[0];
     expect(modalOrder).toBeLessThan(updateOrder);
   });
@@ -87,8 +86,8 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
     const mockRepository = {
       findTaskByMessageId: vi.fn().mockResolvedValue(task)
     };
-    const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
+    const outputs = {
+      setCardView: vi.fn().mockResolvedValue({})
     };
     const mockMetadataManager = {
       getChannelMetadata: vi.fn().mockResolvedValue({
@@ -109,7 +108,7 @@ describe('RemindTaskUpdateSelectMenuHandler', () => {
       undefined,
       mockMetadataManager as any,
       mockRepository as any,
-      mockMessageManager as any,
+      outputs as any,
       mockInventoryService as any
     );
     const interaction = {

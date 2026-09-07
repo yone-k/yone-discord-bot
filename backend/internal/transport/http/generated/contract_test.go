@@ -13,7 +13,6 @@ var _ = InventoryChannel{ChannelId: "legacy", DefaultCategory: "other"}
 var _ = InventoryEditItem{Id: "legacy", Name: "item", Stock: "0.1234567890123456789"}
 var _ = StoredInventoryItem{Id: "legacy", ChannelId: "channel", Position: 1, Stock: "1"}
 var _ = StoredRemindTask{Id: "legacy", ChannelId: "channel", Revision: "1", Title: "task", NextDueAt: "2026-09-06T00:00:00.000Z"}
-var _ = Notification{Kind: "list", ChannelId: "channel", EvaluatedAt: "2026-09-06T00:00:00.000Z"}
 
 func TestGeneratedDTOFieldsMatchContract(t *testing.T) {
 	spec, err := GetSwagger()
@@ -21,13 +20,15 @@ func TestGeneratedDTOFieldsMatchContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	values := []any{
+		AppendInventoryItemsInput{}, AppendInventoryItemsResult{},
 		ApiError{}, ApplyInventoryItem{}, ExpectedRevisionInput{}, Health{},
-		LinkInventoryInput{}, ListChannelInput{}, ReorderInput{}, ResolveInventoryInput{}, Shortage{}, ShortageResult{},
+		LinkInventoryInput{}, ListChannelInput{}, InventoryChannelInput{}, RemindChannelInput{}, ReorderInput{}, ResolveInventoryInput{}, Shortage{}, ShortageResult{},
 		ListChannel{}, InventoryChannel{}, RemindChannel{}, ListChannelPatch{}, InventoryChannelPatch{}, RemindChannelPatch{},
 		StoredListItem{}, ListEditItem{}, ListSnapshot{}, SaveListInput{}, InventoryItemInput{}, InventoryEditItem{}, StoredInventoryItem{},
 		ApplyInventoryInput{}, BulkInventoryInput{}, InventoryConsumption{}, CreateTaskInput{}, StoredRemindTask{}, TaskPatch{}, PatchTaskInput{},
 		CompleteTaskInput{}, ConsumptionOverride{}, RemindInventoryEdit{}, EditTaskInventoryInput{}, RemindInventoryEditResult{},
-		TaskDisplay{}, ListDisplay{}, InventoryDisplay{}, Initialization{}, NotificationToken{}, Notification{}, ProgressUpdate{}, NotificationPlan{}, NotificationAckResult{},
+		TaskDisplay{},
+		OutputAccepted{}, OutputCardView{}, OutputCardViewInput{}, OutputChannelStop{}, OutputHold{}, OutputInitializeInput{}, OutputJob{}, OutputLogEvent{}, OutputRedrawInput{}, OutputStateCount{}, OutputStatus{},
 	}
 	checked := map[string]bool{}
 	for _, value := range values {
@@ -62,8 +63,8 @@ func TestGeneratedDTOFieldsMatchContract(t *testing.T) {
 }
 
 func TestNullablePatchPreservesAbsentNullAndValue(t *testing.T) {
-	for _, input := range []string{`{}`, `{"messageId":null}`, `{"messageId":"legacy"}`} {
-		var patch ListChannelPatch
+	for _, input := range []string{`{}`, `{"description":null}`, `{"description":"legacy"}`} {
+		var patch TaskPatch
 		if err := json.Unmarshal([]byte(input), &patch); err != nil {
 			t.Fatal(err)
 		}

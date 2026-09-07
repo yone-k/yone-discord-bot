@@ -12,9 +12,6 @@ function setup(consume = '0.3', inventoryName = '米'): {
         findTaskByMessageId: ReturnType<typeof vi.fn>;
         complete: ReturnType<typeof vi.fn>;
     };
-    messages: {
-        updateTaskMessage: ReturnType<typeof vi.fn>;
-    };
     interaction: {
         customId: string;
         user: {
@@ -25,7 +22,7 @@ function setup(consume = '0.3', inventoryName = '米'): {
         message: {
             id: string;
         };
-        client: object;
+        client: { channels: { fetch: ReturnType<typeof vi.fn> } };
         deferReply: ReturnType<typeof vi.fn>;
         editReply: ReturnType<typeof vi.fn>;
         deleteReply: ReturnType<typeof vi.fn>;
@@ -37,21 +34,20 @@ function setup(consume = '0.3', inventoryName = '米'): {
   t.inventoryItems[0].consume = consume;
   const db = { findTaskByMessageId: vi.fn().mockResolvedValue({ ...t, channelId: '123', position: 0, description: null, overdueNotifyLimit: null }), complete: vi.fn().mockResolvedValue({ ...t, revision: '8', channelId: '123', position: 0, description: null, overdueNotifyLimit: null }) };
   const repository = new RemindTaskRepository(db as any);
-  const messages = { updateTaskMessage: vi.fn().mockResolvedValue({ success: true }) };
   const metadata = { getChannelMetadata: vi.fn().mockResolvedValue({ success: true, metadata: { linkedInventoryChannelId: '789' } }) };
-  const handler = new RemindTaskCompleteButtonHandler(new Logger(), undefined, metadata as any, repository, messages as any, { fetchAll: vi.fn().mockResolvedValue([{ id: 'rice', name: inventoryName, stock: '1', category: '' }]) }, { createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true }) }, { refreshTasksUsingInventory: vi.fn().mockResolvedValue(undefined) });
-  const interaction = { customId: 'remind-task-complete', user: { id: 'u', bot: false }, channelId: '123', message: { id: '456' }, client: {}, deferReply: vi.fn(), editReply: vi.fn(), deleteReply: vi.fn(), reply: vi.fn(), showModal: vi.fn() };
-  return { handler, db, messages, interaction };
+  const handler = new RemindTaskCompleteButtonHandler(new Logger(), undefined, metadata as any, repository, { fetchAll: vi.fn().mockResolvedValue([{ id: 'rice', name: inventoryName, stock: '1', category: '' }]) });
+  const interaction = { customId: 'remind-task-complete', user: { id: 'u', bot: false }, channelId: '123', message: { id: '456' }, client: { channels: { fetch: vi.fn() } }, deferReply: vi.fn(), editReply: vi.fn(), deleteReply: vi.fn(), reply: vi.fn(), showModal: vi.fn() };
+  return { handler, db, interaction };
 }
 describe('task completion from Discord button through domain adapter', () => {
-  it('refreshes consumed inventory even when the completed task display rejects', async () => {
+  it('finishes the committed operation without task or inventory rendering', async () => {
     const x = setup();
-    const inventoryDisplay = (x.handler as any).inventoryMessageManager.createOrUpdateMessage;
-    x.messages.updateTaskMessage.mockRejectedValue(new Error('Discord unavailable'));
+    x.interaction.client.channels.fetch.mockRejectedValue(new Error('Discord unavailable'));
     await x.handler.handle({ interaction: x.interaction } as any);
     expect(x.db.complete).toHaveBeenCalledTimes(1);
-    expect(inventoryDisplay).toHaveBeenCalledTimes(1);
-    expect(x.interaction.editReply).toHaveBeenCalledWith({ content: expect.stringContaining('完了は保存されました') });
+    expect(x.interaction.client.channels.fetch).not.toHaveBeenCalled();
+    expect(x.interaction.deleteReply).toHaveBeenCalledOnce();
+    expect(x.interaction.editReply).not.toHaveBeenCalled();
   });
   it.each([' milk ', 'a,b', 'a"b', 'a\nb', 'a;b'])('prefills exact CSV completion name %j', async name => {
     const x = setup('0', name);
@@ -63,18 +59,17 @@ describe('task completion from Discord button through domain adapter', () => {
     expect(field.label).toContain('固定は空欄で維持');
     expect(field.placeholder).toContain('消費しない場合は0');
   });
-  it('atomically completes before updating Discord', async () => {
+  it('completes through the API without updating the shared card', async () => {
     const x = setup();
     await x.handler.handle({ interaction: x.interaction } as any);
     expect(x.db.complete).toHaveBeenCalledWith('123', 'task', '7', undefined);
-    expect(x.messages.updateTaskMessage).toHaveBeenCalled();
-    expect(x.db.complete.mock.invocationCallOrder[0]).toBeLessThan(x.messages.updateTaskMessage.mock.invocationCallOrder[0]);
+    expect(x.interaction.client.channels.fetch).not.toHaveBeenCalled();
   });
   it.each(['在庫不足', 'タスクが変更されました'])('does not render completion when DB rejects: %s', async (message) => {
     const x = setup();
     x.db.complete.mockRejectedValue(new Error(message));
     await x.handler.handle({ interaction: x.interaction } as any);
-    expect(x.messages.updateTaskMessage).not.toHaveBeenCalled();
+    expect(x.interaction.client.channels.fetch).not.toHaveBeenCalled();
     expect(x.interaction.editReply).toHaveBeenCalledWith({ content: message });
   });
   it('opens variable-consumption modal with current revision without any write', async () => {

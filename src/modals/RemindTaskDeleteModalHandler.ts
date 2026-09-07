@@ -1,27 +1,23 @@
 import { Logger } from '../utils/logger';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
-import { RemindMessageManager } from '../services/RemindMessageManager';
 
 export class RemindTaskDeleteModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
-  private messageManager: RemindMessageManager;
 
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider,
-    repository?: RemindTaskRepository,
-    messageManager?: RemindMessageManager
+    repository?: RemindTaskRepository
   ) {
     super('remind-task-delete-modal', logger, operationLogService, metadataManager);
     this.deleteOnSuccess = true;
     this.silentOnSuccess = true;
     this.repository = repository || new RemindTaskRepository();
-    this.messageManager = messageManager || new RemindMessageManager();
   }
 
   public shouldHandle(context: ModalHandlerContext): boolean {
@@ -61,7 +57,6 @@ export class RemindTaskDeleteModalHandler extends BaseModalHandler {
       return { success: false, message: deleteResult.message };
     }
 
-    await this.messageManager.deleteTaskMessage(channelId, messageId, context.interaction.client);
 
     return { success: true };
   }

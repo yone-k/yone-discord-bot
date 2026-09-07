@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { expect, it } from 'vitest';
 
-const tables = ['list_channels', 'list_items', 'inventory_channels', 'inventory_items', 'remind_channels', 'remind_tasks', 'remind_task_inventory_items', 'schema_migrations', 'data_imports'];
+const tables = ['list_channels', 'list_items', 'inventory_channels', 'inventory_items', 'remind_channels', 'remind_tasks', 'remind_task_inventory_items', 'schema_migrations', 'data_imports', 'operation_records', 'output_tasks', 'output_dispatches', 'channel_output_suspensions', 'discord_card_views'];
 const shellQuote = (value: string): string => `'${value.replace(/'/g, '\'\\\'\'')}'`;
 
 it('backs up and restores all fields, constraints, indexes and limited-role grants with deployed scripts', () => {
@@ -35,6 +35,7 @@ it('backs up and restores all fields, constraints, indexes and limited-role gran
     for (const path of ['scripts/pi-backup.sh', 'scripts/pi-restore.sh', 'scripts/pi-db-preflight.sh', 'deploy/postgres-backup.py']) copyFileSync(resolve(path), join(directory, path));
     writeFileSync(join(directory, '.env.storage'), `STORAGE_UUID=synthetic-test-uuid\nSTORAGE_ROOT=${shellQuote(join(directory, 'storage'))}\n`);
     writeFileSync(join(directory, '.env.backup'), 'RCLONE_REMOTE=bot-drive:\n');
+    writeFileSync(join(directory, '.env.api'), 'DATABASE_URL="postgres://bot:synthetic@db/source"\nDISCORD_OUTPUT_ENABLED=true\n');
     writeFileSync(join(directory, 'storage/postgres/.discord-bot-disk'), 'synthetic-test-uuid\n');
     writeFileSync(join(directory, '.deploy-state/ci-disabled'), '');
     writeFileSync(join(directory, '.deploy-state/state'), `blocked=1\ncurrent=${image}\n`);
@@ -68,7 +69,7 @@ else: raise SystemExit('Unexpected transfer')
     // Keep real PostgreSQL tools, shell guards and Python orchestration. Only Pi
     // mount/service boundaries and remote Drive objects are supplied locally.
     const environment = { ...process.env, BOT_IMAGE: '', PATH: `${join(directory, 'bin')}:${process.env.PATH}`, REAL_DOCKER: docker, SOURCE_DATABASE: database, DATABASE_USER: decodeURIComponent(source.username),
-      MOCK_DRIVE: join(directory, 'drive'), COMMAND_LOG: join(directory, 'commands.jsonl') };
+      MOCK_DRIVE: join(directory, 'drive'), COMMAND_LOG: join(directory, 'commands.jsonl'), API_ENV_FILE: join(directory, '.env.api') };
     const run = (script: string, args: string[] = []): string => execFileSync('bash', [join(directory, 'scripts', script), ...args], { cwd: directory, env: environment, encoding: 'utf8', timeout: 20000 });
     sql(`INSERT INTO list_channels(channel_id,list_title,default_category) VALUES('9901','買物','食品');
       INSERT INTO list_items(channel_id,name,category,until,is_completed,position) VALUES('9901','保存品','長期','2026-12-31',true,0);
@@ -79,6 +80,19 @@ else: raise SystemExit('Unexpected transfer')
         VALUES('9903','legacy-task','990399','清掃','全項目の復元',7,'09:15',60,'2026-01-01T00:00:00.123Z','2026-01-08T00:15:00.456Z','2026-01-01T00:00:00.123Z','2026-01-01T00:00:00.123Z',0);
       INSERT INTO remind_task_inventory_items(task_channel_id,task_id,inventory_channel_id,inventory_id,consume,position)
         VALUES('9903','legacy-task','9902','legacy-stock',0.0000000000000000002,0);`);
+    sql(`INSERT INTO operation_records(id,channel_id,actor_id,operation_kind,success,occurred_at,facts,interaction_id)
+      VALUES('01990000-0000-7000-8000-000000000001','9901','999','AddListModalHandler',true,now(),'{"Message":"保存した操作"}','99019999');
+      INSERT INTO output_tasks(id,channel_id,kind,target_id,operation_id,payload,destination_key,state,available_at,created_at,updated_at,executor)
+      VALUES
+      ('01990000-0000-7000-8000-000000000002','9901','operation_log','op','01990000-0000-7000-8000-000000000001','{"DestinationID":"990199"}','backup-log','pending',now(),now(),now(),''),
+      ('01990000-0000-7000-8000-000000000003','9901','list_render','9901',null,'{"PinMessage":true,"Stages":[{"Name":"message","DestinationID":"9901","FirstDispatchID":"01990000-0000-7000-8000-000000000005","CurrentDispatchID":"01990000-0000-7000-8000-000000000005"}]}','backup-card','running',now(),now(),now(),'stopped-worker'),
+      ('01990000-0000-7000-8000-000000000004','9901','delete_all','9901',null,'{"Deletion":{"UpperID":"990199","ConfirmedIDs":["990198"],"RemainingIDs":["990197"],"FirstAttemptFinished":true}}','backup-delete','running',now(),now(),now(),'stopped-worker'),
+      ('01990000-0000-7000-8000-000000000006','9901','list_render','9901',null,'{"MessageID":"990196"}','backup-cleanup','running',now(),now(),now(),'stopped-worker');
+      INSERT INTO output_dispatches(id,task_id,attempt,nonce,started_at,outcome)
+      VALUES('01990000-0000-7000-8000-000000000005','01990000-0000-7000-8000-000000000003',1,'restore-nonce',now(),'unknown');
+      INSERT INTO channel_output_suspensions(channel_id,suspended_at,suspended_by) VALUES('9901',now(),'999');
+      INSERT INTO discord_card_views(channel_id,target_kind,target_id,mode,page,view_version) VALUES('9902','inventory','9902','delete_selection',3,7);`);
+    // Compare every field; only quarantined jobs get a new updated_at below.
     const contents = (name: string): Record<string, string> => Object.fromEntries(tables.map(table => [table, sql(`SELECT to_jsonb(t)::text FROM ${table} t ORDER BY to_jsonb(t)::text`, name)]));
     const expected = contents(database);
     expect(run('pi-backup.sh')).toContain('backup: success');
@@ -88,13 +102,28 @@ else: raise SystemExit('Unexpected transfer')
     const dump = readFileSync(join(directory, 'drive', `${manifest.generation}.dump`));
     expect(dump.subarray(0, 5).toString()).toBe('PGDMP');
     expect(createHash('sha256').update(dump).digest('hex')).toBe(manifest.sha256);
-    expect(manifest.schema_version).toBe(2);
+    expect(manifest.schema_version).toBe(3);
     expect(manifest.bot_image).toBe(image);
     expect(readFileSync(join(directory, 'storage/backups', `${manifest.generation}.dump`))).toEqual(dump);
     const restoreOutput = run('pi-restore.sh', [manifests[0], target]);
     expect(restoreOutput).toContain(`restored to ${target}`);
     expect(restoreOutput).toContain(`corresponding-image=${image}`);
-    expect(contents(target)).toEqual(expected);
+    expect(readFileSync(join(directory, '.env.api'), 'utf8')).toBe('DATABASE_URL="postgres://bot:synthetic@db/source"\nDISCORD_OUTPUT_ENABLED=false\n');
+    const restored = contents(target);
+    for (const table of tables.filter(table => table !== 'output_tasks')) expect(restored[table]).toBe(expected[table]);
+    const rows = (value: string): Record<string, unknown>[] => value.split('\n').filter(Boolean).map(line => JSON.parse(line) as Record<string, unknown>).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    const expectedJobs = rows(expected.output_tasks).map(job => {
+      const cleanup = job.id === '01990000-0000-7000-8000-000000000006';
+      if (job.kind !== 'delete_all' && !cleanup && !['succeeded', 'cancelled'].includes(String(job.state))) {
+        return { ...job, state: 'uncertain', executor: '', last_error: '復元後の送信結果未確認', payload: { ...(job.payload as Record<string, unknown>), Restored: true }, updated_at: expect.any(String) };
+      }
+      return (job.kind === 'delete_all' || cleanup) && job.state === 'running' ? { ...job, state: 'retry_wait', executor: '', updated_at: expect.any(String) } : job;
+    });
+    expect(rows(restored.output_tasks)).toEqual(expectedJobs);
+    const originalJobs = new Map(rows(expected.output_tasks).map(job => [job.id, job]));
+    for (const job of rows(restored.output_tasks)) {
+      expect(Date.parse(String(job.updated_at))).toBeGreaterThanOrEqual(Date.parse(String(originalJobs.get(job.id)?.updated_at)));
+    }
     for (const query of [
       'SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE connamespace=\'public\'::regnamespace ORDER BY conname',
       'SELECT indexname,indexdef FROM pg_indexes WHERE schemaname=\'public\' ORDER BY indexname',
@@ -127,6 +156,9 @@ else: raise SystemExit('Unexpected transfer')
     try {
       sql(`DROP DATABASE IF EXISTS ${target}`, 'postgres');
       sql(`DELETE FROM remind_task_inventory_items WHERE task_channel_id='9903';
+        DELETE FROM output_dispatches WHERE task_id IN (SELECT id FROM output_tasks WHERE channel_id='9901');
+        DELETE FROM output_tasks WHERE channel_id='9901'; DELETE FROM operation_records WHERE channel_id='9901';
+        DELETE FROM channel_output_suspensions WHERE channel_id='9901'; DELETE FROM discord_card_views WHERE channel_id='9902';
         DELETE FROM remind_tasks WHERE channel_id='9903'; DELETE FROM remind_channels WHERE channel_id='9903';
         DELETE FROM inventory_items WHERE channel_id='9902'; DELETE FROM inventory_channels WHERE channel_id='9902';
         DELETE FROM list_items WHERE channel_id='9901'; DELETE FROM list_channels WHERE channel_id='9901';`);

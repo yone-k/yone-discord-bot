@@ -37,14 +37,17 @@ it.each(['missing', 'admin', 'url', 'newline'])('rejects %s input without partia
   expect(String(result.stderr)).not.toMatch(/SECRET|dummy/);
 });
 
-it('generates API credentials separately and rejects Discord or admin credentials', () => {
-  const input = { DATABASE_URL: 'postgresql://bot:dummy@db/discord_bot', CORE_API_TOKEN: 'synthetic-token' };
+it('generates API output credentials with explicit persistent enablement and rejects admin credentials', () => {
+  const input = { DATABASE_URL: 'postgresql://bot:dummy@db/discord_bot', CORE_API_TOKEN: 'synthetic-token', DISCORD_BOT_TOKEN: 'synthetic-bot', DISCORD_OUTPUT_ENABLED: 'false' };
   const run = (value: unknown): ReturnType<typeof spawnSync> => spawnSync(process.execPath, ['scripts/pi-env.mjs', 'api'], {
     input: JSON.stringify(value), encoding: 'utf8'
   });
   expect(run(input).status).toBe(0);
-  expect(String(run(input).stdout).trim().split('\n')).toHaveLength(2);
-  expect(run({ ...input, DISCORD_BOT_TOKEN: 'secret' }).status).not.toBe(0);
+  expect(String(run(input).stdout).trim().split('\n')).toHaveLength(4);
+  expect(run(input).stdout).toContain('DISCORD_OUTPUT_ENABLED="false"');
+  expect(run({ ...input, DISCORD_OUTPUT_ENABLED: 'true' }).status).toBe(0);
+  expect(run({ ...input, DISCORD_OUTPUT_ENABLED: 'yes' }).status).not.toBe(0);
+  expect(run({ ...input, DISCORD_BOT_TOKEN: '' }).status).not.toBe(0);
   expect(run({ ...input, DATABASE_ADMIN_URL: 'secret' }).stdout).toBe('');
 });
 
@@ -56,7 +59,9 @@ it('preserves dummy values through real Compose parsing without admin credential
     const converted = convert(input);
     expect(converted.status).toBe(0);
     writeFileSync(envFile, String(converted.stdout));
-    writeFileSync(join(dir, '.env.api'), 'DATABASE_URL=postgresql://bot:dummy@db/discord_bot\nCORE_API_TOKEN=synthetic-api-token\n');
+    const api = spawnSync(process.execPath, ['scripts/pi-env.mjs', 'api'], { input: JSON.stringify({ DATABASE_URL: 'postgresql://bot:dummy@db/discord_bot', CORE_API_TOKEN: input.CORE_API_TOKEN, DISCORD_BOT_TOKEN: input.DISCORD_BOT_TOKEN, DISCORD_OUTPUT_ENABLED: 'false' }), encoding: 'utf8' });
+    expect(api.status).toBe(0);
+    writeFileSync(join(dir, '.env.api'), api.stdout);
     writeFileSync(join(dir, '.env.db-admin'), 'POSTGRES_PASSWORD=dummy-admin\n');
     // Compose startup can exceed the unit-test timeout on shared CI runners.
     // Bound the subprocess separately so a hung CLI cannot block the worker.
@@ -74,9 +79,12 @@ it('preserves dummy values through real Compose parsing without admin credential
     expect(env.DISCORD_BOT_TOKEN.replace(/\$\$/g, '$')).toBe(input.DISCORD_BOT_TOKEN);
     expect(env.DATABASE_URL).toBeUndefined();
     expect(env.CORE_API_URL).toBe(input.CORE_API_URL);
-    expect(config.services.api.environment.DISCORD_BOT_TOKEN).toBeUndefined();
+    expect(config.services.api.environment.DISCORD_BOT_TOKEN).toBe(env.DISCORD_BOT_TOKEN);
+    expect(config.services.api.environment.DISCORD_OUTPUT_ENABLED).toBe('false');
     expect(config.services.api.ports).toBeUndefined();
     expect(config.services.api.image).toBe(config.services.bot.image);
+    expect(config.services.api.stop_grace_period).toBe('20s');
+    expect(config.services.api.dns).toEqual(config.services.bot.dns);
     expect(config.services.bot.depends_on.api.condition).toBe('service_healthy');
     expect(env.POSTGRES_PASSWORD).toBeUndefined();
     expect(config.services.db.ports).toBeUndefined();

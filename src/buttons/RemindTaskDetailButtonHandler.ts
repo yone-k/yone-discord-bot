@@ -3,7 +3,7 @@ import type { APIComponentInContainer, APIMessageTopLevelComponent, APITextDispl
 import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { RemindTaskFormatter } from '../ui/RemindTaskFormatter';
@@ -15,7 +15,7 @@ export class RemindTaskDetailButtonHandler extends BaseButtonHandler {
 
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
     private inventoryRepository?: Pick<InventoryRepository, 'findById'>

@@ -1,7 +1,7 @@
 import { Logger } from '../utils/logger';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskService } from '../services/RemindTaskService';
 import { parseRemindBeforeInput } from '../utils/RemindDuration';
@@ -12,7 +12,7 @@ export class RemindTaskAddModalHandler extends BaseModalHandler {
 
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider,
     remindTaskService?: RemindTaskService
   ) {
@@ -74,7 +74,7 @@ export class RemindTaskAddModalHandler extends BaseModalHandler {
       }
     }
 
-    const result = await this.remindTaskService.addTask(
+    await this.remindTaskService.addTask(
       channelId,
       {
         title,
@@ -82,13 +82,8 @@ export class RemindTaskAddModalHandler extends BaseModalHandler {
         intervalDays,
         timeOfDay,
         remindBeforeMinutes
-      },
-      context.interaction.client
+      }
     );
-
-    if (!result.success) {
-      return { success: false, message: result.message || 'リマインドの追加に失敗しました' };
-    }
 
     return { success: true };
   }

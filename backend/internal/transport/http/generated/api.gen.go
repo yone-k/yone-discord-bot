@@ -44,23 +44,102 @@ const (
 	ApiErrorReasonDuplicateName ApiErrorReason = "duplicate_name"
 )
 
-// Defines values for NotificationKind.
+// Defines values for OutputCardMode.
 const (
-	NotificationKindBefore  NotificationKind = "before"
-	NotificationKindList    NotificationKind = "list"
-	NotificationKindOverdue NotificationKind = "overdue"
+	OutputCardModeDeleteSelection OutputCardMode = "delete_selection"
+	OutputCardModeNormal          OutputCardMode = "normal"
+	OutputCardModeUpdateSelection OutputCardMode = "update_selection"
 )
 
-// Defines values for NotificationTokenKind.
+// Defines values for OutputInitializeInputKind.
 const (
-	NotificationTokenKindBefore  NotificationTokenKind = "before"
-	NotificationTokenKindList    NotificationTokenKind = "list"
-	NotificationTokenKindOverdue NotificationTokenKind = "overdue"
+	OutputInitializeInputKindInventory OutputInitializeInputKind = "inventory"
+	OutputInitializeInputKindList      OutputInitializeInputKind = "list"
+	OutputInitializeInputKindReminder  OutputInitializeInputKind = "reminder"
 )
 
-// Defines values for ProgressUpdateKind.
+// Defines values for OutputOperationKind.
 const (
-	ProgressUpdateKindProgress ProgressUpdateKind = "progress"
+	OutputOperationKindAddInventoryCommand                   OutputOperationKind = "AddInventoryCommand"
+	OutputOperationKindAddListButtonHandler                  OutputOperationKind = "AddListButtonHandler"
+	OutputOperationKindAddListCommand                        OutputOperationKind = "AddListCommand"
+	OutputOperationKindAddListModalHandler                   OutputOperationKind = "AddListModalHandler"
+	OutputOperationKindAddRemindListCommand                  OutputOperationKind = "AddRemindListCommand"
+	OutputOperationKindConfirmationModalHandler              OutputOperationKind = "ConfirmationModalHandler"
+	OutputOperationKindDeleteAllMessageCommand               OutputOperationKind = "DeleteAllMessageCommand"
+	OutputOperationKindDeleteInventoryCommand                OutputOperationKind = "DeleteInventoryCommand"
+	OutputOperationKindEditListButtonHandler                 OutputOperationKind = "EditListButtonHandler"
+	OutputOperationKindEditListModalHandler                  OutputOperationKind = "EditListModalHandler"
+	OutputOperationKindInitInventoryCommand                  OutputOperationKind = "InitInventoryCommand"
+	OutputOperationKindInitListButtonHandler                 OutputOperationKind = "InitListButtonHandler"
+	OutputOperationKindInitListCommand                       OutputOperationKind = "InitListCommand"
+	OutputOperationKindInitRemindListCommand                 OutputOperationKind = "InitRemindListCommand"
+	OutputOperationKindInventoryAddButtonHandler             OutputOperationKind = "InventoryAddButtonHandler"
+	OutputOperationKindInventoryAddModalHandler              OutputOperationKind = "InventoryAddModalHandler"
+	OutputOperationKindInventoryDeleteButtonHandler          OutputOperationKind = "InventoryDeleteButtonHandler"
+	OutputOperationKindInventoryDeleteModalHandler           OutputOperationKind = "InventoryDeleteModalHandler"
+	OutputOperationKindInventoryDeleteSelectMenuHandler      OutputOperationKind = "InventoryDeleteSelectMenuHandler"
+	OutputOperationKindInventorySelectionCancelButtonHandler OutputOperationKind = "InventorySelectionCancelButtonHandler"
+	OutputOperationKindInventoryUpdateButtonHandler          OutputOperationKind = "InventoryUpdateButtonHandler"
+	OutputOperationKindInventoryUpdateModalHandler           OutputOperationKind = "InventoryUpdateModalHandler"
+	OutputOperationKindLinkInventoryCommand                  OutputOperationKind = "LinkInventoryCommand"
+	OutputOperationKindReaction                              OutputOperationKind = "reaction"
+	OutputOperationKindRemindTaskAddButtonHandler            OutputOperationKind = "RemindTaskAddButtonHandler"
+	OutputOperationKindRemindTaskAddModalHandler             OutputOperationKind = "RemindTaskAddModalHandler"
+	OutputOperationKindRemindTaskCompleteButtonHandler       OutputOperationKind = "RemindTaskCompleteButtonHandler"
+	OutputOperationKindRemindTaskCompleteModalHandler        OutputOperationKind = "RemindTaskCompleteModalHandler"
+	OutputOperationKindRemindTaskDeleteButtonHandler         OutputOperationKind = "RemindTaskDeleteButtonHandler"
+	OutputOperationKindRemindTaskDeleteModalHandler          OutputOperationKind = "RemindTaskDeleteModalHandler"
+	OutputOperationKindRemindTaskDetailButtonHandler         OutputOperationKind = "RemindTaskDetailButtonHandler"
+	OutputOperationKindRemindTaskInventoryModalHandler       OutputOperationKind = "RemindTaskInventoryModalHandler"
+	OutputOperationKindRemindTaskUpdateButtonHandler         OutputOperationKind = "RemindTaskUpdateButtonHandler"
+	OutputOperationKindRemindTaskUpdateCancelButtonHandler   OutputOperationKind = "RemindTaskUpdateCancelButtonHandler"
+	OutputOperationKindRemindTaskUpdateModalHandler          OutputOperationKind = "RemindTaskUpdateModalHandler"
+	OutputOperationKindRemindTaskUpdateOverrideModalHandler  OutputOperationKind = "RemindTaskUpdateOverrideModalHandler"
+	OutputOperationKindRemindTaskUpdateSelectMenuHandler     OutputOperationKind = "RemindTaskUpdateSelectMenuHandler"
+	OutputOperationKindUnlinkInventoryCommand                OutputOperationKind = "UnlinkInventoryCommand"
+	OutputOperationKindUpdateInventoryCommand                OutputOperationKind = "UpdateInventoryCommand"
+)
+
+// Defines values for OutputRedrawInputKind.
+const (
+	OutputRedrawInputKindInventory OutputRedrawInputKind = "inventory"
+	OutputRedrawInputKindList      OutputRedrawInputKind = "list"
+	OutputRedrawInputKindReminder  OutputRedrawInputKind = "reminder"
+)
+
+// Defines values for OutputStatusContract.
+const (
+	OutputStatusContractGoDiscordOutputV1 OutputStatusContract = "go-discord-output-v1"
+)
+
+// Defines values for OutputTargetKind.
+const (
+	OutputTargetKindInventory OutputTargetKind = "inventory"
+	OutputTargetKindTask      OutputTargetKind = "task"
+)
+
+// Defines values for OutputTaskKind.
+const (
+	OutputTaskKindDeleteAll          OutputTaskKind = "delete_all"
+	OutputTaskKindInventoryRender    OutputTaskKind = "inventory_render"
+	OutputTaskKindListDeadlineNotice OutputTaskKind = "list_deadline_notice"
+	OutputTaskKindListRender         OutputTaskKind = "list_render"
+	OutputTaskKindOperationLog       OutputTaskKind = "operation_log"
+	OutputTaskKindReminderNotice     OutputTaskKind = "reminder_notice"
+	OutputTaskKindTaskCard           OutputTaskKind = "task_card"
+	OutputTaskKindThreadEnsure       OutputTaskKind = "thread_ensure"
+)
+
+// Defines values for OutputTaskState.
+const (
+	OutputTaskStateBlocked   OutputTaskState = "blocked"
+	OutputTaskStateCancelled OutputTaskState = "cancelled"
+	OutputTaskStatePending   OutputTaskState = "pending"
+	OutputTaskStateRetryWait OutputTaskState = "retry_wait"
+	OutputTaskStateRunning   OutputTaskState = "running"
+	OutputTaskStateSucceeded OutputTaskState = "succeeded"
+	OutputTaskStateUncertain OutputTaskState = "uncertain"
 )
 
 // ApiError defines model for ApiError.
@@ -84,6 +163,16 @@ type ApiErrorCode string
 
 // ApiErrorReason duplicate_name distinguishes a duplicate name from other invalid_input failures. Inventory-add callers can skip that item and continue; other failures must not be silently skipped.
 type ApiErrorReason string
+
+// AppendInventoryItemsInput defines model for AppendInventoryItemsInput.
+type AppendInventoryItemsInput struct {
+	Items []InventoryItemInput `json:"items"`
+}
+
+// AppendInventoryItemsResult defines model for AppendInventoryItemsResult.
+type AppendInventoryItemsResult struct {
+	SkippedNames []string `json:"skippedNames"`
+}
 
 // ApplyInventoryInput defines model for ApplyInventoryInput.
 type ApplyInventoryInput struct {
@@ -155,14 +244,6 @@ type Health struct {
 // Id Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
 type Id = string
 
-// Initialization defines model for Initialization.
-type Initialization struct {
-	Inventories    []InventoryDisplay `json:"inventories"`
-	Lists          []ListDisplay      `json:"lists"`
-	RemindChannels []RemindChannel    `json:"remindChannels"`
-	Reminders      []TaskDisplay      `json:"reminders"`
-}
-
 // IntervalDays defines model for IntervalDays.
 type IntervalDays = int32
 
@@ -176,12 +257,18 @@ type InventoryChannel struct {
 	OperationLogThreadId nullable.Nullable[Id] `json:"operationLogThreadId"`
 }
 
+// InventoryChannelInput defines model for InventoryChannelInput.
+type InventoryChannelInput struct {
+	// ChannelId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+	ChannelId       Id     `json:"channelId"`
+	DefaultCategory string `json:"defaultCategory"`
+	ListTitle       string `json:"listTitle"`
+}
+
 // InventoryChannelPatch defines model for InventoryChannelPatch.
 type InventoryChannelPatch struct {
-	DefaultCategory      *string               `json:"defaultCategory,omitempty"`
-	ListTitle            *string               `json:"listTitle,omitempty"`
-	MessageId            nullable.Nullable[Id] `json:"messageId,omitempty"`
-	OperationLogThreadId nullable.Nullable[Id] `json:"operationLogThreadId,omitempty"`
+	DefaultCategory *string `json:"defaultCategory,omitempty"`
+	ListTitle       *string `json:"listTitle,omitempty"`
 }
 
 // InventoryConsumption defines model for InventoryConsumption.
@@ -191,12 +278,6 @@ type InventoryConsumption struct {
 
 	// InventoryId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
 	InventoryId Id `json:"inventoryId"`
-}
-
-// InventoryDisplay defines model for InventoryDisplay.
-type InventoryDisplay struct {
-	Channel InventoryChannel      `json:"channel"`
-	Items   []StoredInventoryItem `json:"items"`
 }
 
 // InventoryEditItem defines model for InventoryEditItem.
@@ -239,25 +320,15 @@ type ListChannel struct {
 // ListChannelInput defines model for ListChannelInput.
 type ListChannelInput struct {
 	// ChannelId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
-	ChannelId            Id                    `json:"channelId"`
-	DefaultCategory      string                `json:"defaultCategory"`
-	ListTitle            string                `json:"listTitle"`
-	MessageId            nullable.Nullable[Id] `json:"messageId"`
-	OperationLogThreadId nullable.Nullable[Id] `json:"operationLogThreadId"`
+	ChannelId       Id     `json:"channelId"`
+	DefaultCategory string `json:"defaultCategory"`
+	ListTitle       string `json:"listTitle"`
 }
 
 // ListChannelPatch defines model for ListChannelPatch.
 type ListChannelPatch struct {
-	DefaultCategory      *string               `json:"defaultCategory,omitempty"`
-	ListTitle            *string               `json:"listTitle,omitempty"`
-	MessageId            nullable.Nullable[Id] `json:"messageId,omitempty"`
-	OperationLogThreadId nullable.Nullable[Id] `json:"operationLogThreadId,omitempty"`
-}
-
-// ListDisplay defines model for ListDisplay.
-type ListDisplay struct {
-	Channel ListChannel      `json:"channel"`
-	Items   []StoredListItem `json:"items"`
+	DefaultCategory *string `json:"defaultCategory,omitempty"`
+	ListTitle       *string `json:"listTitle,omitempty"`
 }
 
 // ListEditItem defines model for ListEditItem.
@@ -277,69 +348,138 @@ type ListSnapshot struct {
 // NonnegativeInteger defines model for NonnegativeInteger.
 type NonnegativeInteger = int32
 
-// Notification kind=list requires non-null list and item with null reminder. kind=before or overdue requires non-null reminder with null list and item. Reminder deadlines are timestamps and revisions are non-null; list deadlines are dates and revisions are null.
-type Notification struct {
+// OutputAccepted defines model for OutputAccepted.
+type OutputAccepted struct {
+	TaskIds []Id `json:"taskIds"`
+}
+
+// OutputCardMode defines model for OutputCardMode.
+type OutputCardMode string
+
+// OutputCardView defines model for OutputCardView.
+type OutputCardView struct {
+	// ChannelId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+	ChannelId Id                 `json:"channelId"`
+	Mode      OutputCardMode     `json:"mode"`
+	Page      NonnegativeInteger `json:"page"`
+
+	// TargetId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+	TargetId   Id               `json:"targetId"`
+	TargetKind OutputTargetKind `json:"targetKind"`
+	Version    Revision         `json:"version"`
+}
+
+// OutputCardViewInput defines model for OutputCardViewInput.
+type OutputCardViewInput struct {
+	Mode OutputCardMode `json:"mode"`
+	Page *int           `json:"page,omitempty"`
+}
+
+// OutputChannelStop defines model for OutputChannelStop.
+type OutputChannelStop struct {
 	// ChannelId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
 	ChannelId Id `json:"channelId"`
 
-	// EvaluatedAt RFC3339 timestamp with exactly millisecond precision; business timezone is Asia/Tokyo.
-	EvaluatedAt Timestamp `json:"evaluatedAt"`
+	// SuspendedAt RFC3339 timestamp with exactly millisecond precision; business timezone is Asia/Tokyo.
+	SuspendedAt Timestamp `json:"suspendedAt"`
 
-	// ExpectedRevision null for list notifications; the captured task revision for reminders.
-	ExpectedRevision nullable.Nullable[Revision] `json:"expectedRevision"`
-
-	// Id Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
-	Id       Id                                `json:"id"`
-	Item     nullable.Nullable[StoredListItem] `json:"item"`
-	Kind     NotificationKind                  `json:"kind"`
-	List     nullable.Nullable[ListDisplay]    `json:"list"`
-	Reminder nullable.Nullable[TaskDisplay]    `json:"reminder"`
-
-	// TargetDueAt BusinessDate for list notifications, Timestamp for reminder notifications.
-	TargetDueAt NotificationDeadline `json:"targetDueAt"`
+	// SuspendedBy Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+	SuspendedBy Id `json:"suspendedBy"`
 }
 
-// NotificationKind defines model for Notification.Kind.
-type NotificationKind string
+// OutputHold defines model for OutputHold.
+type OutputHold struct {
+	// ChannelId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+	ChannelId        Id                    `json:"channelId"`
+	DependencyTaskId nullable.Nullable[Id] `json:"dependencyTaskId"`
+	Kind             OutputTaskKind        `json:"kind"`
+	Reason           string                `json:"reason"`
+	State            OutputTaskState       `json:"state"`
 
-// NotificationAckResult defines model for NotificationAckResult.
-type NotificationAckResult struct {
-	Item nullable.Nullable[StoredListItem]   `json:"item"`
-	Task nullable.Nullable[StoredRemindTask] `json:"task"`
+	// TaskId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+	TaskId Id `json:"taskId"`
 }
 
-// NotificationDeadline List deadline (YYYY-MM-DD) or reminder deadline (RFC3339 with milliseconds). kind selects the applicable representation.
-type NotificationDeadline = string
-
-// NotificationPlan defines model for NotificationPlan.
-type NotificationPlan struct {
-	// EvaluatedAt RFC3339 timestamp with exactly millisecond precision; business timezone is Asia/Tokyo.
-	EvaluatedAt   Timestamp        `json:"evaluatedAt"`
-	Notifications []Notification   `json:"notifications"`
-	Progress      []ProgressUpdate `json:"progress"`
+// OutputInitializeInput defines model for OutputInitializeInput.
+type OutputInitializeInput struct {
+	EnableLog *bool                     `json:"enableLog,omitempty"`
+	Kind      OutputInitializeInputKind `json:"kind"`
 }
 
-// NotificationToken defines model for NotificationToken.
-type NotificationToken struct {
+// OutputInitializeInputKind defines model for OutputInitializeInput.Kind.
+type OutputInitializeInputKind string
+
+// OutputJob defines model for OutputJob.
+type OutputJob struct {
+	// ChannelId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+	ChannelId             Id                 `json:"channelId"`
+	ConfirmedDeletedCount NonnegativeInteger `json:"confirmedDeletedCount"`
+	FirstAttemptFinished  bool               `json:"firstAttemptFinished"`
+
+	// JobId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+	JobId     Id                        `json:"jobId"`
+	LastError nullable.Nullable[string] `json:"lastError"`
+	State     OutputTaskState           `json:"state"`
+}
+
+// OutputLogEvent defines model for OutputLogEvent.
+type OutputLogEvent struct {
+	// ActorId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+	ActorId      Id      `json:"actorId"`
+	CancelReason *string `json:"cancelReason,omitempty"`
+
 	// ChannelId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
 	ChannelId Id `json:"channelId"`
 
-	// EvaluatedAt RFC3339 timestamp with exactly millisecond precision; business timezone is Asia/Tokyo.
-	EvaluatedAt Timestamp `json:"evaluatedAt"`
+	// InteractionId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+	InteractionId Id      `json:"interactionId"`
+	Message       *string `json:"message,omitempty"`
 
-	// ExpectedRevision null for list notifications; the captured task revision for reminders.
-	ExpectedRevision nullable.Nullable[Revision] `json:"expectedRevision"`
-
-	// Id Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
-	Id   Id                    `json:"id"`
-	Kind NotificationTokenKind `json:"kind"`
-
-	// TargetDueAt BusinessDate for list notifications, Timestamp for reminder notifications.
-	TargetDueAt NotificationDeadline `json:"targetDueAt"`
+	// OccurredAt RFC3339 timestamp with exactly millisecond precision; business timezone is Asia/Tokyo.
+	OccurredAt    Timestamp           `json:"occurredAt"`
+	OperationKind OutputOperationKind `json:"operationKind"`
+	Success       bool                `json:"success"`
 }
 
-// NotificationTokenKind defines model for NotificationToken.Kind.
-type NotificationTokenKind string
+// OutputOperationKind defines model for OutputOperationKind.
+type OutputOperationKind string
+
+// OutputRedrawInput defines model for OutputRedrawInput.
+type OutputRedrawInput struct {
+	Kind OutputRedrawInputKind `json:"kind"`
+}
+
+// OutputRedrawInputKind defines model for OutputRedrawInput.Kind.
+type OutputRedrawInputKind string
+
+// OutputStateCount defines model for OutputStateCount.
+type OutputStateCount struct {
+	Count NonnegativeInteger `json:"count"`
+	State OutputTaskState    `json:"state"`
+}
+
+// OutputStatus defines model for OutputStatus.
+type OutputStatus struct {
+	Contract        OutputStatusContract         `json:"contract"`
+	Counts          []OutputStateCount           `json:"counts"`
+	Enabled         bool                         `json:"enabled"`
+	Holds           []OutputHold                 `json:"holds"`
+	OldestPendingAt nullable.Nullable[Timestamp] `json:"oldestPendingAt"`
+	Suspensions     []OutputChannelStop          `json:"suspensions"`
+	WorkerRunning   bool                         `json:"workerRunning"`
+}
+
+// OutputStatusContract defines model for OutputStatus.Contract.
+type OutputStatusContract string
+
+// OutputTargetKind defines model for OutputTargetKind.
+type OutputTargetKind string
+
+// OutputTaskKind defines model for OutputTaskKind.
+type OutputTaskKind string
+
+// OutputTaskState defines model for OutputTaskState.
+type OutputTaskState string
 
 // PatchTaskInput defines model for PatchTaskInput.
 type PatchTaskInput struct {
@@ -351,17 +491,6 @@ type PatchTaskInput struct {
 
 // PathId Path representation of an ID. For '.', '..', an ID containing '/' or '%', or an ID starting with '~', use '~' followed by unpadded base64url of the UTF-8 ID. Otherwise use ordinary URI component encoding. JSON and query IDs retain their original values.
 type PathId = string
-
-// ProgressUpdate defines model for ProgressUpdate.
-type ProgressUpdate struct {
-	// EvaluatedAt RFC3339 timestamp with exactly millisecond precision; business timezone is Asia/Tokyo.
-	EvaluatedAt Timestamp          `json:"evaluatedAt"`
-	Kind        ProgressUpdateKind `json:"kind"`
-	Reminder    TaskDisplay        `json:"reminder"`
-}
-
-// ProgressUpdateKind defines model for ProgressUpdate.Kind.
-type ProgressUpdateKind string
 
 // Quantity Arbitrary precision, unsigned decimal. Never convert through a binary float.
 type Quantity = string
@@ -378,13 +507,17 @@ type RemindChannel struct {
 	RemindNoticeThreadId     nullable.Nullable[Id] `json:"remindNoticeThreadId"`
 }
 
+// RemindChannelInput defines model for RemindChannelInput.
+type RemindChannelInput struct {
+	// ChannelId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+	ChannelId                Id                    `json:"channelId"`
+	LinkedInventoryChannelId nullable.Nullable[Id] `json:"linkedInventoryChannelId"`
+	ListTitle                string                `json:"listTitle"`
+}
+
 // RemindChannelPatch defines model for RemindChannelPatch.
 type RemindChannelPatch struct {
-	ListTitle             *string               `json:"listTitle,omitempty"`
-	MessageId             nullable.Nullable[Id] `json:"messageId,omitempty"`
-	OperationLogThreadId  nullable.Nullable[Id] `json:"operationLogThreadId,omitempty"`
-	RemindNoticeMessageId nullable.Nullable[Id] `json:"remindNoticeMessageId,omitempty"`
-	RemindNoticeThreadId  nullable.Nullable[Id] `json:"remindNoticeThreadId,omitempty"`
+	ListTitle *string `json:"listTitle,omitempty"`
 }
 
 // RemindInventoryEdit defines model for RemindInventoryEdit.
@@ -526,7 +659,6 @@ type TaskPatch struct {
 
 	// LastDoneAt Explicit manual override from the task detail settings UI, not task completion.
 	LastDoneAt nullable.Nullable[Timestamp] `json:"lastDoneAt,omitempty"`
-	MessageId  nullable.Nullable[Id]        `json:"messageId,omitempty"`
 
 	// NextDueAt Explicit manual deadline override from the task detail settings UI.
 	NextDueAt           *Timestamp                            `json:"nextDueAt,omitempty"`
@@ -539,13 +671,17 @@ type TaskPatch struct {
 // Timestamp RFC3339 timestamp with exactly millisecond precision; business timezone is Asia/Tokyo.
 type Timestamp = string
 
+// OutputActorHeadersActorId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+type OutputActorHeadersActorId = Id
+
+// OutputActorHeadersInteractionId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+type OutputActorHeadersInteractionId = Id
+
+// OutputActorHeadersOperationKind defines model for OutputActorHeaders.operationKind.
+type OutputActorHeadersOperationKind = OutputOperationKind
+
 // RequestOptions defines model for RequestOptions.
 type RequestOptions = int32
-
-// GetInitializationParams defines parameters for GetInitialization.
-type GetInitializationParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
-}
 
 // ListInventoryChannelsParams defines parameters for ListInventoryChannels.
 type ListInventoryChannelsParams struct {
@@ -554,7 +690,10 @@ type ListInventoryChannelsParams struct {
 
 // DeleteInventoryChannelParams defines parameters for DeleteInventoryChannel.
 type DeleteInventoryChannelParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // GetInventoryChannelParams defines parameters for GetInventoryChannel.
@@ -564,22 +703,34 @@ type GetInventoryChannelParams struct {
 
 // PatchInventoryChannelParams defines parameters for PatchInventoryChannel.
 type PatchInventoryChannelParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // CreateInventoryChannelParams defines parameters for CreateInventoryChannel.
 type CreateInventoryChannelParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // ApplyInventoryParams defines parameters for ApplyInventory.
 type ApplyInventoryParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // BulkUpdateInventoryParams defines parameters for BulkUpdateInventory.
 type BulkUpdateInventoryParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // GetInventoryByNameParams defines parameters for GetInventoryByName.
@@ -595,12 +746,26 @@ type GetInventoryItemsParams struct {
 
 // AppendInventoryItemParams defines parameters for AppendInventoryItem.
 type AppendInventoryItemParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
+}
+
+// AppendInventoryItemsParams defines parameters for AppendInventoryItems.
+type AppendInventoryItemsParams struct {
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // DeleteInventoryItemParams defines parameters for DeleteInventoryItem.
 type DeleteInventoryItemParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // GetInventoryItemParams defines parameters for GetInventoryItem.
@@ -610,7 +775,10 @@ type GetInventoryItemParams struct {
 
 // UpdateInventoryItemParams defines parameters for UpdateInventoryItem.
 type UpdateInventoryItemParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // GetInventoryReferencesParams defines parameters for GetInventoryReferences.
@@ -630,12 +798,18 @@ type GetRelatedTasksParams struct {
 
 // ReorderInventoryParams defines parameters for ReorderInventory.
 type ReorderInventoryParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // ResolveInventoryParams defines parameters for ResolveInventory.
 type ResolveInventoryParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // ListListChannelsParams defines parameters for ListListChannels.
@@ -645,7 +819,10 @@ type ListListChannelsParams struct {
 
 // DeleteListChannelParams defines parameters for DeleteListChannel.
 type DeleteListChannelParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // GetListChannelParams defines parameters for GetListChannel.
@@ -655,12 +832,18 @@ type GetListChannelParams struct {
 
 // PatchListChannelParams defines parameters for PatchListChannel.
 type PatchListChannelParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // CreateListChannelParams defines parameters for CreateListChannel.
 type CreateListChannelParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // GetListItemsParams defines parameters for GetListItems.
@@ -670,27 +853,42 @@ type GetListItemsParams struct {
 
 // AppendListItemParams defines parameters for AppendListItem.
 type AppendListItemParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // DeleteListItemParams defines parameters for DeleteListItem.
 type DeleteListItemParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // UpdateListItemParams defines parameters for UpdateListItem.
 type UpdateListItemParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // ReorderListParams defines parameters for ReorderList.
 type ReorderListParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // SaveListParams defines parameters for SaveList.
 type SaveListParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // GetListSnapshotParams defines parameters for GetListSnapshot.
@@ -698,13 +896,53 @@ type GetListSnapshotParams struct {
 	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
 }
 
-// AckNotificationParams defines parameters for AckNotification.
-type AckNotificationParams struct {
+// SetOutputCardViewParams defines parameters for SetOutputCardView.
+type SetOutputCardViewParams struct {
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
+}
+
+// RequestDeleteAllParams defines parameters for RequestDeleteAll.
+type RequestDeleteAllParams struct {
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
+}
+
+// InitializeOutputsParams defines parameters for InitializeOutputs.
+type InitializeOutputsParams struct {
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
+}
+
+// GetOutputJobParams defines parameters for GetOutputJob.
+type GetOutputJobParams struct {
 	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
 }
 
-// PollNotificationsParams defines parameters for PollNotifications.
-type PollNotificationsParams struct {
+// RecordOutputEventParams defines parameters for RecordOutputEvent.
+type RecordOutputEventParams struct {
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
+}
+
+// RedrawOutputsParams defines parameters for RedrawOutputs.
+type RedrawOutputsParams struct {
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
+}
+
+// GetOutputStatusParams defines parameters for GetOutputStatus.
+type GetOutputStatusParams struct {
 	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
 }
 
@@ -715,7 +953,10 @@ type ListRemindChannelsParams struct {
 
 // DeleteRemindChannelParams defines parameters for DeleteRemindChannel.
 type DeleteRemindChannelParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // GetRemindChannelParams defines parameters for GetRemindChannel.
@@ -725,12 +966,18 @@ type GetRemindChannelParams struct {
 
 // PatchRemindChannelParams defines parameters for PatchRemindChannel.
 type PatchRemindChannelParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // CreateRemindChannelParams defines parameters for CreateRemindChannel.
 type CreateRemindChannelParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // GetTaskByMessageParams defines parameters for GetTaskByMessage.
@@ -741,12 +988,18 @@ type GetTaskByMessageParams struct {
 
 // LinkInventoryParams defines parameters for LinkInventory.
 type LinkInventoryParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // ReorderTasksParams defines parameters for ReorderTasks.
 type ReorderTasksParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // GetTasksParams defines parameters for GetTasks.
@@ -756,12 +1009,18 @@ type GetTasksParams struct {
 
 // CreateTaskParams defines parameters for CreateTask.
 type CreateTaskParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // DeleteTaskParams defines parameters for DeleteTask.
 type DeleteTaskParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // GetTaskParams defines parameters for GetTask.
@@ -771,27 +1030,42 @@ type GetTaskParams struct {
 
 // PatchTaskParams defines parameters for PatchTask.
 type PatchTaskParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // CompleteTaskParams defines parameters for CompleteTask.
 type CompleteTaskParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // EditTaskInventoryParams defines parameters for EditTaskInventory.
 type EditTaskInventoryParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // PauseTaskParams defines parameters for PauseTask.
 type PauseTaskParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // ResumeTaskParams defines parameters for ResumeTask.
 type ResumeTaskParams struct {
-	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
+	XActorId       OutputActorHeadersActorId        `json:"X-Actor-Id"`
+	XOperationKind OutputActorHeadersOperationKind  `json:"X-Operation-Kind"`
+	XInteractionId *OutputActorHeadersInteractionId `json:"X-Interaction-Id,omitempty"`
 }
 
 // CheckTaskShortageParams defines parameters for CheckTaskShortage.
@@ -803,7 +1077,7 @@ type CheckTaskShortageParams struct {
 type PatchInventoryChannelJSONRequestBody = InventoryChannelPatch
 
 // CreateInventoryChannelJSONRequestBody defines body for CreateInventoryChannel for application/json ContentType.
-type CreateInventoryChannelJSONRequestBody = InventoryChannel
+type CreateInventoryChannelJSONRequestBody = InventoryChannelInput
 
 // ApplyInventoryJSONRequestBody defines body for ApplyInventory for application/json ContentType.
 type ApplyInventoryJSONRequestBody = ApplyInventoryInput
@@ -813,6 +1087,9 @@ type BulkUpdateInventoryJSONRequestBody = BulkInventoryInput
 
 // AppendInventoryItemJSONRequestBody defines body for AppendInventoryItem for application/json ContentType.
 type AppendInventoryItemJSONRequestBody = InventoryItemInput
+
+// AppendInventoryItemsJSONRequestBody defines body for AppendInventoryItems for application/json ContentType.
+type AppendInventoryItemsJSONRequestBody = AppendInventoryItemsInput
 
 // UpdateInventoryItemJSONRequestBody defines body for UpdateInventoryItem for application/json ContentType.
 type UpdateInventoryItemJSONRequestBody = InventoryItemInput
@@ -841,14 +1118,23 @@ type ReorderListJSONRequestBody = ReorderInput
 // SaveListJSONRequestBody defines body for SaveList for application/json ContentType.
 type SaveListJSONRequestBody = SaveListInput
 
-// AckNotificationJSONRequestBody defines body for AckNotification for application/json ContentType.
-type AckNotificationJSONRequestBody = NotificationToken
+// SetOutputCardViewJSONRequestBody defines body for SetOutputCardView for application/json ContentType.
+type SetOutputCardViewJSONRequestBody = OutputCardViewInput
+
+// InitializeOutputsJSONRequestBody defines body for InitializeOutputs for application/json ContentType.
+type InitializeOutputsJSONRequestBody = OutputInitializeInput
+
+// RecordOutputEventJSONRequestBody defines body for RecordOutputEvent for application/json ContentType.
+type RecordOutputEventJSONRequestBody = OutputLogEvent
+
+// RedrawOutputsJSONRequestBody defines body for RedrawOutputs for application/json ContentType.
+type RedrawOutputsJSONRequestBody = OutputRedrawInput
 
 // PatchRemindChannelJSONRequestBody defines body for PatchRemindChannel for application/json ContentType.
 type PatchRemindChannelJSONRequestBody = RemindChannelPatch
 
 // CreateRemindChannelJSONRequestBody defines body for CreateRemindChannel for application/json ContentType.
-type CreateRemindChannelJSONRequestBody = RemindChannel
+type CreateRemindChannelJSONRequestBody = RemindChannelInput
 
 // LinkInventoryJSONRequestBody defines body for LinkInventory for application/json ContentType.
 type LinkInventoryJSONRequestBody = LinkInventoryInput
@@ -880,9 +1166,6 @@ type ServerInterface interface {
 	// (GET /health)
 	Health(w http.ResponseWriter, r *http.Request)
 
-	// (GET /v1/display/initialization)
-	GetInitialization(w http.ResponseWriter, r *http.Request, params GetInitializationParams)
-
 	// (GET /v1/inventories)
 	ListInventoryChannels(w http.ResponseWriter, r *http.Request, params ListInventoryChannelsParams)
 
@@ -912,6 +1195,9 @@ type ServerInterface interface {
 
 	// (POST /v1/inventories/{channelId}/items)
 	AppendInventoryItem(w http.ResponseWriter, r *http.Request, channelId PathId, params AppendInventoryItemParams)
+
+	// (POST /v1/inventories/{channelId}/items/batch)
+	AppendInventoryItems(w http.ResponseWriter, r *http.Request, channelId PathId, params AppendInventoryItemsParams)
 
 	// (DELETE /v1/inventories/{channelId}/items/{id})
 	DeleteInventoryItem(w http.ResponseWriter, r *http.Request, channelId PathId, id PathId, params DeleteInventoryItemParams)
@@ -973,11 +1259,26 @@ type ServerInterface interface {
 	// (GET /v1/lists/{channelId}/snapshot)
 	GetListSnapshot(w http.ResponseWriter, r *http.Request, channelId PathId, params GetListSnapshotParams)
 
-	// (POST /v1/notifications/ack)
-	AckNotification(w http.ResponseWriter, r *http.Request, params AckNotificationParams)
+	// (POST /v1/outputs/card-view/{channelId}/{targetKind}/{targetId})
+	SetOutputCardView(w http.ResponseWriter, r *http.Request, channelId PathId, targetKind OutputTargetKind, targetId PathId, params SetOutputCardViewParams)
 
-	// (POST /v1/notifications/poll)
-	PollNotifications(w http.ResponseWriter, r *http.Request, params PollNotificationsParams)
+	// (POST /v1/outputs/delete-all/{channelId})
+	RequestDeleteAll(w http.ResponseWriter, r *http.Request, channelId PathId, params RequestDeleteAllParams)
+
+	// (POST /v1/outputs/initialize/{channelId})
+	InitializeOutputs(w http.ResponseWriter, r *http.Request, channelId PathId, params InitializeOutputsParams)
+
+	// (GET /v1/outputs/jobs/{jobId})
+	GetOutputJob(w http.ResponseWriter, r *http.Request, jobId PathId, params GetOutputJobParams)
+
+	// (POST /v1/outputs/operation-log-events)
+	RecordOutputEvent(w http.ResponseWriter, r *http.Request, params RecordOutputEventParams)
+
+	// (POST /v1/outputs/redraw/{channelId})
+	RedrawOutputs(w http.ResponseWriter, r *http.Request, channelId PathId, params RedrawOutputsParams)
+
+	// (GET /v1/outputs/status)
+	GetOutputStatus(w http.ResponseWriter, r *http.Request, params GetOutputStatusParams)
 
 	// (GET /v1/reminders)
 	ListRemindChannels(w http.ResponseWriter, r *http.Request, params ListRemindChannelsParams)
@@ -1048,52 +1349,6 @@ func (siw *ServerInterfaceWrapper) Health(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Health(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetInitialization operation middleware
-func (siw *ServerInterfaceWrapper) GetInitialization(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params GetInitializationParams
-
-	headers := r.Header
-
-	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
-		var XCoreTimeoutMs RequestOptions
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
-			return
-		}
-
-		params.XCoreTimeoutMs = &XCoreTimeoutMs
-
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetInitialization(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1190,6 +1445,71 @@ func (siw *ServerInterfaceWrapper) DeleteInventoryChannel(w http.ResponseWriter,
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -1303,6 +1623,71 @@ func (siw *ServerInterfaceWrapper) PatchInventoryChannel(w http.ResponseWriter, 
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PatchInventoryChannel(w, r, channelId, params)
 	}))
@@ -1355,6 +1740,71 @@ func (siw *ServerInterfaceWrapper) CreateInventoryChannel(w http.ResponseWriter,
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -1413,6 +1863,71 @@ func (siw *ServerInterfaceWrapper) ApplyInventory(w http.ResponseWriter, r *http
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ApplyInventory(w, r, channelId, params)
 	}))
@@ -1465,6 +1980,71 @@ func (siw *ServerInterfaceWrapper) BulkUpdateInventory(w http.ResponseWriter, r 
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -1648,8 +2228,193 @@ func (siw *ServerInterfaceWrapper) AppendInventoryItem(w http.ResponseWriter, r 
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AppendInventoryItem(w, r, channelId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AppendInventoryItems operation middleware
+func (siw *ServerInterfaceWrapper) AppendInventoryItems(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "channelId" -------------
+	var channelId PathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "channelId", r.PathValue("channelId"), &channelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "channelId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AppendInventoryItemsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AppendInventoryItems(w, r, channelId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1709,6 +2474,71 @@ func (siw *ServerInterfaceWrapper) DeleteInventoryItem(w http.ResponseWriter, r 
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -1837,6 +2667,71 @@ func (siw *ServerInterfaceWrapper) UpdateInventoryItem(w http.ResponseWriter, r 
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -2069,6 +2964,71 @@ func (siw *ServerInterfaceWrapper) ReorderInventory(w http.ResponseWriter, r *ht
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReorderInventory(w, r, channelId, params)
 	}))
@@ -2121,6 +3081,71 @@ func (siw *ServerInterfaceWrapper) ResolveInventory(w http.ResponseWriter, r *ht
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -2222,6 +3247,71 @@ func (siw *ServerInterfaceWrapper) DeleteListChannel(w http.ResponseWriter, r *h
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -2335,6 +3425,71 @@ func (siw *ServerInterfaceWrapper) PatchListChannel(w http.ResponseWriter, r *ht
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PatchListChannel(w, r, channelId, params)
 	}))
@@ -2387,6 +3542,71 @@ func (siw *ServerInterfaceWrapper) CreateListChannel(w http.ResponseWriter, r *h
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -2500,6 +3720,71 @@ func (siw *ServerInterfaceWrapper) AppendListItem(w http.ResponseWriter, r *http
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AppendListItem(w, r, channelId, params)
 	}))
@@ -2561,6 +3846,71 @@ func (siw *ServerInterfaceWrapper) DeleteListItem(w http.ResponseWriter, r *http
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -2628,6 +3978,71 @@ func (siw *ServerInterfaceWrapper) UpdateListItem(w http.ResponseWriter, r *http
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateListItem(w, r, channelId, id, params)
 	}))
@@ -2683,6 +4098,71 @@ func (siw *ServerInterfaceWrapper) ReorderList(w http.ResponseWriter, r *http.Re
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReorderList(w, r, channelId, params)
 	}))
@@ -2735,6 +4215,71 @@ func (siw *ServerInterfaceWrapper) SaveList(w http.ResponseWriter, r *http.Reque
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -2804,10 +4349,37 @@ func (siw *ServerInterfaceWrapper) GetListSnapshot(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
-// AckNotification operation middleware
-func (siw *ServerInterfaceWrapper) AckNotification(w http.ResponseWriter, r *http.Request) {
+// SetOutputCardView operation middleware
+func (siw *ServerInterfaceWrapper) SetOutputCardView(w http.ResponseWriter, r *http.Request) {
 
 	var err error
+
+	// ------------- Path parameter "channelId" -------------
+	var channelId PathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "channelId", r.PathValue("channelId"), &channelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "channelId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "targetKind" -------------
+	var targetKind OutputTargetKind
+
+	err = runtime.BindStyledParameterWithOptions("simple", "targetKind", r.PathValue("targetKind"), &targetKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetKind", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "targetId" -------------
+	var targetId PathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "targetId", r.PathValue("targetId"), &targetId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetId", Err: err})
+		return
+	}
 
 	ctx := r.Context()
 
@@ -2816,7 +4388,7 @@ func (siw *ServerInterfaceWrapper) AckNotification(w http.ResponseWriter, r *htt
 	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params AckNotificationParams
+	var params SetOutputCardViewParams
 
 	headers := r.Header
 
@@ -2839,8 +4411,73 @@ func (siw *ServerInterfaceWrapper) AckNotification(w http.ResponseWriter, r *htt
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AckNotification(w, r, params)
+		siw.Handler.SetOutputCardView(w, r, channelId, targetKind, targetId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2850,10 +4487,19 @@ func (siw *ServerInterfaceWrapper) AckNotification(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
-// PollNotifications operation middleware
-func (siw *ServerInterfaceWrapper) PollNotifications(w http.ResponseWriter, r *http.Request) {
+// RequestDeleteAll operation middleware
+func (siw *ServerInterfaceWrapper) RequestDeleteAll(w http.ResponseWriter, r *http.Request) {
 
 	var err error
+
+	// ------------- Path parameter "channelId" -------------
+	var channelId PathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "channelId", r.PathValue("channelId"), &channelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "channelId", Err: err})
+		return
+	}
 
 	ctx := r.Context()
 
@@ -2862,7 +4508,247 @@ func (siw *ServerInterfaceWrapper) PollNotifications(w http.ResponseWriter, r *h
 	r = r.WithContext(ctx)
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params PollNotificationsParams
+	var params RequestDeleteAllParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RequestDeleteAll(w, r, channelId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InitializeOutputs operation middleware
+func (siw *ServerInterfaceWrapper) InitializeOutputs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "channelId" -------------
+	var channelId PathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "channelId", r.PathValue("channelId"), &channelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "channelId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params InitializeOutputsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InitializeOutputs(w, r, channelId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetOutputJob operation middleware
+func (siw *ServerInterfaceWrapper) GetOutputJob(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "jobId" -------------
+	var jobId PathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "jobId", r.PathValue("jobId"), &jobId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "jobId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetOutputJobParams
 
 	headers := r.Header
 
@@ -2886,7 +4772,284 @@ func (siw *ServerInterfaceWrapper) PollNotifications(w http.ResponseWriter, r *h
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PollNotifications(w, r, params)
+		siw.Handler.GetOutputJob(w, r, jobId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecordOutputEvent operation middleware
+func (siw *ServerInterfaceWrapper) RecordOutputEvent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RecordOutputEventParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecordOutputEvent(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RedrawOutputs operation middleware
+func (siw *ServerInterfaceWrapper) RedrawOutputs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "channelId" -------------
+	var channelId PathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "channelId", r.PathValue("channelId"), &channelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "channelId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RedrawOutputsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RedrawOutputs(w, r, channelId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetOutputStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetOutputStatus(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetOutputStatusParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetOutputStatus(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2983,6 +5146,71 @@ func (siw *ServerInterfaceWrapper) DeleteRemindChannel(w http.ResponseWriter, r 
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -3096,6 +5324,71 @@ func (siw *ServerInterfaceWrapper) PatchRemindChannel(w http.ResponseWriter, r *
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PatchRemindChannel(w, r, channelId, params)
 	}))
@@ -3148,6 +5441,71 @@ func (siw *ServerInterfaceWrapper) CreateRemindChannel(w http.ResponseWriter, r 
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -3276,6 +5634,71 @@ func (siw *ServerInterfaceWrapper) LinkInventory(w http.ResponseWriter, r *http.
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.LinkInventory(w, r, channelId, params)
 	}))
@@ -3328,6 +5751,71 @@ func (siw *ServerInterfaceWrapper) ReorderTasks(w http.ResponseWriter, r *http.R
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -3441,6 +5929,71 @@ func (siw *ServerInterfaceWrapper) CreateTask(w http.ResponseWriter, r *http.Req
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateTask(w, r, channelId, params)
 	}))
@@ -3502,6 +6055,71 @@ func (siw *ServerInterfaceWrapper) DeleteTask(w http.ResponseWriter, r *http.Req
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -3633,6 +6251,71 @@ func (siw *ServerInterfaceWrapper) PatchTask(w http.ResponseWriter, r *http.Requ
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PatchTask(w, r, channelId, id, params)
 	}))
@@ -3694,6 +6377,71 @@ func (siw *ServerInterfaceWrapper) CompleteTask(w http.ResponseWriter, r *http.R
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -3761,6 +6509,71 @@ func (siw *ServerInterfaceWrapper) EditTaskInventory(w http.ResponseWriter, r *h
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.EditTaskInventory(w, r, channelId, id, params)
 	}))
@@ -3825,6 +6638,71 @@ func (siw *ServerInterfaceWrapper) PauseTask(w http.ResponseWriter, r *http.Requ
 
 	}
 
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PauseTask(w, r, channelId, id, params)
 	}))
@@ -3886,6 +6764,71 @@ func (siw *ServerInterfaceWrapper) ResumeTask(w http.ResponseWriter, r *http.Req
 		}
 
 		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	// ------------- Required header parameter "X-Actor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Actor-Id")]; found {
+		var XActorId OutputActorHeadersActorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Actor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Actor-Id", valueList[0], &XActorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Actor-Id", Err: err})
+			return
+		}
+
+		params.XActorId = XActorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Actor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Actor-Id", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Operation-Kind" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Operation-Kind")]; found {
+		var XOperationKind OutputActorHeadersOperationKind
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Operation-Kind", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Operation-Kind", valueList[0], &XOperationKind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Operation-Kind", Err: err})
+			return
+		}
+
+		params.XOperationKind = XOperationKind
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Operation-Kind is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Operation-Kind", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Interaction-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Interaction-Id")]; found {
+		var XInteractionId OutputActorHeadersInteractionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Interaction-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Interaction-Id", valueList[0], &XInteractionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Interaction-Id", Err: err})
+			return
+		}
+
+		params.XInteractionId = &XInteractionId
 
 	}
 
@@ -4085,7 +7028,6 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc("GET "+options.BaseURL+"/health", wrapper.Health)
-	m.HandleFunc("GET "+options.BaseURL+"/v1/display/initialization", wrapper.GetInitialization)
 	m.HandleFunc("GET "+options.BaseURL+"/v1/inventories", wrapper.ListInventoryChannels)
 	m.HandleFunc("DELETE "+options.BaseURL+"/v1/inventories/{channelId}", wrapper.DeleteInventoryChannel)
 	m.HandleFunc("GET "+options.BaseURL+"/v1/inventories/{channelId}", wrapper.GetInventoryChannel)
@@ -4096,6 +7038,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/v1/inventories/{channelId}/by-name", wrapper.GetInventoryByName)
 	m.HandleFunc("GET "+options.BaseURL+"/v1/inventories/{channelId}/items", wrapper.GetInventoryItems)
 	m.HandleFunc("POST "+options.BaseURL+"/v1/inventories/{channelId}/items", wrapper.AppendInventoryItem)
+	m.HandleFunc("POST "+options.BaseURL+"/v1/inventories/{channelId}/items/batch", wrapper.AppendInventoryItems)
 	m.HandleFunc("DELETE "+options.BaseURL+"/v1/inventories/{channelId}/items/{id}", wrapper.DeleteInventoryItem)
 	m.HandleFunc("GET "+options.BaseURL+"/v1/inventories/{channelId}/items/{id}", wrapper.GetInventoryItem)
 	m.HandleFunc("PUT "+options.BaseURL+"/v1/inventories/{channelId}/items/{id}", wrapper.UpdateInventoryItem)
@@ -4116,8 +7059,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/v1/lists/{channelId}/reorder", wrapper.ReorderList)
 	m.HandleFunc("POST "+options.BaseURL+"/v1/lists/{channelId}/save", wrapper.SaveList)
 	m.HandleFunc("GET "+options.BaseURL+"/v1/lists/{channelId}/snapshot", wrapper.GetListSnapshot)
-	m.HandleFunc("POST "+options.BaseURL+"/v1/notifications/ack", wrapper.AckNotification)
-	m.HandleFunc("POST "+options.BaseURL+"/v1/notifications/poll", wrapper.PollNotifications)
+	m.HandleFunc("POST "+options.BaseURL+"/v1/outputs/card-view/{channelId}/{targetKind}/{targetId}", wrapper.SetOutputCardView)
+	m.HandleFunc("POST "+options.BaseURL+"/v1/outputs/delete-all/{channelId}", wrapper.RequestDeleteAll)
+	m.HandleFunc("POST "+options.BaseURL+"/v1/outputs/initialize/{channelId}", wrapper.InitializeOutputs)
+	m.HandleFunc("GET "+options.BaseURL+"/v1/outputs/jobs/{jobId}", wrapper.GetOutputJob)
+	m.HandleFunc("POST "+options.BaseURL+"/v1/outputs/operation-log-events", wrapper.RecordOutputEvent)
+	m.HandleFunc("POST "+options.BaseURL+"/v1/outputs/redraw/{channelId}", wrapper.RedrawOutputs)
+	m.HandleFunc("GET "+options.BaseURL+"/v1/outputs/status", wrapper.GetOutputStatus)
 	m.HandleFunc("GET "+options.BaseURL+"/v1/reminders", wrapper.ListRemindChannels)
 	m.HandleFunc("DELETE "+options.BaseURL+"/v1/reminders/{channelId}", wrapper.DeleteRemindChannel)
 	m.HandleFunc("GET "+options.BaseURL+"/v1/reminders/{channelId}", wrapper.GetRemindChannel)
@@ -4159,86 +7107,6 @@ func (response Health200JSONResponse) VisitHealthResponse(w http.ResponseWriter)
 type Health503JSONResponse Health
 
 func (response Health503JSONResponse) VisitHealthResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(503)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetInitializationRequestObject struct {
-	Params GetInitializationParams
-}
-
-type GetInitializationResponseObject interface {
-	VisitGetInitializationResponse(w http.ResponseWriter) error
-}
-
-type GetInitialization200JSONResponse Initialization
-
-func (response GetInitialization200JSONResponse) VisitGetInitializationResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetInitialization400JSONResponse ApiError
-
-func (response GetInitialization400JSONResponse) VisitGetInitializationResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetInitialization401JSONResponse ApiError
-
-func (response GetInitialization401JSONResponse) VisitGetInitializationResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetInitialization404JSONResponse ApiError
-
-func (response GetInitialization404JSONResponse) VisitGetInitializationResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetInitialization409JSONResponse ApiError
-
-func (response GetInitialization409JSONResponse) VisitGetInitializationResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(409)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetInitialization422JSONResponse ApiError
-
-func (response GetInitialization422JSONResponse) VisitGetInitializationResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(422)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetInitialization500JSONResponse ApiError
-
-func (response GetInitialization500JSONResponse) VisitGetInitializationResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetInitialization503JSONResponse ApiError
-
-func (response GetInitialization503JSONResponse) VisitGetInitializationResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(503)
 
@@ -5052,6 +7920,88 @@ func (response AppendInventoryItem500JSONResponse) VisitAppendInventoryItemRespo
 type AppendInventoryItem503JSONResponse ApiError
 
 func (response AppendInventoryItem503JSONResponse) VisitAppendInventoryItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AppendInventoryItemsRequestObject struct {
+	ChannelId PathId `json:"channelId"`
+	Params    AppendInventoryItemsParams
+	Body      *AppendInventoryItemsJSONRequestBody
+}
+
+type AppendInventoryItemsResponseObject interface {
+	VisitAppendInventoryItemsResponse(w http.ResponseWriter) error
+}
+
+type AppendInventoryItems200JSONResponse AppendInventoryItemsResult
+
+func (response AppendInventoryItems200JSONResponse) VisitAppendInventoryItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AppendInventoryItems400JSONResponse ApiError
+
+func (response AppendInventoryItems400JSONResponse) VisitAppendInventoryItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AppendInventoryItems401JSONResponse ApiError
+
+func (response AppendInventoryItems401JSONResponse) VisitAppendInventoryItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AppendInventoryItems404JSONResponse ApiError
+
+func (response AppendInventoryItems404JSONResponse) VisitAppendInventoryItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AppendInventoryItems409JSONResponse ApiError
+
+func (response AppendInventoryItems409JSONResponse) VisitAppendInventoryItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AppendInventoryItems422JSONResponse ApiError
+
+func (response AppendInventoryItems422JSONResponse) VisitAppendInventoryItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AppendInventoryItems500JSONResponse ApiError
+
+func (response AppendInventoryItems500JSONResponse) VisitAppendInventoryItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AppendInventoryItems503JSONResponse ApiError
+
+func (response AppendInventoryItems503JSONResponse) VisitAppendInventoryItemsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(503)
 
@@ -6691,161 +9641,571 @@ func (response GetListSnapshot503JSONResponse) VisitGetListSnapshotResponse(w ht
 	return json.NewEncoder(w).Encode(response)
 }
 
-type AckNotificationRequestObject struct {
-	Params AckNotificationParams
-	Body   *AckNotificationJSONRequestBody
+type SetOutputCardViewRequestObject struct {
+	ChannelId  PathId           `json:"channelId"`
+	TargetKind OutputTargetKind `json:"targetKind"`
+	TargetId   PathId           `json:"targetId"`
+	Params     SetOutputCardViewParams
+	Body       *SetOutputCardViewJSONRequestBody
 }
 
-type AckNotificationResponseObject interface {
-	VisitAckNotificationResponse(w http.ResponseWriter) error
+type SetOutputCardViewResponseObject interface {
+	VisitSetOutputCardViewResponse(w http.ResponseWriter) error
 }
 
-type AckNotification200JSONResponse NotificationAckResult
+type SetOutputCardView200JSONResponse OutputCardView
 
-func (response AckNotification200JSONResponse) VisitAckNotificationResponse(w http.ResponseWriter) error {
+func (response SetOutputCardView200JSONResponse) VisitSetOutputCardViewResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type AckNotification400JSONResponse ApiError
+type SetOutputCardView400JSONResponse ApiError
 
-func (response AckNotification400JSONResponse) VisitAckNotificationResponse(w http.ResponseWriter) error {
+func (response SetOutputCardView400JSONResponse) VisitSetOutputCardViewResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type AckNotification401JSONResponse ApiError
+type SetOutputCardView401JSONResponse ApiError
 
-func (response AckNotification401JSONResponse) VisitAckNotificationResponse(w http.ResponseWriter) error {
+func (response SetOutputCardView401JSONResponse) VisitSetOutputCardViewResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type AckNotification404JSONResponse ApiError
+type SetOutputCardView404JSONResponse ApiError
 
-func (response AckNotification404JSONResponse) VisitAckNotificationResponse(w http.ResponseWriter) error {
+func (response SetOutputCardView404JSONResponse) VisitSetOutputCardViewResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type AckNotification409JSONResponse ApiError
+type SetOutputCardView409JSONResponse ApiError
 
-func (response AckNotification409JSONResponse) VisitAckNotificationResponse(w http.ResponseWriter) error {
+func (response SetOutputCardView409JSONResponse) VisitSetOutputCardViewResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type AckNotification422JSONResponse ApiError
+type SetOutputCardView422JSONResponse ApiError
 
-func (response AckNotification422JSONResponse) VisitAckNotificationResponse(w http.ResponseWriter) error {
+func (response SetOutputCardView422JSONResponse) VisitSetOutputCardViewResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(422)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type AckNotification500JSONResponse ApiError
+type SetOutputCardView500JSONResponse ApiError
 
-func (response AckNotification500JSONResponse) VisitAckNotificationResponse(w http.ResponseWriter) error {
+func (response SetOutputCardView500JSONResponse) VisitSetOutputCardViewResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type AckNotification503JSONResponse ApiError
+type SetOutputCardView503JSONResponse ApiError
 
-func (response AckNotification503JSONResponse) VisitAckNotificationResponse(w http.ResponseWriter) error {
+func (response SetOutputCardView503JSONResponse) VisitSetOutputCardViewResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(503)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PollNotificationsRequestObject struct {
-	Params PollNotificationsParams
+type RequestDeleteAllRequestObject struct {
+	ChannelId PathId `json:"channelId"`
+	Params    RequestDeleteAllParams
 }
 
-type PollNotificationsResponseObject interface {
-	VisitPollNotificationsResponse(w http.ResponseWriter) error
+type RequestDeleteAllResponseObject interface {
+	VisitRequestDeleteAllResponse(w http.ResponseWriter) error
 }
 
-type PollNotifications200JSONResponse NotificationPlan
+type RequestDeleteAll200JSONResponse OutputJob
 
-func (response PollNotifications200JSONResponse) VisitPollNotificationsResponse(w http.ResponseWriter) error {
+func (response RequestDeleteAll200JSONResponse) VisitRequestDeleteAllResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PollNotifications400JSONResponse ApiError
+type RequestDeleteAll400JSONResponse ApiError
 
-func (response PollNotifications400JSONResponse) VisitPollNotificationsResponse(w http.ResponseWriter) error {
+func (response RequestDeleteAll400JSONResponse) VisitRequestDeleteAllResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PollNotifications401JSONResponse ApiError
+type RequestDeleteAll401JSONResponse ApiError
 
-func (response PollNotifications401JSONResponse) VisitPollNotificationsResponse(w http.ResponseWriter) error {
+func (response RequestDeleteAll401JSONResponse) VisitRequestDeleteAllResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PollNotifications404JSONResponse ApiError
+type RequestDeleteAll404JSONResponse ApiError
 
-func (response PollNotifications404JSONResponse) VisitPollNotificationsResponse(w http.ResponseWriter) error {
+func (response RequestDeleteAll404JSONResponse) VisitRequestDeleteAllResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PollNotifications409JSONResponse ApiError
+type RequestDeleteAll409JSONResponse ApiError
 
-func (response PollNotifications409JSONResponse) VisitPollNotificationsResponse(w http.ResponseWriter) error {
+func (response RequestDeleteAll409JSONResponse) VisitRequestDeleteAllResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PollNotifications422JSONResponse ApiError
+type RequestDeleteAll422JSONResponse ApiError
 
-func (response PollNotifications422JSONResponse) VisitPollNotificationsResponse(w http.ResponseWriter) error {
+func (response RequestDeleteAll422JSONResponse) VisitRequestDeleteAllResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(422)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PollNotifications500JSONResponse ApiError
+type RequestDeleteAll500JSONResponse ApiError
 
-func (response PollNotifications500JSONResponse) VisitPollNotificationsResponse(w http.ResponseWriter) error {
+func (response RequestDeleteAll500JSONResponse) VisitRequestDeleteAllResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PollNotifications503JSONResponse ApiError
+type RequestDeleteAll503JSONResponse ApiError
 
-func (response PollNotifications503JSONResponse) VisitPollNotificationsResponse(w http.ResponseWriter) error {
+func (response RequestDeleteAll503JSONResponse) VisitRequestDeleteAllResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InitializeOutputsRequestObject struct {
+	ChannelId PathId `json:"channelId"`
+	Params    InitializeOutputsParams
+	Body      *InitializeOutputsJSONRequestBody
+}
+
+type InitializeOutputsResponseObject interface {
+	VisitInitializeOutputsResponse(w http.ResponseWriter) error
+}
+
+type InitializeOutputs200JSONResponse OutputAccepted
+
+func (response InitializeOutputs200JSONResponse) VisitInitializeOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InitializeOutputs400JSONResponse ApiError
+
+func (response InitializeOutputs400JSONResponse) VisitInitializeOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InitializeOutputs401JSONResponse ApiError
+
+func (response InitializeOutputs401JSONResponse) VisitInitializeOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InitializeOutputs404JSONResponse ApiError
+
+func (response InitializeOutputs404JSONResponse) VisitInitializeOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InitializeOutputs409JSONResponse ApiError
+
+func (response InitializeOutputs409JSONResponse) VisitInitializeOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InitializeOutputs422JSONResponse ApiError
+
+func (response InitializeOutputs422JSONResponse) VisitInitializeOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InitializeOutputs500JSONResponse ApiError
+
+func (response InitializeOutputs500JSONResponse) VisitInitializeOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InitializeOutputs503JSONResponse ApiError
+
+func (response InitializeOutputs503JSONResponse) VisitInitializeOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputJobRequestObject struct {
+	JobId  PathId `json:"jobId"`
+	Params GetOutputJobParams
+}
+
+type GetOutputJobResponseObject interface {
+	VisitGetOutputJobResponse(w http.ResponseWriter) error
+}
+
+type GetOutputJob200JSONResponse OutputJob
+
+func (response GetOutputJob200JSONResponse) VisitGetOutputJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputJob400JSONResponse ApiError
+
+func (response GetOutputJob400JSONResponse) VisitGetOutputJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputJob401JSONResponse ApiError
+
+func (response GetOutputJob401JSONResponse) VisitGetOutputJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputJob404JSONResponse ApiError
+
+func (response GetOutputJob404JSONResponse) VisitGetOutputJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputJob409JSONResponse ApiError
+
+func (response GetOutputJob409JSONResponse) VisitGetOutputJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputJob422JSONResponse ApiError
+
+func (response GetOutputJob422JSONResponse) VisitGetOutputJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputJob500JSONResponse ApiError
+
+func (response GetOutputJob500JSONResponse) VisitGetOutputJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputJob503JSONResponse ApiError
+
+func (response GetOutputJob503JSONResponse) VisitGetOutputJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RecordOutputEventRequestObject struct {
+	Params RecordOutputEventParams
+	Body   *RecordOutputEventJSONRequestBody
+}
+
+type RecordOutputEventResponseObject interface {
+	VisitRecordOutputEventResponse(w http.ResponseWriter) error
+}
+
+type RecordOutputEvent200JSONResponse OutputAccepted
+
+func (response RecordOutputEvent200JSONResponse) VisitRecordOutputEventResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RecordOutputEvent400JSONResponse ApiError
+
+func (response RecordOutputEvent400JSONResponse) VisitRecordOutputEventResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RecordOutputEvent401JSONResponse ApiError
+
+func (response RecordOutputEvent401JSONResponse) VisitRecordOutputEventResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RecordOutputEvent404JSONResponse ApiError
+
+func (response RecordOutputEvent404JSONResponse) VisitRecordOutputEventResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RecordOutputEvent409JSONResponse ApiError
+
+func (response RecordOutputEvent409JSONResponse) VisitRecordOutputEventResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RecordOutputEvent422JSONResponse ApiError
+
+func (response RecordOutputEvent422JSONResponse) VisitRecordOutputEventResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RecordOutputEvent500JSONResponse ApiError
+
+func (response RecordOutputEvent500JSONResponse) VisitRecordOutputEventResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RecordOutputEvent503JSONResponse ApiError
+
+func (response RecordOutputEvent503JSONResponse) VisitRecordOutputEventResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedrawOutputsRequestObject struct {
+	ChannelId PathId `json:"channelId"`
+	Params    RedrawOutputsParams
+	Body      *RedrawOutputsJSONRequestBody
+}
+
+type RedrawOutputsResponseObject interface {
+	VisitRedrawOutputsResponse(w http.ResponseWriter) error
+}
+
+type RedrawOutputs200JSONResponse OutputAccepted
+
+func (response RedrawOutputs200JSONResponse) VisitRedrawOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedrawOutputs400JSONResponse ApiError
+
+func (response RedrawOutputs400JSONResponse) VisitRedrawOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedrawOutputs401JSONResponse ApiError
+
+func (response RedrawOutputs401JSONResponse) VisitRedrawOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedrawOutputs404JSONResponse ApiError
+
+func (response RedrawOutputs404JSONResponse) VisitRedrawOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedrawOutputs409JSONResponse ApiError
+
+func (response RedrawOutputs409JSONResponse) VisitRedrawOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedrawOutputs422JSONResponse ApiError
+
+func (response RedrawOutputs422JSONResponse) VisitRedrawOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedrawOutputs500JSONResponse ApiError
+
+func (response RedrawOutputs500JSONResponse) VisitRedrawOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedrawOutputs503JSONResponse ApiError
+
+func (response RedrawOutputs503JSONResponse) VisitRedrawOutputsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputStatusRequestObject struct {
+	Params GetOutputStatusParams
+}
+
+type GetOutputStatusResponseObject interface {
+	VisitGetOutputStatusResponse(w http.ResponseWriter) error
+}
+
+type GetOutputStatus200JSONResponse OutputStatus
+
+func (response GetOutputStatus200JSONResponse) VisitGetOutputStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputStatus400JSONResponse ApiError
+
+func (response GetOutputStatus400JSONResponse) VisitGetOutputStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputStatus401JSONResponse ApiError
+
+func (response GetOutputStatus401JSONResponse) VisitGetOutputStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputStatus404JSONResponse ApiError
+
+func (response GetOutputStatus404JSONResponse) VisitGetOutputStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputStatus409JSONResponse ApiError
+
+func (response GetOutputStatus409JSONResponse) VisitGetOutputStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputStatus422JSONResponse ApiError
+
+func (response GetOutputStatus422JSONResponse) VisitGetOutputStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputStatus500JSONResponse ApiError
+
+func (response GetOutputStatus500JSONResponse) VisitGetOutputStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOutputStatus503JSONResponse ApiError
+
+func (response GetOutputStatus503JSONResponse) VisitGetOutputStatusResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(503)
 
@@ -8331,9 +11691,6 @@ type StrictServerInterface interface {
 	// (GET /health)
 	Health(ctx context.Context, request HealthRequestObject) (HealthResponseObject, error)
 
-	// (GET /v1/display/initialization)
-	GetInitialization(ctx context.Context, request GetInitializationRequestObject) (GetInitializationResponseObject, error)
-
 	// (GET /v1/inventories)
 	ListInventoryChannels(ctx context.Context, request ListInventoryChannelsRequestObject) (ListInventoryChannelsResponseObject, error)
 
@@ -8363,6 +11720,9 @@ type StrictServerInterface interface {
 
 	// (POST /v1/inventories/{channelId}/items)
 	AppendInventoryItem(ctx context.Context, request AppendInventoryItemRequestObject) (AppendInventoryItemResponseObject, error)
+
+	// (POST /v1/inventories/{channelId}/items/batch)
+	AppendInventoryItems(ctx context.Context, request AppendInventoryItemsRequestObject) (AppendInventoryItemsResponseObject, error)
 
 	// (DELETE /v1/inventories/{channelId}/items/{id})
 	DeleteInventoryItem(ctx context.Context, request DeleteInventoryItemRequestObject) (DeleteInventoryItemResponseObject, error)
@@ -8424,11 +11784,26 @@ type StrictServerInterface interface {
 	// (GET /v1/lists/{channelId}/snapshot)
 	GetListSnapshot(ctx context.Context, request GetListSnapshotRequestObject) (GetListSnapshotResponseObject, error)
 
-	// (POST /v1/notifications/ack)
-	AckNotification(ctx context.Context, request AckNotificationRequestObject) (AckNotificationResponseObject, error)
+	// (POST /v1/outputs/card-view/{channelId}/{targetKind}/{targetId})
+	SetOutputCardView(ctx context.Context, request SetOutputCardViewRequestObject) (SetOutputCardViewResponseObject, error)
 
-	// (POST /v1/notifications/poll)
-	PollNotifications(ctx context.Context, request PollNotificationsRequestObject) (PollNotificationsResponseObject, error)
+	// (POST /v1/outputs/delete-all/{channelId})
+	RequestDeleteAll(ctx context.Context, request RequestDeleteAllRequestObject) (RequestDeleteAllResponseObject, error)
+
+	// (POST /v1/outputs/initialize/{channelId})
+	InitializeOutputs(ctx context.Context, request InitializeOutputsRequestObject) (InitializeOutputsResponseObject, error)
+
+	// (GET /v1/outputs/jobs/{jobId})
+	GetOutputJob(ctx context.Context, request GetOutputJobRequestObject) (GetOutputJobResponseObject, error)
+
+	// (POST /v1/outputs/operation-log-events)
+	RecordOutputEvent(ctx context.Context, request RecordOutputEventRequestObject) (RecordOutputEventResponseObject, error)
+
+	// (POST /v1/outputs/redraw/{channelId})
+	RedrawOutputs(ctx context.Context, request RedrawOutputsRequestObject) (RedrawOutputsResponseObject, error)
+
+	// (GET /v1/outputs/status)
+	GetOutputStatus(ctx context.Context, request GetOutputStatusRequestObject) (GetOutputStatusResponseObject, error)
 
 	// (GET /v1/reminders)
 	ListRemindChannels(ctx context.Context, request ListRemindChannelsRequestObject) (ListRemindChannelsResponseObject, error)
@@ -8531,32 +11906,6 @@ func (sh *strictHandler) Health(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(HealthResponseObject); ok {
 		if err := validResponse.VisitHealthResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetInitialization operation middleware
-func (sh *strictHandler) GetInitialization(w http.ResponseWriter, r *http.Request, params GetInitializationParams) {
-	var request GetInitializationRequestObject
-
-	request.Params = params
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetInitialization(ctx, request.(GetInitializationRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetInitialization")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetInitializationResponseObject); ok {
-		if err := validResponse.VisitGetInitializationResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -8861,6 +12210,40 @@ func (sh *strictHandler) AppendInventoryItem(w http.ResponseWriter, r *http.Requ
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(AppendInventoryItemResponseObject); ok {
 		if err := validResponse.VisitAppendInventoryItemResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AppendInventoryItems operation middleware
+func (sh *strictHandler) AppendInventoryItems(w http.ResponseWriter, r *http.Request, channelId PathId, params AppendInventoryItemsParams) {
+	var request AppendInventoryItemsRequestObject
+
+	request.ChannelId = channelId
+	request.Params = params
+
+	var body AppendInventoryItemsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AppendInventoryItems(ctx, request.(AppendInventoryItemsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AppendInventoryItems")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AppendInventoryItemsResponseObject); ok {
+		if err := validResponse.VisitAppendInventoryItemsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -9476,13 +12859,16 @@ func (sh *strictHandler) GetListSnapshot(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// AckNotification operation middleware
-func (sh *strictHandler) AckNotification(w http.ResponseWriter, r *http.Request, params AckNotificationParams) {
-	var request AckNotificationRequestObject
+// SetOutputCardView operation middleware
+func (sh *strictHandler) SetOutputCardView(w http.ResponseWriter, r *http.Request, channelId PathId, targetKind OutputTargetKind, targetId PathId, params SetOutputCardViewParams) {
+	var request SetOutputCardViewRequestObject
 
+	request.ChannelId = channelId
+	request.TargetKind = targetKind
+	request.TargetId = targetId
 	request.Params = params
 
-	var body AckNotificationJSONRequestBody
+	var body SetOutputCardViewJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
 		return
@@ -9490,18 +12876,18 @@ func (sh *strictHandler) AckNotification(w http.ResponseWriter, r *http.Request,
 	request.Body = &body
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.AckNotification(ctx, request.(AckNotificationRequestObject))
+		return sh.ssi.SetOutputCardView(ctx, request.(SetOutputCardViewRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "AckNotification")
+		handler = middleware(handler, "SetOutputCardView")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(AckNotificationResponseObject); ok {
-		if err := validResponse.VisitAckNotificationResponse(w); err != nil {
+	} else if validResponse, ok := response.(SetOutputCardViewResponseObject); ok {
+		if err := validResponse.VisitSetOutputCardViewResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -9509,25 +12895,180 @@ func (sh *strictHandler) AckNotification(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// PollNotifications operation middleware
-func (sh *strictHandler) PollNotifications(w http.ResponseWriter, r *http.Request, params PollNotificationsParams) {
-	var request PollNotificationsRequestObject
+// RequestDeleteAll operation middleware
+func (sh *strictHandler) RequestDeleteAll(w http.ResponseWriter, r *http.Request, channelId PathId, params RequestDeleteAllParams) {
+	var request RequestDeleteAllRequestObject
 
+	request.ChannelId = channelId
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.PollNotifications(ctx, request.(PollNotificationsRequestObject))
+		return sh.ssi.RequestDeleteAll(ctx, request.(RequestDeleteAllRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "PollNotifications")
+		handler = middleware(handler, "RequestDeleteAll")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(PollNotificationsResponseObject); ok {
-		if err := validResponse.VisitPollNotificationsResponse(w); err != nil {
+	} else if validResponse, ok := response.(RequestDeleteAllResponseObject); ok {
+		if err := validResponse.VisitRequestDeleteAllResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// InitializeOutputs operation middleware
+func (sh *strictHandler) InitializeOutputs(w http.ResponseWriter, r *http.Request, channelId PathId, params InitializeOutputsParams) {
+	var request InitializeOutputsRequestObject
+
+	request.ChannelId = channelId
+	request.Params = params
+
+	var body InitializeOutputsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.InitializeOutputs(ctx, request.(InitializeOutputsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "InitializeOutputs")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(InitializeOutputsResponseObject); ok {
+		if err := validResponse.VisitInitializeOutputsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetOutputJob operation middleware
+func (sh *strictHandler) GetOutputJob(w http.ResponseWriter, r *http.Request, jobId PathId, params GetOutputJobParams) {
+	var request GetOutputJobRequestObject
+
+	request.JobId = jobId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetOutputJob(ctx, request.(GetOutputJobRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetOutputJob")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetOutputJobResponseObject); ok {
+		if err := validResponse.VisitGetOutputJobResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RecordOutputEvent operation middleware
+func (sh *strictHandler) RecordOutputEvent(w http.ResponseWriter, r *http.Request, params RecordOutputEventParams) {
+	var request RecordOutputEventRequestObject
+
+	request.Params = params
+
+	var body RecordOutputEventJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RecordOutputEvent(ctx, request.(RecordOutputEventRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RecordOutputEvent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RecordOutputEventResponseObject); ok {
+		if err := validResponse.VisitRecordOutputEventResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RedrawOutputs operation middleware
+func (sh *strictHandler) RedrawOutputs(w http.ResponseWriter, r *http.Request, channelId PathId, params RedrawOutputsParams) {
+	var request RedrawOutputsRequestObject
+
+	request.ChannelId = channelId
+	request.Params = params
+
+	var body RedrawOutputsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RedrawOutputs(ctx, request.(RedrawOutputsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RedrawOutputs")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RedrawOutputsResponseObject); ok {
+		if err := validResponse.VisitRedrawOutputsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetOutputStatus operation middleware
+func (sh *strictHandler) GetOutputStatus(w http.ResponseWriter, r *http.Request, params GetOutputStatusParams) {
+	var request GetOutputStatusRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetOutputStatus(ctx, request.(GetOutputStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetOutputStatus")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetOutputStatusResponseObject); ok {
+		if err := validResponse.VisitGetOutputStatusResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -10101,87 +13642,100 @@ func (sh *strictHandler) CheckTaskShortage(w http.ResponseWriter, r *http.Reques
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/+yd+3PbuHb4/xUMv/c72czSsvPY9q4znR0nzrbu5OHaTqfbXHcHJo8kXFMAA4DeaHPV",
-	"v70D8E2CFCVLthWfH3YjSyAeB8DnHBwcgN+8QMxiwYFr5R1+82Iq6Qw0SPvXGXxJQOmPsWaC228Y9w69",
-	"KdAQpOd7nM7AO/T+a++NkLB3wWYgEr33Xnm+p4IpzKh5ZCzkjGrv0GNcv3ju+d6MfmWzZOYd/nRwcOB7",
-	"M8bTP5/5np7HkKaECUhvsVjkOdnSj2L2VkohbU2liEFqBvaXYEo5h+gkNH/8RcLYO/T+337Ztv0sl/2T",
-	"0Fv4XiBCMCmBm4I/e4zf0IiFvzMeJ9o0TOjfxyLhoWfS8nHEAvO1mgqp6QQ835MwBgk8AJMk4TTRUyHZ",
-	"n/mfN5RF9CoyKU1jJKeRd1m0T2nJ+MRUhA2ssASqBDdpQ1CBZLZHvEMvTOKIBVTD76YvSMiUZnySMDUF",
-	"RSgpfib257EUMyL0FCSptZiMKYsSCWpETvgNcC3kfI+GIQloFIFUJKCcqGsWEz2lmjANM0J5SALBNeMJ",
-	"vMoyzbMhs0RpwoUmV0AUi4DraG4ziCEceX4h93r1nRIqBJ2OPw0ztUxk51pICM9gxnh4QdW1tyjypVLS",
-	"ubcou3KFXLMnXLlpKiegTQ6N+tsGfEmYhNC01467spXi6u8QaJPBURxH80L2J3YYtgY5fI0h0BAOrnKR",
-	"4duQ6RMNM1fdi5wGZdmoqDPPRqOLaudlDRCAybc9yamGiZBz85knUTrBDrVMoHNm0Sj6OPYOPy+fY5d+",
-	"Y2p9nDFNxkISSjj8YQf9K6KnQBTIG5CERpEwNVLk06eT45t/HpGPZhL8wRQQFgLXbDwnlBP4mk5Km4MZ",
-	"/DPG3wGf6Kl3+GyRQ/RbuwVKi+B6WX/8R0K5ZrotdZttnolfys4l/NdJdL1s8K02TAaMvEZ9u4fG60Qx",
-	"DkodUw2pjtIapOmi//l8sPfz5beXi730w/Pyw188x5jIczKaqpHTD78cfj54dmkf/8fzzwd7Ly6fHn4+",
-	"2Psp/cqZ3RsxiyPQYBjTIbVAcJXM4OMNSMnCFWjzxj5ox2L+sGvy5nPrDG6YYoIvy7ZI1zVJiwSunnBV",
-	"qqWSTqlUYHSDFQ4TnADXcj4iZsqSGVCu7DRKFEgiZkxrCAklX7KBXJ9jcRwxSNMrS3USlHUgMolAmSnl",
-	"FPrw+V9Ookt/OVk6Jqx7/uV1cYpTAu0dPTXBDmEe1yBvaHRM5wNmaCWtfbbC3jUmemVsuAaqtNr4NYyF",
-	"hPeMJxrU8rFqHgGZJze5shl8HB/T+bJnazPdPqijAZ2WJqtrgoZYq5VwN6slS1ffGy6mPT9M568+wVfV",
-	"7Km4a+AerNqLUvtU/NtG4o23eB2k/RvQSE/btZBAw3llwFwJEQFtF5Kmc+WcrkUaNkVMvyRAIpjQYE6u",
-	"skFKTo6JkOSYqUDIkJwcvyIcLP6UYQeZROKKRtGcJJyZx4W0JsfIpZNOONOMRuxPmlOjocaz/mWwxhw/",
-	"ZiqOMou3Mb8jpvTwHN8xpXsyS2fVm3RNt+oIzh7rzhfk8CzNFO2saGMopCLwayKultlql3PUNBDeXj33",
-	"LJfN4zmOMyncdqUcwpgmkX5TMb1bY840/KIDsL43A6XoBE5Wt8eX6jvTLjvO34nJxdRMxc2X0lzBFeKr",
-	"tqwqg45qtUXp7v56/51SHUxdhgH2So/sKqZIl0U+fF1VVeeDJk1zYVN5ut8ebHG2a/ION8pKFq5mDKQu",
-	"lNXW+Xnl+myA9rrwnlf5b/PVuUhV88nx/S/RbbN6pWck17XiXEV8D8D38I7x5b6HxnjeOuUdBbrrrvRd",
-	"KloImf5PkKuuA1A/r6Wf6/Je0v9dsxGtrQdsbVX6Dw2t4YZWdfW2rolSReea1onJYmOGiclsUzaJyh3D",
-	"ocuB0KN1E65ZNLwHa47x1SdX7qEseZeWX29Bl7DOOY3VVLgcOOtpqa0OgTTP5UT/IDiHCdXsBk6yVXXv",
-	"IvzAtQj/IDQbm21N5tqyvWY8/BfDDJJVUBEu+J71jtuvzc6q3WL9g+lp6jXPnQgjYp++sv5G4wcSNyDD",
-	"BBxZ5Y9UcqnlPiK5f5WEQMPIjCRCJRDNZqA0ncXKppVZF6U/5tm/SjOrPxna3TDHQ0kUObz0q6lGuKFR",
-	"QjWER3qp0yZvQdcOybDpVQ7O1qrBitPsDVop8Ep/q3T/IqCxTsx2habquhCHfSTvGLtxMXCBs1w8LOPW",
-	"sKY1Z083O8qpYUZeNWbCNN3zvXQser6XDUXnJr5NO7h2Ne/gkKrlIh1eRM2vN6SIdIf/OIGjFRpSBcFx",
-	"NlUco6nK8Y5R5ZNiUNcGUT3VqMU922l+zY5ioVefTfXG+S6nftbXdpBVxO0maFmho+D6DFQSdWwnb3e8",
-	"mpm3agnVmJHlZTh0jJeVu0wyxWhoqYd3Va6SH3777bff9t6/3zs+fkqq/V6mOPv1zYsXL35OOT9jUcQU",
-	"BIKH6mmqLYiCCAKdbqLaDdXAtIlIiCUo4NpWyPJ5yMb6D78cXuSfD1sf/va3UfrxhUn43//4/OPeZSvR",
-	"06e/OPfTqwI6jajDebeuEqjNksE2RrU+ru2EWIqJBDU8w9PsgU9xaE22ZbtrtUlab0Ol9GVj7UJcA7/1",
-	"0hT1b694bqMdH7NucQ1euxbvCYu4zZ54nK/zl1kHthJDNrzTHDvaMXXtApvvG/glYmxixU6OR+RXIcmT",
-	"0ROfPBmZ/9tvbaQlZdw4qp/sPzGa4Mn/f+Kbf9PflabSurGtFnjyv098E19jPpCxiCLxB4TkymwgxzQM",
-	"zWeq4J9eJjIyBZsJ8+ni172/2vLLKDaTg5Ah41TOyaezE1KIigAPRMj4ZET+/fzjB2vzf0lAzsnJsSIS",
-	"TF1NtkwSIdmEcRoRMyrSaJ3WBGhwcWPYb05KBzKrgaalETnYdHRPiSKr+mRwjZHCh94aJUfyimlpRB9L",
-	"COxo80nCFZtwCEkIAZvRaEQ+2EiBQPAbkJroqRTJZEoouUq7bRwJql3K/ccffjnMtfWPHQq5vqF+Ww0S",
-	"MX5d2VPami//O/fI5cPLKIAA3m+vMdViHr6/11nbLln1DEbXJK3Ngw5PMY65HRpzHT1cD37bROjAdjdY",
-	"+4IJHC3qXIvfAZJte03+ky6veL5eX22V3hCMzcR3tahRhW6RlQGnvYeXnh0c/PVgmSf4DIQMQXZta4cr",
-	"xOCFy33coepolhKR8Wf3b7KvENbsLqU0xlu2htO6OKc3YF06/Vb+1rcSals/QyNe81r17SkVJ4ZabSvP",
-	"h20vDKkHPmWD1uRPPaYpo1GRwK+0r08uXTza5NmsRsXLrJ0Vc0Q93W4vcEUT+Z7DmWKhmB4w1xy7ZNsN",
-	"hqp7GYpqdvdh4Sq+h+4bkG7ZDnFElU4dPPmad+C2Rrn6vcVJltsOhIe4je0YRg0hDxpXFdPj1meQ7emf",
-	"VV0aKx8JGjokH+7RIaZOaaL6psqx4LDFaWKK+Jj6b+9gUprS0mG2okd4xXK2uCTl8LV0Zw8e2qIi4vkb",
-	"kXC9Hn5q+bxjM7aSV72dY3eLK5b+7Yi5mdNxcg1/uHUcr9hRGz+F53uJ9fyuBsM7Obvn2N+oOqZy8VXH",
-	"fI1J7fnsHOjOUdtFngoSq2qkKsXKYFii16ru7HWD+VoHrzZ9u8IGPANlEGDmI+hfCpRbQC3H/Dloa2KX",
-	"vWz2YYr+JxIUaEUa/e6TdrfbfRNnH4+quRe3acDXACAsi3qVX+NBRHYc226+JJKTl8+f1+/4aAdg3eXp",
-	"4ttr6eY6x8QxME1mlCc0KtqfXnFiNrTsxm8ImrKIqLTHFPl04ltB2h/LE+qDdoLvSl9uXjhFrMhgKY3u",
-	"TY8+3HPibUQUXdBCRB6TU8RSpvuy8JUG5iacSpROubn3qjwPbB77U3AgTJEjxej+hbiei8EhOreOz3G4",
-	"6wzUIUgk0/NzI7u0W14DlSCPEu3C5JSaAAwF8oYFQLSJQhmRiykQsx0tA6qA2G6wzTR9QzUzgUlWVB9j",
-	"4EenJ8QSjGqRhmuk6c0CwBZcVnOqdZxeF8X4WNgOTHvSy09VmyuqyNHpied7N7lH0Xs2OhgdZJsonMbM",
-	"O/Re2K+spKe2jfvT4oh4dsdPseNiWJCfIDdDV8WCq1Qyzw8Osi0DDakhm4Vemef2/55d5lTektU3SLMS",
-	"bPPqMjbSlOklXWRKFVFJYDSEuWRp4Xs/Hby4gzqcZx1cufVqVBsvBhaLS/PN/s2z/TC1NfZZ66C6U7r/",
-	"CrpxpN2vXVLWwaEyyX7jErPF5RZ7qlHVlXvs5QbrUlyW1lGL7IqVQCRRaJViYqOitLFJdKWWJrxci8LS",
-	"UHOu6dests/upLZHQWCoyBSpXrSWVeHlnQuMciOtMavLCUzUuxKJDCCr2c93VrO8q/Kr6lTKUFO7IJES",
-	"uCZKUw15sE/akrSaz5/fSTXfRMxUA9LfDZvuZqSfp51WKffFnZXroGJOwcY1HE70pXtj9Y1Mde/4W9G1",
-	"13UZB5IRyYhkRDL2kXH/W+F7W6Triwg0tEF5bL9vMee2pPSz627NSqC87LbqDiz9S+lydphwsrDghQPF",
-	"L9vLqIspSLtC4oJkfWOgo4CHNlpbT5nKh7lPrhJtx3F6Ra8iMzo3d7AmCsZJNCJIUiQpkvR7J6nfs5Te",
-	"fUZucrXetFLRKkWWIkuRpVWWFifG6jS1m4M7ylNb5msRzjcmWve9hYvFolnhBfIceY48R57fH88Th22c",
-	"XsWOOO8lKZIcSY4kR5Lvgr9431QmjWgUygH8+vuGHi3oXe+d2gLrN3jnNOoB1AOoB1APDNUDV0l03a0G",
-	"zJvP0ltnUBc43gKHqgBVAaoCVAXfiSqY7+UnnpdukL6ef6D2XPED1wW+vSgjsu8zHtNIgZ8WaG9jK0ts",
-	"XtHQKqwZ7r/NfVcn3ZHmSHOkOdJ8MM0LQ3Ipy/OTvN95qAta1shiZDGyeEvbpl1udOANnDz6TdPy7Xx3",
-	"vG2KhjXCHGGOMN+AYb3/ja106GY3yO8ugKHxjrxH3iPvH+95IMQ3WuVIaaQ0UvqhRaY3olMQ1Oi7QS2B",
-	"WgK1BPpuen03+xLGIIEHMGyT9KxMjuuAu3DjVO8qRh8Och+5j9xfm/vp6wz3incb9yH/nU17ViTFwBjn",
-	"HfZIZCQyEhmJvCaRJURUQ7hnbtjvxfFZmvDCpkMWt16xjSRGEiOJkcS3ILF9CW/3IdDiLb2P/QRo7XXF",
-	"ePYTlQAqAVQC34sSsC9B71MC9bekP2Il4HpdPO6GIvQR+gj9Bwn9iCnd/x4d899uvUKnUmM0f5GESEIk",
-	"4VASrvbenCpo8JU5+MocxCfiE4/IVKIldhqPm+vOmkGKBigSFAmKBB36opzdo+jmHasVGdzL63EQ4Ahw",
-	"BDgCfJ034yC/a/y8lz0x5DfyG/mN/F7RA7z8olQDFrwjtRl8kEsFd9+QvcheZO/616MWJHnMlvPbkOky",
-	"jOuuI8lKmCO8Ed4Ib4T3UMN54EWou8P43bxEz8j3nNNYTYVGiCPEEeII8cG35yGc0bRHrYBaAbUCmvar",
-	"nQk3cMHj4Pe02Yn2PpIdyY5kX4nsivad8j6nN/ComZ4LAKGOUEeoI9R3BOo5NJZEsRRwefQndRCziFnE",
-	"LGK2B7NcaDbOSlX7NLjuNpuPgusPldSbuUFj88ZttY4X4hr4XRu41QocBddnoJIIEYwIRgQjgpcjOBZR",
-	"1M3gUxFFVb7c/z1GQ0l4GlGOEEQIIgQRgg4ILn9piVnQ1t7PsSN3uOE7RZCISEQk4tpEXO0mtzpu8C43",
-	"vMsNIYoQxbvcKq9a2nFAHmwwtqtmmqIpihRFiiJFh97ntosk3UaAbEUK93KnG2IcMY4YR4yvd6sbUryD",
-	"oQhwBDgCHAH+wF3C+1fzvRkoRSfQFxlrXqf8ev4+S7gLZ6DhaxyJELzDMY0U+GmBXxKQ87LErOG3KHHr",
-	"Tpb0gHKKeNMJyHfkO/Id+T6Y7/nbTOd7EeNpfG7ijI/g1/ji0poU7uV8GxrzCHuEPcJ+PdgPvZPCWJIK",
-	"L6XYEt9XuCG6athjbB+yH9mP7F+T/doyfYkPB+/nR/oifZG+SN/N3dCfboRaijxWi7oUwb04TdBJjvRG",
-	"eiO9b2c7D7ymfzdAf5dX9OOZGwQ0AhoBva0zN0hcNJ2RzEhmJPNDPMeDdN6KS6WQLXpUUC2gWkC1sKse",
-	"FVtc7lDp8KBnKVCVbMc7XxEvahPUJqhNUJvsrDYp49kVaM34RHXrFfNWwRR6OxPYvnPKpSXjewybL+pg",
-	"KoU3Z6OqQVWDqmZ9VRPTRPWsWk7Nz7hk2Y5W+RpDoM2a4YYpI3BctqAuQV2CumRXdYkElcyg72CW+R21",
-	"CWoT1CaoTVCboDbp0yZqKqSmE9gLppC+dM0ZO/XG/GpYc56lxyiqLbE9ky/6nJDsSHYku4PsC99TECSS",
-	"6bkF72ugEuRRoqfe4efLxeXi/wYAu/iHCkhvAQA=",
+	"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",
+	"JDbj4Pjj9fx6/v8DAO+2hrJprgEA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

@@ -4,7 +4,7 @@ import { Logger } from '../../src/utils/logger';
 import { createRemindTask } from '../helpers/RemindTask';
 
 describe('RemindTaskDeleteModalHandler', () => {
-  it('deletes task and message when confirmed', async () => {
+  it('deletes the task through the API without deleting the shared card from TypeScript', async () => {
     const task = createRemindTask({
       id: 'task-1',
       messageId: 'msg-1',
@@ -22,23 +22,19 @@ describe('RemindTaskDeleteModalHandler', () => {
       findTaskByMessageId: vi.fn().mockResolvedValue(task),
       deleteTask: vi.fn().mockResolvedValue({ success: true })
     };
-    const mockMessageManager = {
-      deleteTaskMessage: vi.fn().mockResolvedValue({ success: true })
-    };
 
     const handler = new RemindTaskDeleteModalHandler(
       new Logger(),
       undefined,
       undefined,
-      mockRepository as any,
-      mockMessageManager as any
+      mockRepository as any
     );
 
     const interaction = {
       customId: 'remind-task-delete-modal:msg-1',
       user: { id: 'user-1' },
       channelId: 'channel-1',
-      client: {} as any,
+      client: { channels: { fetch: vi.fn() } },
       fields: { getTextInputValue: vi.fn().mockReturnValue('削除') },
       deferReply: vi.fn(),
       editReply: vi.fn(),
@@ -48,6 +44,7 @@ describe('RemindTaskDeleteModalHandler', () => {
     await handler.handle({ interaction } as any);
 
     expect(mockRepository.deleteTask).toHaveBeenCalledWith('channel-1', 'task-1');
-    expect(mockMessageManager.deleteTaskMessage).toHaveBeenCalled();
+    expect(interaction.client.channels.fetch).not.toHaveBeenCalled();
+    expect(interaction.deleteReply).toHaveBeenCalledOnce();
   });
 });

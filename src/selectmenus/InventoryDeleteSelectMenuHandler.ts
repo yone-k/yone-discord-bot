@@ -3,7 +3,7 @@ import { BaseSelectMenuHandler, SelectMenuHandlerContext } from '../base/BaseSel
 import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import type { MetadataProvider } from '../services/MetadataProvider';
-import type { OperationLogService } from '../services/OperationLogService';
+import type { UiOperationEvents } from '../services/UiOperationEvents';
 import { InventoryRepository } from '../services/InventoryRepository';
 import { Logger } from '../utils/logger';
 
@@ -17,7 +17,7 @@ export class InventoryDeleteSelectMenuHandler extends BaseSelectMenuHandler {
   constructor(
     logger: Logger,
     repository: InventoryRepositoryPort = new InventoryRepository(),
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider
   ) {
     super('inventory_delete_select', logger, operationLogService, metadataManager);

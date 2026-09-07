@@ -5,6 +5,31 @@ import { parse } from 'yaml';
 const spec = parse(readFileSync('api/generated/openapi.yaml', 'utf8'));
 
 describe('public API contract', () => {
+  it('excludes Discord message and thread IDs from channel writes', () => {
+    for (const name of ['ListChannelInput', 'InventoryChannelInput', 'RemindChannelInput', 'ListChannelPatch', 'InventoryChannelPatch', 'RemindChannelPatch']) {
+      const properties = spec.components.schemas[name]?.properties;
+      expect(properties, name).toBeDefined();
+      for (const field of ['messageId', 'operationLogThreadId', 'remindNoticeThreadId', 'remindNoticeMessageId']) {
+        expect(properties[field], `${name}.${field}`).toBeUndefined();
+      }
+    }
+  });
+  it('keeps task message IDs read-only and requires actors for every business PATCH', () => {
+    expect(spec.components.schemas.TaskPatch.properties.messageId).toBeUndefined();
+    expect(spec.components.schemas.StoredRemindTask.properties.messageId).toBeDefined();
+    for (const route of Object.values(spec.paths) as any[]) {
+      if (!route.patch) continue;
+      const parameters = route.patch.parameters.map((p: any) => p.$ref ? spec.components.parameters[p.$ref.split('/').pop()] : p);
+      for (const name of ['X-Actor-Id', 'X-Operation-Kind']) {
+        expect(parameters.find((p: any) => p.name === name)?.required).toBe(true);
+      }
+    }
+  });
+  it('does not publish TypeScript notification delivery or startup rendering APIs', () => {
+    for (const path of ['/v1/notifications/poll', '/v1/notifications/ack', '/v1/display/initialization']) {
+      expect(spec.paths[path], path).toBeUndefined();
+    }
+  });
   it('keeps quantities and versions as strings and nullable dates explicit', () => {
     expect(spec.openapi).toBe('3.0.0');
     expect(spec.components.schemas.Quantity.type).toBe('string');
@@ -17,7 +42,7 @@ describe('public API contract', () => {
     expect(spec.security).toEqual([{ BearerAuth: [] }]);
     const ids = Object.values(spec.paths).flatMap((path: any) => Object.values(path).map((op: any) => op.operationId));
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual(expect.arrayContaining(['completeTask', 'applyInventory', 'pollNotifications', 'ackNotification', 'getInitialization', 'editTaskInventory']));
+    expect(ids).toEqual(expect.arrayContaining(['completeTask', 'applyInventory', 'initializeOutputs', 'editTaskInventory']));
   });
   it('does not accept caller-calculated completion time or resulting stock', () => {
     expect(Object.keys(spec.components.schemas.CompleteTaskInput.properties).sort()).toEqual(['consumeOverrides', 'expectedRevision']);
@@ -38,7 +63,8 @@ describe('public API contract', () => {
           in: 'header', name: 'X-Core-Timeout-Ms', schema: expect.objectContaining({ minimum: 1, maximum: 5000 })
         })]));
         for (const parameter of parameters.filter((item: any) => item.in === 'path')) {
-          expect(parameter.schema.$ref, `${path}: ${parameter.name}`).toBe('#/components/schemas/PathId');
+          const expected = parameter.name === 'targetKind' ? '#/components/schemas/OutputTargetKind' : '#/components/schemas/PathId';
+          expect(parameter.schema.$ref, `${path}: ${parameter.name}`).toBe(expected);
         }
       }
     }
@@ -55,14 +81,11 @@ describe('public API contract', () => {
     expect(new RegExp(schemas.Timestamp.pattern).test('2026-09-06T12:34:56Z')).toBe(false);
     expect(new RegExp(schemas.BusinessDate.pattern).test('2026-09-06')).toBe(true);
     expect(new RegExp(schemas.BusinessTime.pattern).test('25:00')).toBe(false);
-    expect(new RegExp(schemas.NotificationDeadline.pattern).test('tomorrow')).toBe(false);
     expect(schemas.StoredRemindTask.properties.nextDueAt.$ref).toBe('#/components/schemas/Timestamp');
-    expect(schemas.NotificationToken.required.sort()).toEqual(['channelId', 'evaluatedAt', 'expectedRevision', 'id', 'kind', 'targetDueAt']);
   });
-  it('publishes one progress plan and a read-only shortage check', () => {
+  it('keeps a read-only shortage check', () => {
     expect(spec.paths['/v1/display/progress']).toBeUndefined();
     expect(spec.paths['/v1/reminders/{channelId}/tasks/{id}/shortage-check'].get.operationId).toBe('checkTaskShortage');
-    expect(spec.components.schemas.Initialization.required).toContain('remindChannels');
   });
   it('rejects floating-point schema regressions and declares numeric business boundaries', () => {
     const inspect = (value: any): void => {

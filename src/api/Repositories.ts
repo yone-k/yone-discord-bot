@@ -1,8 +1,7 @@
 import { CoreClient, coreClient, CoreApiError } from './CoreClient';
 import type { Schema, StoredRemindTask, StoredListItem, ListSnapshot, ListEditItem, ListChannel, InventoryChannel, RemindChannel } from './contracts';
 
-const part = (id: string): string => id === '.' || id === '..' || /[/%]/.test(id) || id.startsWith('~')
-  ? `~${Buffer.from(id, 'utf8').toString('base64url')}` : encodeURIComponent(id);
+import { encodePathId as part } from './PathId';
 const route = (resource: string, channelId: string): string => `/v1/${resource}/${part(channelId)}`;
 export const hydrateListItem = (item: Schema['StoredListItem']): StoredListItem => ({ ...item, lastNotifiedAt: item.lastNotifiedAt === null ? null : new Date(item.lastNotifiedAt) });
 export const hydrateTask = (task: Schema['StoredRemindTask']): StoredRemindTask => ({ ...task,
@@ -21,22 +20,21 @@ class Adapter {
 export class ApiListChannelRepository extends Adapter {
   get(channelId: string): Promise<ListChannel | null> { return nullable(() => this.client.request('GET', route('lists', channelId))); }
   list(): Promise<ListChannel[]> { return this.client.request('GET', '/v1/lists'); }
-  async save(channel: Omit<ListChannel, 'editVersion'>): Promise<void> { await this.client.request('PUT', route('lists', channel.channelId), channel); }
+  async save(channel: Schema['ListChannelInput']): Promise<void> { await this.client.request('PUT', route('lists', channel.channelId), channel); }
   async patch(channelId: string, changes: Schema['ListChannelPatch']): Promise<void> { await this.client.request('PATCH', route('lists', channelId), changes); }
-  setMessageId(channelId: string, messageId: string | null): Promise<void> { return this.patch(channelId, { messageId }); }
   async delete(channelId: string): Promise<void> { await this.client.request('DELETE', route('lists', channelId)); }
 }
 export class ApiInventoryChannelRepository extends Adapter {
   get(channelId: string): Promise<InventoryChannel | null> { return nullable(() => this.client.request('GET', route('inventories', channelId))); }
   list(): Promise<InventoryChannel[]> { return this.client.request('GET', '/v1/inventories'); }
-  async save(channel: InventoryChannel): Promise<void> { await this.client.request('PUT', route('inventories', channel.channelId), channel); }
+  async save(channel: Schema['InventoryChannelInput']): Promise<void> { await this.client.request('PUT', route('inventories', channel.channelId), channel); }
   async patch(channelId: string, changes: Schema['InventoryChannelPatch']): Promise<void> { await this.client.request('PATCH', route('inventories', channelId), changes); }
   async delete(channelId: string): Promise<void> { await this.client.request('DELETE', route('inventories', channelId)); }
 }
 export class ApiRemindChannelRepository extends Adapter {
   get(channelId: string): Promise<RemindChannel | null> { return nullable(() => this.client.request('GET', route('reminders', channelId))); }
   list(): Promise<RemindChannel[]> { return this.client.request('GET', '/v1/reminders'); }
-  async save(channel: RemindChannel): Promise<void> { await this.client.request('PUT', route('reminders', channel.channelId), channel); }
+  async save(channel: Schema['RemindChannelInput']): Promise<void> { await this.client.request('PUT', route('reminders', channel.channelId), channel); }
   async patch(channelId: string, changes: Schema['RemindChannelPatch']): Promise<void> { await this.client.request('PATCH', route('reminders', channelId), changes); }
   async delete(channelId: string): Promise<void> { await this.client.request('DELETE', route('reminders', channelId)); }
   linkedTo(channelId: string): Promise<RemindChannel[]> { return this.client.request('GET', `${route('inventories', channelId)}/linked-reminders`); }
@@ -55,6 +53,10 @@ export class ApiListRepository extends Adapter {
   async reorder(channelId: string, ids: string[]): Promise<void> { await this.client.request('POST', `${route('lists', channelId)}/reorder`, { ids } satisfies Schema['ReorderInput']); }
 }
 export class ApiInventoryRepository extends Adapter {
+  async appendMany(channelId: string, items: Schema['InventoryItemInput'][]): Promise<string[]> {
+    const result = await this.client.request<Schema['AppendInventoryItemsResult']>('POST', `${route('inventories', channelId)}/items/batch`, { items } satisfies Schema['AppendInventoryItemsInput']);
+    return result.skippedNames;
+  }
   fetchAll(channelId: string): Promise<Schema['StoredInventoryItem'][]> { return this.client.request('GET', `${route('inventories', channelId)}/items`); }
   findById(channelId: string, id: string): Promise<Schema['StoredInventoryItem'] | null> { return nullable(() => this.client.request('GET', `${route('inventories', channelId)}/items/${part(id)}`)); }
   findByName(channelId: string, name: string): Promise<Schema['StoredInventoryItem'] | null> { return nullable(() => this.client.request('GET', `${route('inventories', channelId)}/by-name?${new URLSearchParams({ name })}`)); }

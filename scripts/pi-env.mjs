@@ -7,7 +7,7 @@ try {
   if (!['bot', 'api'].includes(role)) throw new Error();
   const required = role === 'bot'
     ? ['DISCORD_BOT_TOKEN', 'CLIENT_ID', 'CORE_API_URL', 'CORE_API_TOKEN', 'NODE_ENV']
-    : ['DATABASE_URL', 'CORE_API_TOKEN'];
+    : ['DATABASE_URL', 'CORE_API_TOKEN', 'DISCORD_BOT_TOKEN', 'DISCORD_OUTPUT_ENABLED'];
   if (Object.keys(items).some(key => !required.includes(key))) throw new Error();
   const values = {};
   for (const key of required) {
@@ -15,6 +15,7 @@ try {
     values[key] = items[key];
   }
   if (role === 'api') {
+    if (!['true', 'false'].includes(values.DISCORD_OUTPUT_ENABLED)) throw new Error();
     const database = new URL(values.DATABASE_URL);
     if (!['postgres:', 'postgresql:'].includes(database.protocol) || !database.hostname || !database.username || !database.password) throw new Error();
   } else {

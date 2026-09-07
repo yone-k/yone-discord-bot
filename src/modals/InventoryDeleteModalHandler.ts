@@ -1,34 +1,19 @@
-import { Client } from 'discord.js';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import type { InventoryChannelMetadata } from '../models/InventoryChannelMetadata';
-import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { InventoryMessageManager } from '../services/InventoryMessageManager';
 import { InventoryChannelStore } from '../services/InventoryChannelStore';
-import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryService } from '../services/InventoryService';
 import type { MetadataProvider } from '../services/MetadataProvider';
-import type { OperationLogService } from '../services/OperationLogService';
+import type { UiOperationEvents } from '../services/UiOperationEvents';
 import { Logger } from '../utils/logger';
 
 const CUSTOM_ID_PREFIX = 'inventory_delete_modal_';
 
-interface InventoryRepositoryPort {
-  fetchAll(channelId: string): Promise<InventoryItem[]>;
-}
 
 interface InventoryServicePort {
   delete(channelId: string, id: string): Promise<void>;
 }
 
-interface InventoryMessageManagerPort {
-  createOrUpdateMessage(
-    channelId: string,
-    items: InventoryItem[],
-    listTitle: string,
-    client: Client
-  ): Promise<{ success: boolean; errorMessage?: string }>;
-}
 
 type MetadataLookupResult =
   | InventoryChannelMetadata
@@ -44,24 +29,16 @@ interface InventoryMetadataReader {
 }
 
 export class InventoryDeleteModalHandler extends BaseModalHandler {
-  private readonly metadataReader: InventoryMetadataReader;
-  private readonly repository: InventoryRepositoryPort;
   private readonly inventoryService: InventoryServicePort;
-  private readonly messageManager: InventoryMessageManagerPort;
 
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager: InventoryMetadataReader = InventoryChannelStore.getInstance(),
-    repository: InventoryRepositoryPort = new InventoryRepository(),
-    inventoryService: InventoryServicePort = InventoryService.getInstance(),
-    messageManager: InventoryMessageManagerPort = InventoryMessageManager.getInstance()
+    inventoryService: InventoryServicePort = InventoryService.getInstance()
   ) {
     super(CUSTOM_ID_PREFIX, logger, operationLogService, metadataManager as unknown as MetadataProvider);
-    this.metadataReader = metadataManager;
-    this.repository = repository;
     this.inventoryService = inventoryService;
-    this.messageManager = messageManager;
     this.deleteOnSuccess = true;
   }
 
@@ -91,19 +68,6 @@ export class InventoryDeleteModalHandler extends BaseModalHandler {
       };
     }
 
-    const items = await this.repository.fetchAll(channelId);
-    const listTitle = await this.resolveListTitle(channelId);
-    const messageResult = await this.messageManager.createOrUpdateMessage(
-      channelId,
-      items,
-      listTitle,
-      context.interaction.client
-    );
-
-    if (!messageResult.success) {
-      return { success: false, message: messageResult.errorMessage || '在庫メッセージの更新に失敗しました' };
-    }
-
     return { success: true };
   }
 
@@ -122,16 +86,4 @@ export class InventoryDeleteModalHandler extends BaseModalHandler {
     return customId.slice(CUSTOM_ID_PREFIX.length);
   }
 
-  private async resolveListTitle(channelId: string): Promise<string> {
-    const metadataResult = await this.metadataReader.getChannelMetadata(channelId);
-    if (!metadataResult) {
-      return '在庫リスト';
-    }
-
-    if ('success' in metadataResult) {
-      return metadataResult.metadata?.listTitle || '在庫リスト';
-    }
-
-    return metadataResult.listTitle || '在庫リスト';
-  }
 }

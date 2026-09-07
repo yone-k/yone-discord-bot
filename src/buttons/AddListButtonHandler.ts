@@ -2,13 +2,13 @@ import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { ListChannelStore } from '../services/ListChannelStore';
 
 export class AddListButtonHandler extends BaseButtonHandler {
   constructor(
     logger: Logger, 
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: ListChannelStore
   ) {
     super('add-list-button', logger, operationLogService, metadataManager);

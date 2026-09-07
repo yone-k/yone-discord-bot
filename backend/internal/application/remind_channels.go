@@ -52,11 +52,21 @@ func (s *Service) SaveRemindChannel(ctx context.Context, c domain.RemindChannelS
 		c.LinkedInventoryChannelID = nil
 		if previous != nil {
 			c.LinkedInventoryChannelID = previous.LinkedInventoryChannelID
+			c.MessageID, c.OperationLogThreadID = previous.MessageID, previous.OperationLogThreadID
+			c.RemindNoticeMessageID, c.RemindNoticeThreadID = previous.RemindNoticeMessageID, previous.RemindNoticeThreadID
 		}
 		if e = checkLink(ctx, r, &c, next); e != nil {
 			return nil, e
 		}
 		if e = r.PutRemindChannel(ctx, &c); e != nil {
+			return nil, e
+		}
+		if previous == nil {
+			if e = s.reserveThreadEnsure(ctx, r, outputChannel{c.ChannelID, "reminder"}, "reminder_notice", true); e != nil {
+				return nil, e
+			}
+		}
+		if e = s.reserveReminderCards(ctx, r, &c); e != nil {
 			return nil, e
 		}
 		return &c, nil
@@ -69,16 +79,13 @@ func (s *Service) PatchRemindChannel(ctx context.Context, id string, p ChannelPa
 			return nil, e
 		}
 		patchChannel(&c.ChannelSettings, p)
-		if p.RemindNoticeThreadID.Present {
-			c.RemindNoticeThreadID = p.RemindNoticeThreadID.Value
-		}
-		if p.RemindNoticeMessageID.Present {
-			c.RemindNoticeMessageID = p.RemindNoticeMessageID.Value
-		}
 		if e = validateRemind(*c); e != nil {
 			return nil, e
 		}
 		if e = r.PutRemindChannel(ctx, c); e != nil {
+			return nil, e
+		}
+		if e = s.reserveReminderCards(ctx, r, c); e != nil {
 			return nil, e
 		}
 		return c, nil
@@ -97,6 +104,9 @@ func (s *Service) LinkInventory(ctx context.Context, id string, next *string) (*
 			return nil, e
 		}
 		if e = r.PutRemindChannel(ctx, c); e != nil {
+			return nil, e
+		}
+		if e = s.reserveReminderCards(ctx, r, c); e != nil {
 			return nil, e
 		}
 		return c, nil

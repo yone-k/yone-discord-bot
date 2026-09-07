@@ -16,7 +16,7 @@ type pathIDMux struct{ *http.ServeMux }
 
 func (m pathIDMux) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
 	m.ServeMux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		for _, name := range []string{"channelId", "id"} {
+		for _, name := range []string{"channelId", "id", "jobId", "targetId"} {
 			value := r.PathValue(name)
 			if !strings.HasPrefix(value, "~") {
 				continue

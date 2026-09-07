@@ -22,9 +22,14 @@ func (s *Service) SaveInventoryChannel(ctx context.Context, c domain.InventoryCh
 		}
 		if catalog == nil {
 			catalog = &domain.InventoryCatalog{Items: []domain.InventoryItem{}}
+		} else {
+			c.MessageID, c.OperationLogThreadID = catalog.Channel.MessageID, catalog.Channel.OperationLogThreadID
 		}
 		catalog.Channel = c
 		if e = r.PutCatalog(ctx, catalog); e != nil {
+			return nil, e
+		}
+		if e = s.reserveBusinessOutput(ctx, r, c.ChannelID, c.ChannelID, OutputInventoryRender, catalog.Channel.OperationLogThreadID, OperationFacts{}, OutputPayload{}); e != nil {
 			return nil, e
 		}
 		return &catalog.Channel, nil
@@ -47,6 +52,9 @@ func (s *Service) PatchInventoryChannel(ctx context.Context, id string, p Channe
 			return nil, domain.Fail(domain.CodeInvalidInput, "defaultCategory", "Category is required")
 		}
 		if e = r.PutCatalog(ctx, c); e != nil {
+			return nil, e
+		}
+		if e = s.reserveBusinessOutput(ctx, r, id, id, OutputInventoryRender, c.Channel.OperationLogThreadID, OperationFacts{}, OutputPayload{}); e != nil {
 			return nil, e
 		}
 		return &c.Channel, nil
@@ -85,6 +93,12 @@ func (s *Service) mutateCatalog(ctx context.Context, id string, fn func(Reposito
 		if e = r.PutCatalog(ctx, c); e != nil {
 			return nil, e
 		}
+		if e = s.reserveBusinessOutput(ctx, r, id, id, OutputInventoryRender, c.Channel.OperationLogThreadID, OperationFacts{}, OutputPayload{}); e != nil {
+			return nil, e
+		}
+		if e = s.reserveRelatedTaskCards(ctx, r, id); e != nil {
+			return nil, e
+		}
 		return c, nil
 	})
 }
@@ -102,6 +116,38 @@ func (s *Service) AppendInventoryItem(ctx context.Context, id string, item domai
 		return nil, e
 	}
 	return &c.Items[len(c.Items)-1], nil
+}
+
+// AppendInventoryItems treats the submitted modal as one operation. Duplicate
+// names retain their stock and are reported in input order; other failures roll
+// back the batch together with its operation record and rendering reservation.
+func (s *Service) AppendInventoryItems(ctx context.Context, channel string, items []domain.InventoryItem) ([]string, error) {
+	if len(items) == 0 {
+		return nil, domain.Fail(domain.CodeInvalidInput, "items", "Items are required")
+	}
+	skipped := []string{}
+	_, err := s.mutateCatalog(ctx, channel, func(_ Repository, catalog *domain.InventoryCatalog) error {
+		for _, item := range items {
+			id, err := s.ids.NewID()
+			if err != nil {
+				return err
+			}
+			item.ID, item.EntityID = id, id
+			if err := catalog.Append(item); err != nil {
+				var failure *domain.Error
+				if errors.As(err, &failure) && failure.Code == domain.CodeInvalidInput && failure.Reason == domain.ReasonDuplicateName {
+					skipped = append(skipped, item.Name)
+					continue
+				}
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return skipped, nil
 }
 func (s *Service) UpdateInventoryItems(ctx context.Context, id string, items []domain.InventoryItem) ([]domain.InventoryItem, error) {
 	c, e := s.mutateCatalog(ctx, id, func(_ Repository, c *domain.InventoryCatalog) error { return c.Update(items) })
@@ -190,6 +236,10 @@ func (s *Service) DeleteInventoryItem(ctx context.Context, channel, id string) (
 			}
 			return &OperationError{Cause: e, References: matching}
 		}
+		if e != nil {
+			return e
+		}
+		_, e = r.PutCardView(ctx, CardView{ChannelID: channel, TargetKind: CardInventory, TargetID: channel, Mode: CardNormal})
 		return e
 	})
 	if e != nil {
@@ -223,6 +273,12 @@ func (s *Service) ResolveInventory(ctx context.Context, channel, name string) (*
 			return nil, e
 		}
 		if e = r.PutCatalog(ctx, c); e != nil {
+			return nil, e
+		}
+		if e = s.reserveBusinessOutput(ctx, r, channel, channel, OutputInventoryRender, c.Channel.OperationLogThreadID, OperationFacts{}, OutputPayload{}); e != nil {
+			return nil, e
+		}
+		if e = s.reserveRelatedTaskCards(ctx, r, channel); e != nil {
 			return nil, e
 		}
 		return &c.Items[len(c.Items)-1], nil

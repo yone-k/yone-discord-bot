@@ -15,10 +15,15 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/channeloutputsuspension"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/discordcardview"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/inventorychannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/inventoryitem"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listchannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listitem"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/operationrecord"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputdispatch"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputtask"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/remindchannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/remindtask"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/remindtaskinventoryitem"
@@ -31,6 +36,10 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// ChannelOutputSuspension is the client for interacting with the ChannelOutputSuspension builders.
+	ChannelOutputSuspension *ChannelOutputSuspensionClient
+	// DiscordCardView is the client for interacting with the DiscordCardView builders.
+	DiscordCardView *DiscordCardViewClient
 	// InventoryChannel is the client for interacting with the InventoryChannel builders.
 	InventoryChannel *InventoryChannelClient
 	// InventoryItem is the client for interacting with the InventoryItem builders.
@@ -39,6 +48,12 @@ type Client struct {
 	ListChannel *ListChannelClient
 	// ListItem is the client for interacting with the ListItem builders.
 	ListItem *ListItemClient
+	// OperationRecord is the client for interacting with the OperationRecord builders.
+	OperationRecord *OperationRecordClient
+	// OutputDispatch is the client for interacting with the OutputDispatch builders.
+	OutputDispatch *OutputDispatchClient
+	// OutputTask is the client for interacting with the OutputTask builders.
+	OutputTask *OutputTaskClient
 	// RemindChannel is the client for interacting with the RemindChannel builders.
 	RemindChannel *RemindChannelClient
 	// RemindTask is the client for interacting with the RemindTask builders.
@@ -56,10 +71,15 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.ChannelOutputSuspension = NewChannelOutputSuspensionClient(c.config)
+	c.DiscordCardView = NewDiscordCardViewClient(c.config)
 	c.InventoryChannel = NewInventoryChannelClient(c.config)
 	c.InventoryItem = NewInventoryItemClient(c.config)
 	c.ListChannel = NewListChannelClient(c.config)
 	c.ListItem = NewListItemClient(c.config)
+	c.OperationRecord = NewOperationRecordClient(c.config)
+	c.OutputDispatch = NewOutputDispatchClient(c.config)
+	c.OutputTask = NewOutputTaskClient(c.config)
 	c.RemindChannel = NewRemindChannelClient(c.config)
 	c.RemindTask = NewRemindTaskClient(c.config)
 	c.RemindTaskInventoryItem = NewRemindTaskInventoryItemClient(c.config)
@@ -155,10 +175,15 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:                     ctx,
 		config:                  cfg,
+		ChannelOutputSuspension: NewChannelOutputSuspensionClient(cfg),
+		DiscordCardView:         NewDiscordCardViewClient(cfg),
 		InventoryChannel:        NewInventoryChannelClient(cfg),
 		InventoryItem:           NewInventoryItemClient(cfg),
 		ListChannel:             NewListChannelClient(cfg),
 		ListItem:                NewListItemClient(cfg),
+		OperationRecord:         NewOperationRecordClient(cfg),
+		OutputDispatch:          NewOutputDispatchClient(cfg),
+		OutputTask:              NewOutputTaskClient(cfg),
 		RemindChannel:           NewRemindChannelClient(cfg),
 		RemindTask:              NewRemindTaskClient(cfg),
 		RemindTaskInventoryItem: NewRemindTaskInventoryItemClient(cfg),
@@ -181,10 +206,15 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:                     ctx,
 		config:                  cfg,
+		ChannelOutputSuspension: NewChannelOutputSuspensionClient(cfg),
+		DiscordCardView:         NewDiscordCardViewClient(cfg),
 		InventoryChannel:        NewInventoryChannelClient(cfg),
 		InventoryItem:           NewInventoryItemClient(cfg),
 		ListChannel:             NewListChannelClient(cfg),
 		ListItem:                NewListItemClient(cfg),
+		OperationRecord:         NewOperationRecordClient(cfg),
+		OutputDispatch:          NewOutputDispatchClient(cfg),
+		OutputTask:              NewOutputTaskClient(cfg),
 		RemindChannel:           NewRemindChannelClient(cfg),
 		RemindTask:              NewRemindTaskClient(cfg),
 		RemindTaskInventoryItem: NewRemindTaskInventoryItemClient(cfg),
@@ -194,7 +224,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		InventoryChannel.
+//		ChannelOutputSuspension.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -217,8 +247,10 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.InventoryChannel, c.InventoryItem, c.ListChannel, c.ListItem, c.RemindChannel,
-		c.RemindTask, c.RemindTaskInventoryItem,
+		c.ChannelOutputSuspension, c.DiscordCardView, c.InventoryChannel,
+		c.InventoryItem, c.ListChannel, c.ListItem, c.OperationRecord,
+		c.OutputDispatch, c.OutputTask, c.RemindChannel, c.RemindTask,
+		c.RemindTaskInventoryItem,
 	} {
 		n.Use(hooks...)
 	}
@@ -228,8 +260,10 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.InventoryChannel, c.InventoryItem, c.ListChannel, c.ListItem, c.RemindChannel,
-		c.RemindTask, c.RemindTaskInventoryItem,
+		c.ChannelOutputSuspension, c.DiscordCardView, c.InventoryChannel,
+		c.InventoryItem, c.ListChannel, c.ListItem, c.OperationRecord,
+		c.OutputDispatch, c.OutputTask, c.RemindChannel, c.RemindTask,
+		c.RemindTaskInventoryItem,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -238,6 +272,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *ChannelOutputSuspensionMutation:
+		return c.ChannelOutputSuspension.mutate(ctx, m)
+	case *DiscordCardViewMutation:
+		return c.DiscordCardView.mutate(ctx, m)
 	case *InventoryChannelMutation:
 		return c.InventoryChannel.mutate(ctx, m)
 	case *InventoryItemMutation:
@@ -246,6 +284,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ListChannel.mutate(ctx, m)
 	case *ListItemMutation:
 		return c.ListItem.mutate(ctx, m)
+	case *OperationRecordMutation:
+		return c.OperationRecord.mutate(ctx, m)
+	case *OutputDispatchMutation:
+		return c.OutputDispatch.mutate(ctx, m)
+	case *OutputTaskMutation:
+		return c.OutputTask.mutate(ctx, m)
 	case *RemindChannelMutation:
 		return c.RemindChannel.mutate(ctx, m)
 	case *RemindTaskMutation:
@@ -254,6 +298,272 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.RemindTaskInventoryItem.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// ChannelOutputSuspensionClient is a client for the ChannelOutputSuspension schema.
+type ChannelOutputSuspensionClient struct {
+	config
+}
+
+// NewChannelOutputSuspensionClient returns a client for the ChannelOutputSuspension from the given config.
+func NewChannelOutputSuspensionClient(c config) *ChannelOutputSuspensionClient {
+	return &ChannelOutputSuspensionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `channeloutputsuspension.Hooks(f(g(h())))`.
+func (c *ChannelOutputSuspensionClient) Use(hooks ...Hook) {
+	c.hooks.ChannelOutputSuspension = append(c.hooks.ChannelOutputSuspension, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `channeloutputsuspension.Intercept(f(g(h())))`.
+func (c *ChannelOutputSuspensionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ChannelOutputSuspension = append(c.inters.ChannelOutputSuspension, interceptors...)
+}
+
+// Create returns a builder for creating a ChannelOutputSuspension entity.
+func (c *ChannelOutputSuspensionClient) Create() *ChannelOutputSuspensionCreate {
+	mutation := newChannelOutputSuspensionMutation(c.config, OpCreate)
+	return &ChannelOutputSuspensionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ChannelOutputSuspension entities.
+func (c *ChannelOutputSuspensionClient) CreateBulk(builders ...*ChannelOutputSuspensionCreate) *ChannelOutputSuspensionCreateBulk {
+	return &ChannelOutputSuspensionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ChannelOutputSuspensionClient) MapCreateBulk(slice any, setFunc func(*ChannelOutputSuspensionCreate, int)) *ChannelOutputSuspensionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ChannelOutputSuspensionCreateBulk{err: fmt.Errorf("calling to ChannelOutputSuspensionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ChannelOutputSuspensionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ChannelOutputSuspensionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ChannelOutputSuspension.
+func (c *ChannelOutputSuspensionClient) Update() *ChannelOutputSuspensionUpdate {
+	mutation := newChannelOutputSuspensionMutation(c.config, OpUpdate)
+	return &ChannelOutputSuspensionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ChannelOutputSuspensionClient) UpdateOne(_m *ChannelOutputSuspension) *ChannelOutputSuspensionUpdateOne {
+	mutation := newChannelOutputSuspensionMutation(c.config, OpUpdateOne, withChannelOutputSuspension(_m))
+	return &ChannelOutputSuspensionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ChannelOutputSuspensionClient) UpdateOneID(id string) *ChannelOutputSuspensionUpdateOne {
+	mutation := newChannelOutputSuspensionMutation(c.config, OpUpdateOne, withChannelOutputSuspensionID(id))
+	return &ChannelOutputSuspensionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ChannelOutputSuspension.
+func (c *ChannelOutputSuspensionClient) Delete() *ChannelOutputSuspensionDelete {
+	mutation := newChannelOutputSuspensionMutation(c.config, OpDelete)
+	return &ChannelOutputSuspensionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ChannelOutputSuspensionClient) DeleteOne(_m *ChannelOutputSuspension) *ChannelOutputSuspensionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ChannelOutputSuspensionClient) DeleteOneID(id string) *ChannelOutputSuspensionDeleteOne {
+	builder := c.Delete().Where(channeloutputsuspension.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ChannelOutputSuspensionDeleteOne{builder}
+}
+
+// Query returns a query builder for ChannelOutputSuspension.
+func (c *ChannelOutputSuspensionClient) Query() *ChannelOutputSuspensionQuery {
+	return &ChannelOutputSuspensionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeChannelOutputSuspension},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ChannelOutputSuspension entity by its id.
+func (c *ChannelOutputSuspensionClient) Get(ctx context.Context, id string) (*ChannelOutputSuspension, error) {
+	return c.Query().Where(channeloutputsuspension.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ChannelOutputSuspensionClient) GetX(ctx context.Context, id string) *ChannelOutputSuspension {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ChannelOutputSuspensionClient) Hooks() []Hook {
+	return c.hooks.ChannelOutputSuspension
+}
+
+// Interceptors returns the client interceptors.
+func (c *ChannelOutputSuspensionClient) Interceptors() []Interceptor {
+	return c.inters.ChannelOutputSuspension
+}
+
+func (c *ChannelOutputSuspensionClient) mutate(ctx context.Context, m *ChannelOutputSuspensionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ChannelOutputSuspensionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ChannelOutputSuspensionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ChannelOutputSuspensionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ChannelOutputSuspensionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ChannelOutputSuspension mutation op: %q", m.Op())
+	}
+}
+
+// DiscordCardViewClient is a client for the DiscordCardView schema.
+type DiscordCardViewClient struct {
+	config
+}
+
+// NewDiscordCardViewClient returns a client for the DiscordCardView from the given config.
+func NewDiscordCardViewClient(c config) *DiscordCardViewClient {
+	return &DiscordCardViewClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `discordcardview.Hooks(f(g(h())))`.
+func (c *DiscordCardViewClient) Use(hooks ...Hook) {
+	c.hooks.DiscordCardView = append(c.hooks.DiscordCardView, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `discordcardview.Intercept(f(g(h())))`.
+func (c *DiscordCardViewClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DiscordCardView = append(c.inters.DiscordCardView, interceptors...)
+}
+
+// Create returns a builder for creating a DiscordCardView entity.
+func (c *DiscordCardViewClient) Create() *DiscordCardViewCreate {
+	mutation := newDiscordCardViewMutation(c.config, OpCreate)
+	return &DiscordCardViewCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DiscordCardView entities.
+func (c *DiscordCardViewClient) CreateBulk(builders ...*DiscordCardViewCreate) *DiscordCardViewCreateBulk {
+	return &DiscordCardViewCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DiscordCardViewClient) MapCreateBulk(slice any, setFunc func(*DiscordCardViewCreate, int)) *DiscordCardViewCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DiscordCardViewCreateBulk{err: fmt.Errorf("calling to DiscordCardViewClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DiscordCardViewCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DiscordCardViewCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DiscordCardView.
+func (c *DiscordCardViewClient) Update() *DiscordCardViewUpdate {
+	mutation := newDiscordCardViewMutation(c.config, OpUpdate)
+	return &DiscordCardViewUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DiscordCardViewClient) UpdateOne(_m *DiscordCardView) *DiscordCardViewUpdateOne {
+	mutation := newDiscordCardViewMutation(c.config, OpUpdateOne, withDiscordCardView(_m))
+	return &DiscordCardViewUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DiscordCardViewClient) UpdateOneID(id uuid.UUID) *DiscordCardViewUpdateOne {
+	mutation := newDiscordCardViewMutation(c.config, OpUpdateOne, withDiscordCardViewID(id))
+	return &DiscordCardViewUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DiscordCardView.
+func (c *DiscordCardViewClient) Delete() *DiscordCardViewDelete {
+	mutation := newDiscordCardViewMutation(c.config, OpDelete)
+	return &DiscordCardViewDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DiscordCardViewClient) DeleteOne(_m *DiscordCardView) *DiscordCardViewDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DiscordCardViewClient) DeleteOneID(id uuid.UUID) *DiscordCardViewDeleteOne {
+	builder := c.Delete().Where(discordcardview.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DiscordCardViewDeleteOne{builder}
+}
+
+// Query returns a query builder for DiscordCardView.
+func (c *DiscordCardViewClient) Query() *DiscordCardViewQuery {
+	return &DiscordCardViewQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDiscordCardView},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DiscordCardView entity by its id.
+func (c *DiscordCardViewClient) Get(ctx context.Context, id uuid.UUID) (*DiscordCardView, error) {
+	return c.Query().Where(discordcardview.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DiscordCardViewClient) GetX(ctx context.Context, id uuid.UUID) *DiscordCardView {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DiscordCardViewClient) Hooks() []Hook {
+	return c.hooks.DiscordCardView
+}
+
+// Interceptors returns the client interceptors.
+func (c *DiscordCardViewClient) Interceptors() []Interceptor {
+	return c.inters.DiscordCardView
+}
+
+func (c *DiscordCardViewClient) mutate(ctx context.Context, m *DiscordCardViewMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DiscordCardViewCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DiscordCardViewUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DiscordCardViewUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DiscordCardViewDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DiscordCardView mutation op: %q", m.Op())
 	}
 }
 
@@ -789,6 +1099,405 @@ func (c *ListItemClient) mutate(ctx context.Context, m *ListItemMutation) (Value
 	}
 }
 
+// OperationRecordClient is a client for the OperationRecord schema.
+type OperationRecordClient struct {
+	config
+}
+
+// NewOperationRecordClient returns a client for the OperationRecord from the given config.
+func NewOperationRecordClient(c config) *OperationRecordClient {
+	return &OperationRecordClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `operationrecord.Hooks(f(g(h())))`.
+func (c *OperationRecordClient) Use(hooks ...Hook) {
+	c.hooks.OperationRecord = append(c.hooks.OperationRecord, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `operationrecord.Intercept(f(g(h())))`.
+func (c *OperationRecordClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OperationRecord = append(c.inters.OperationRecord, interceptors...)
+}
+
+// Create returns a builder for creating a OperationRecord entity.
+func (c *OperationRecordClient) Create() *OperationRecordCreate {
+	mutation := newOperationRecordMutation(c.config, OpCreate)
+	return &OperationRecordCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OperationRecord entities.
+func (c *OperationRecordClient) CreateBulk(builders ...*OperationRecordCreate) *OperationRecordCreateBulk {
+	return &OperationRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OperationRecordClient) MapCreateBulk(slice any, setFunc func(*OperationRecordCreate, int)) *OperationRecordCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OperationRecordCreateBulk{err: fmt.Errorf("calling to OperationRecordClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OperationRecordCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OperationRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OperationRecord.
+func (c *OperationRecordClient) Update() *OperationRecordUpdate {
+	mutation := newOperationRecordMutation(c.config, OpUpdate)
+	return &OperationRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OperationRecordClient) UpdateOne(_m *OperationRecord) *OperationRecordUpdateOne {
+	mutation := newOperationRecordMutation(c.config, OpUpdateOne, withOperationRecord(_m))
+	return &OperationRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OperationRecordClient) UpdateOneID(id uuid.UUID) *OperationRecordUpdateOne {
+	mutation := newOperationRecordMutation(c.config, OpUpdateOne, withOperationRecordID(id))
+	return &OperationRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OperationRecord.
+func (c *OperationRecordClient) Delete() *OperationRecordDelete {
+	mutation := newOperationRecordMutation(c.config, OpDelete)
+	return &OperationRecordDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OperationRecordClient) DeleteOne(_m *OperationRecord) *OperationRecordDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OperationRecordClient) DeleteOneID(id uuid.UUID) *OperationRecordDeleteOne {
+	builder := c.Delete().Where(operationrecord.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OperationRecordDeleteOne{builder}
+}
+
+// Query returns a query builder for OperationRecord.
+func (c *OperationRecordClient) Query() *OperationRecordQuery {
+	return &OperationRecordQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOperationRecord},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OperationRecord entity by its id.
+func (c *OperationRecordClient) Get(ctx context.Context, id uuid.UUID) (*OperationRecord, error) {
+	return c.Query().Where(operationrecord.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OperationRecordClient) GetX(ctx context.Context, id uuid.UUID) *OperationRecord {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OperationRecordClient) Hooks() []Hook {
+	return c.hooks.OperationRecord
+}
+
+// Interceptors returns the client interceptors.
+func (c *OperationRecordClient) Interceptors() []Interceptor {
+	return c.inters.OperationRecord
+}
+
+func (c *OperationRecordClient) mutate(ctx context.Context, m *OperationRecordMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OperationRecordCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OperationRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OperationRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OperationRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OperationRecord mutation op: %q", m.Op())
+	}
+}
+
+// OutputDispatchClient is a client for the OutputDispatch schema.
+type OutputDispatchClient struct {
+	config
+}
+
+// NewOutputDispatchClient returns a client for the OutputDispatch from the given config.
+func NewOutputDispatchClient(c config) *OutputDispatchClient {
+	return &OutputDispatchClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `outputdispatch.Hooks(f(g(h())))`.
+func (c *OutputDispatchClient) Use(hooks ...Hook) {
+	c.hooks.OutputDispatch = append(c.hooks.OutputDispatch, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `outputdispatch.Intercept(f(g(h())))`.
+func (c *OutputDispatchClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OutputDispatch = append(c.inters.OutputDispatch, interceptors...)
+}
+
+// Create returns a builder for creating a OutputDispatch entity.
+func (c *OutputDispatchClient) Create() *OutputDispatchCreate {
+	mutation := newOutputDispatchMutation(c.config, OpCreate)
+	return &OutputDispatchCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OutputDispatch entities.
+func (c *OutputDispatchClient) CreateBulk(builders ...*OutputDispatchCreate) *OutputDispatchCreateBulk {
+	return &OutputDispatchCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OutputDispatchClient) MapCreateBulk(slice any, setFunc func(*OutputDispatchCreate, int)) *OutputDispatchCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OutputDispatchCreateBulk{err: fmt.Errorf("calling to OutputDispatchClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OutputDispatchCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OutputDispatchCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OutputDispatch.
+func (c *OutputDispatchClient) Update() *OutputDispatchUpdate {
+	mutation := newOutputDispatchMutation(c.config, OpUpdate)
+	return &OutputDispatchUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OutputDispatchClient) UpdateOne(_m *OutputDispatch) *OutputDispatchUpdateOne {
+	mutation := newOutputDispatchMutation(c.config, OpUpdateOne, withOutputDispatch(_m))
+	return &OutputDispatchUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OutputDispatchClient) UpdateOneID(id uuid.UUID) *OutputDispatchUpdateOne {
+	mutation := newOutputDispatchMutation(c.config, OpUpdateOne, withOutputDispatchID(id))
+	return &OutputDispatchUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OutputDispatch.
+func (c *OutputDispatchClient) Delete() *OutputDispatchDelete {
+	mutation := newOutputDispatchMutation(c.config, OpDelete)
+	return &OutputDispatchDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OutputDispatchClient) DeleteOne(_m *OutputDispatch) *OutputDispatchDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OutputDispatchClient) DeleteOneID(id uuid.UUID) *OutputDispatchDeleteOne {
+	builder := c.Delete().Where(outputdispatch.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OutputDispatchDeleteOne{builder}
+}
+
+// Query returns a query builder for OutputDispatch.
+func (c *OutputDispatchClient) Query() *OutputDispatchQuery {
+	return &OutputDispatchQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOutputDispatch},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OutputDispatch entity by its id.
+func (c *OutputDispatchClient) Get(ctx context.Context, id uuid.UUID) (*OutputDispatch, error) {
+	return c.Query().Where(outputdispatch.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OutputDispatchClient) GetX(ctx context.Context, id uuid.UUID) *OutputDispatch {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OutputDispatchClient) Hooks() []Hook {
+	return c.hooks.OutputDispatch
+}
+
+// Interceptors returns the client interceptors.
+func (c *OutputDispatchClient) Interceptors() []Interceptor {
+	return c.inters.OutputDispatch
+}
+
+func (c *OutputDispatchClient) mutate(ctx context.Context, m *OutputDispatchMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OutputDispatchCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OutputDispatchUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OutputDispatchUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OutputDispatchDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OutputDispatch mutation op: %q", m.Op())
+	}
+}
+
+// OutputTaskClient is a client for the OutputTask schema.
+type OutputTaskClient struct {
+	config
+}
+
+// NewOutputTaskClient returns a client for the OutputTask from the given config.
+func NewOutputTaskClient(c config) *OutputTaskClient {
+	return &OutputTaskClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `outputtask.Hooks(f(g(h())))`.
+func (c *OutputTaskClient) Use(hooks ...Hook) {
+	c.hooks.OutputTask = append(c.hooks.OutputTask, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `outputtask.Intercept(f(g(h())))`.
+func (c *OutputTaskClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OutputTask = append(c.inters.OutputTask, interceptors...)
+}
+
+// Create returns a builder for creating a OutputTask entity.
+func (c *OutputTaskClient) Create() *OutputTaskCreate {
+	mutation := newOutputTaskMutation(c.config, OpCreate)
+	return &OutputTaskCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OutputTask entities.
+func (c *OutputTaskClient) CreateBulk(builders ...*OutputTaskCreate) *OutputTaskCreateBulk {
+	return &OutputTaskCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OutputTaskClient) MapCreateBulk(slice any, setFunc func(*OutputTaskCreate, int)) *OutputTaskCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OutputTaskCreateBulk{err: fmt.Errorf("calling to OutputTaskClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OutputTaskCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OutputTaskCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OutputTask.
+func (c *OutputTaskClient) Update() *OutputTaskUpdate {
+	mutation := newOutputTaskMutation(c.config, OpUpdate)
+	return &OutputTaskUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OutputTaskClient) UpdateOne(_m *OutputTask) *OutputTaskUpdateOne {
+	mutation := newOutputTaskMutation(c.config, OpUpdateOne, withOutputTask(_m))
+	return &OutputTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OutputTaskClient) UpdateOneID(id uuid.UUID) *OutputTaskUpdateOne {
+	mutation := newOutputTaskMutation(c.config, OpUpdateOne, withOutputTaskID(id))
+	return &OutputTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OutputTask.
+func (c *OutputTaskClient) Delete() *OutputTaskDelete {
+	mutation := newOutputTaskMutation(c.config, OpDelete)
+	return &OutputTaskDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OutputTaskClient) DeleteOne(_m *OutputTask) *OutputTaskDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OutputTaskClient) DeleteOneID(id uuid.UUID) *OutputTaskDeleteOne {
+	builder := c.Delete().Where(outputtask.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OutputTaskDeleteOne{builder}
+}
+
+// Query returns a query builder for OutputTask.
+func (c *OutputTaskClient) Query() *OutputTaskQuery {
+	return &OutputTaskQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOutputTask},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OutputTask entity by its id.
+func (c *OutputTaskClient) Get(ctx context.Context, id uuid.UUID) (*OutputTask, error) {
+	return c.Query().Where(outputtask.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OutputTaskClient) GetX(ctx context.Context, id uuid.UUID) *OutputTask {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OutputTaskClient) Hooks() []Hook {
+	return c.hooks.OutputTask
+}
+
+// Interceptors returns the client interceptors.
+func (c *OutputTaskClient) Interceptors() []Interceptor {
+	return c.inters.OutputTask
+}
+
+func (c *OutputTaskClient) mutate(ctx context.Context, m *OutputTaskMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OutputTaskCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OutputTaskUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OutputTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OutputTaskDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OutputTask mutation op: %q", m.Op())
+	}
+}
+
 // RemindChannelClient is a client for the RemindChannel schema.
 type RemindChannelClient struct {
 	config
@@ -1191,12 +1900,14 @@ func (c *RemindTaskInventoryItemClient) mutate(ctx context.Context, m *RemindTas
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		InventoryChannel, InventoryItem, ListChannel, ListItem, RemindChannel,
-		RemindTask, RemindTaskInventoryItem []ent.Hook
+		ChannelOutputSuspension, DiscordCardView, InventoryChannel, InventoryItem,
+		ListChannel, ListItem, OperationRecord, OutputDispatch, OutputTask,
+		RemindChannel, RemindTask, RemindTaskInventoryItem []ent.Hook
 	}
 	inters struct {
-		InventoryChannel, InventoryItem, ListChannel, ListItem, RemindChannel,
-		RemindTask, RemindTaskInventoryItem []ent.Interceptor
+		ChannelOutputSuspension, DiscordCardView, InventoryChannel, InventoryItem,
+		ListChannel, ListItem, OperationRecord, OutputDispatch, OutputTask,
+		RemindChannel, RemindTask, RemindTaskInventoryItem []ent.Interceptor
 	}
 )
 

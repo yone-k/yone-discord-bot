@@ -8,13 +8,20 @@ function setup(): any {
   const sessions = new InventoryEditSession();
   const token = sessions.open('1', '2', original);
   const repo = { apply: vi.fn(), fetchAll: vi.fn().mockResolvedValue(original) };
-  const messages = { createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true }) };
-  const refresh = { refreshTasksUsingInventory: vi.fn() };
-  const handler = new InventoryUpdateModalHandler(new Logger(), repo as any, messages as any, refresh as any, sessions);
-  const interaction = { customId: `inventory_update_modal:${token}`, channelId: '1', user: { id: '2' }, client: {}, fields: { getTextInputValue: (): string => '1,改名,1.23456789,\n2,B,2,' } };
-  return { original, repo, messages, refresh, handler, interaction };
+  const handler = new InventoryUpdateModalHandler(new Logger(), repo as any, sessions);
+  const interaction = { customId: `inventory_update_modal:${token}`, channelId: '1', user: { id: '2' }, client: { channels: { fetch: vi.fn() } }, fields: { getTextInputValue: (): string => '1,改名,1.23456789,\n2,B,2,' } };
+  return { original, repo, handler, interaction };
 }
 describe('在庫編集原子的保存', () => {
+  it('保存後の再取得と描画を行わず成功でセッションを閉じる', async () => {
+    const s = setup();
+    s.interaction.client.channels.fetch.mockRejectedValue(new Error('Discord unavailable'));
+    expect((await s.handler.executeAction({ interaction: s.interaction })).success).toBe(true);
+    expect(s.repo.fetchAll).not.toHaveBeenCalled();
+    expect(s.interaction.client.channels.fetch).not.toHaveBeenCalled();
+    expect((await s.handler.executeAction({ interaction: s.interaction })).success).toBe(false);
+    expect(s.repo.apply).toHaveBeenCalledOnce();
+  });
   it('ソート後のCSVを改名送信しても元snapshotとID対応を維持する', async () => {
     const s = setup();
     // 元番号2の項目を先頭カテゴリへ移し、ソート済みフォームで名称を変更する。
@@ -24,7 +31,7 @@ describe('在庫編集原子的保存', () => {
     expect(s.repo.apply).toHaveBeenCalledExactlyOnceWith('1', s.original, [{ ...s.original[1], name: '改名', category: 'A' }, { ...s.original[0], category: 'Z' }]);
   });
   it('行番号対応の同じIDで改名しsnapshotと全件を一回で渡す', async () => { const s = setup(); const result = await s.handler.executeAction({ interaction: s.interaction }); expect(result.success).toBe(true); expect(s.repo.apply).toHaveBeenCalledOnce(); expect(s.repo.apply).toHaveBeenCalledWith('1', s.original, [{ ...s.original[0], name: '改名' }, s.original[1]]); });
-  it('原子的保存失敗時に表示更新しない', async () => { const s = setup(); s.repo.apply.mockRejectedValue(new Error('参照中')); const result = await s.handler.executeAction({ interaction: s.interaction }); expect(result.success).toBe(false); expect(s.messages.createOrUpdateMessage).not.toHaveBeenCalled(); });
+  it('原子的保存失敗時に表示更新しない', async () => { const s = setup(); s.repo.apply.mockRejectedValue(new Error('参照中')); const result = await s.handler.executeAction({ interaction: s.interaction }); expect(result.success).toBe(false); expect(s.interaction.client.channels.fetch).not.toHaveBeenCalled(); });
   it('別人のモーダルは保存しない', async () => { const s = setup(); s.interaction.user.id = '9'; expect((await s.handler.executeAction({ interaction: s.interaction })).success).toBe(false); expect(s.repo.apply).not.toHaveBeenCalled(); });
   it('期限切れ・旧モーダルは開き直しを案内する', async () => { const s = setup(); s.interaction.customId = 'inventory_update_modal'; expect((await s.handler.executeAction({ interaction: s.interaction })).message).toContain('開き直'); expect(s.repo.apply).not.toHaveBeenCalled(); });
 });

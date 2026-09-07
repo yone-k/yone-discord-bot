@@ -26,7 +26,7 @@ func (h *Handler) CreateRemindChannel(ctx context.Context, r api.CreateRemindCha
 	if e := requireChannel(r.ChannelId, b.ChannelId); e != nil {
 		return nil, e
 	}
-	v, e := h.Service.SaveRemindChannel(ctx, domain.RemindChannelSettings{ChannelSettings: domain.ChannelSettings{ChannelID: b.ChannelId, MessageID: fromNullable(b.MessageId), ListTitle: b.ListTitle, OperationLogThreadID: fromNullable(b.OperationLogThreadId)}, RemindNoticeThreadID: fromNullable(b.RemindNoticeThreadId), RemindNoticeMessageID: fromNullable(b.RemindNoticeMessageId), LinkedInventoryChannelID: fromNullable(b.LinkedInventoryChannelId)})
+	v, e := h.Service.SaveRemindChannel(ctx, domain.RemindChannelSettings{ChannelSettings: domain.ChannelSettings{ChannelID: b.ChannelId, ListTitle: b.ListTitle}, LinkedInventoryChannelID: fromNullable(b.LinkedInventoryChannelId)})
 	if e != nil {
 		return nil, e
 	}
@@ -34,7 +34,7 @@ func (h *Handler) CreateRemindChannel(ctx context.Context, r api.CreateRemindCha
 }
 func (h *Handler) PatchRemindChannel(ctx context.Context, r api.PatchRemindChannelRequestObject) (api.PatchRemindChannelResponseObject, error) {
 	b := r.Body
-	p := application.ChannelPatch{MessageID: optionalNullable(b.MessageId), ListTitle: optionalValue(b.ListTitle), OperationLogThreadID: optionalNullable(b.OperationLogThreadId), RemindNoticeThreadID: optionalNullable(b.RemindNoticeThreadId), RemindNoticeMessageID: optionalNullable(b.RemindNoticeMessageId)}
+	p := application.ChannelPatch{ListTitle: optionalValue(b.ListTitle)}
 	v, e := h.Service.PatchRemindChannel(ctx, r.ChannelId, p)
 	if e != nil {
 		return nil, e

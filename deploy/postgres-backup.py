@@ -149,6 +149,41 @@ def retain(directory, destination):
         print('backup: deleted ' + generation, flush=True)
 
 
+def disable_discord_output():
+    path = Path(os.environ.get('API_ENV_FILE', '.env.api'))
+    lines = path.read_text().splitlines()
+    setting = re.compile(r'^\s*(?:export\s+)?DISCORD_OUTPUT_ENABLED\s*=')
+    lines = [line for line in lines if not setting.match(line)]
+    lines.append('DISCORD_OUTPUT_ENABLED=false')
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', dir=path.parent, prefix='.output-disabled-', delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write('\n'.join(lines) + '\n')
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.chmod(0o600)
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+RESTORE_OUTPUT_HOLDS = """
+BEGIN;
+UPDATE output_tasks
+SET state='uncertain', executor='', last_error='復元後の送信結果未確認',
+    payload=payload || '{"Restored":true}'::jsonb, updated_at=CURRENT_TIMESTAMP
+WHERE kind <> 'delete_all' AND state NOT IN ('succeeded','cancelled')
+  AND NOT (kind IN ('list_render','inventory_render','task_card') AND COALESCE(payload->>'MessageID','') <> '');
+UPDATE output_tasks
+SET state='retry_wait', executor='', updated_at=CURRENT_TIMESTAMP
+WHERE state='running' AND (kind='delete_all'
+  OR (kind IN ('list_render','inventory_render','task_card') AND COALESCE(payload->>'MessageID','') <> ''));
+COMMIT;
+"""
+
+
 def restore_backup(manifest_name, database):
     generation = manifest_name.removesuffix('.manifest.json')
     if manifest_name != generation + '.manifest.json' or not GENERATION.fullmatch(generation):
@@ -168,12 +203,18 @@ def restore_backup(manifest_name, database):
         command('rclone', 'copyto', remote() + generation + '.dump', str(dump))
         if sha(dump) != manifest['sha256']:
             raise ValueError('Restore checksum mismatch')
+        # Keep this persistent even if createdb/restore/verification later fails.
+        disable_discord_output()
         compose('exec', '-T', 'db', 'sh', '-c', 'exec createdb -U "$POSTGRES_USER" "$1"', 'sh', database)
         with dump.open('rb') as stream:
             compose('exec', '-T', 'db', 'sh', '-c',
                 'exec pg_restore --exit-on-error --single-transaction -U "$POSTGRES_USER" -d "$1"',
                 'sh', database, stdin=stream)
-        print('restore: restored to ' + database + '; verify schema, counts and references, then start API healthy followed by Bot healthy from the corresponding image')
+        if manifest['schema_version'] >= 3:
+            compose('exec', '-T', 'db', 'sh', '-c',
+                'exec psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$1"',
+                'sh', database, input=RESTORE_OUTPUT_HOLDS, text=True, stdout=subprocess.DEVNULL)
+        print('restore: restored to ' + database + '; Discord output remains disabled; verify schema, counts, references and delivery evidence before explicitly enabling output')
         print('restore: corresponding-image=' + manifest['bot_image'])
 
 

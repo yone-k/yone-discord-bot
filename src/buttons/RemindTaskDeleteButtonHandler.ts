@@ -2,13 +2,13 @@ import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from
 import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { MetadataProvider } from '../services/MetadataProvider';
 
 export class RemindTaskDeleteButtonHandler extends BaseButtonHandler {
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider
   ) {
     super('remind-task-delete', logger, operationLogService, metadataManager);

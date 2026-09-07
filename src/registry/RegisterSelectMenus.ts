@@ -1,6 +1,6 @@
 import { Logger } from '../utils/logger';
 import { SelectMenuManager } from '../services/SelectMenuManager';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { ListChannelStore } from '../services/ListChannelStore';
 import { RemindChannelStore } from '../services/RemindChannelStore';
 import { RemindTaskUpdateSelectMenuHandler } from '../selectmenus/RemindTaskUpdateSelectMenuHandler';
@@ -9,15 +9,15 @@ import { InventoryDeleteSelectMenuHandler } from '../selectmenus/InventoryDelete
 export function registerAllSelectMenus(
   selectMenuManager: SelectMenuManager,
   logger: Logger,
-  _operationLogService?: OperationLogService,
+  _operationLogService?: UiOperationEvents,
   _metadataManager?: ListChannelStore
 ): void {
   const remindChannelStore = RemindChannelStore.getInstance();
-  const remindOperationLogService = new OperationLogService(logger, remindChannelStore);
+  const remindUiOperationEvents = new UiOperationEvents(logger);
 
   const remindUpdateSelectMenuHandler = new RemindTaskUpdateSelectMenuHandler(
     logger,
-    remindOperationLogService,
+    remindUiOperationEvents,
     remindChannelStore
   );
   selectMenuManager.registerHandler(remindUpdateSelectMenuHandler);

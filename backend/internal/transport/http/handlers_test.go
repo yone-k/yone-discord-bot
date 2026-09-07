@@ -3,11 +3,11 @@ package httptransport
 import (
 	"context"
 	"errors"
-	"github.com/oapi-codegen/nullable"
 	"github.com/yone-k/yone-discord-bot/backend/internal/application"
 	"github.com/yone-k/yone-discord-bot/backend/internal/domain"
 	api "github.com/yone-k/yone-discord-bot/backend/internal/transport/http/generated"
 	"testing"
+	"time"
 )
 
 type handlerStore struct {
@@ -28,7 +28,17 @@ type handlerRepository struct {
 	application.Repository
 	list    *domain.List
 	catalog *domain.InventoryCatalog
+	outputs []application.OutputTask
 }
+
+func (r *handlerRepository) EnqueueOutput(_ context.Context, task application.OutputTask) (string, error) {
+	r.outputs = append(r.outputs, task)
+	return task.ID, nil
+}
+
+type handlerClock struct{}
+
+func (handlerClock) Now() time.Time { return time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC) }
 
 func (r *handlerRepository) GetList(context.Context, string, bool) (*domain.List, error) {
 	return r.list, nil
@@ -53,7 +63,7 @@ func TestHandlerApplicationRoundTripPreservesStockPrecisionAndLegacyID(t *testin
 	}
 	repo := &handlerRepository{catalog: &domain.InventoryCatalog{Channel: domain.InventoryChannel{ChannelSettings: domain.ChannelSettings{ChannelID: "1", ListTitle: "inventory"}, DefaultCategory: "other"}, Items: []domain.InventoryItem{{ID: "arbitrary-old-id", ChannelID: "1", Name: "item", Stock: q}}}}
 	store := &handlerStore{repository: repo}
-	h := Handler{Service: application.New(store, nil, handlerIDs{})}
+	h := Handler{Service: application.New(store, handlerClock{}, handlerIDs{})}
 	response, e := h.GetInventoryItems(context.Background(), api.GetInventoryItemsRequestObject{ChannelId: "1"})
 	if e != nil {
 		t.Fatal(e)
@@ -66,22 +76,22 @@ func TestHandlerApplicationRoundTripPreservesStockPrecisionAndLegacyID(t *testin
 		t.Fatalf("unexpected unit of work: %#v", store)
 	}
 }
-func TestHandlerPatchNullClearsMessageWhileOmittedKeepsIt(t *testing.T) {
+func TestHandlerChannelWritesPreserveOutputMessageID(t *testing.T) {
 	message := "99"
 	repo := &handlerRepository{list: &domain.List{Channel: domain.ListChannel{ChannelSettings: domain.ChannelSettings{ChannelID: "1", ListTitle: "list", MessageID: &message}, DefaultCategory: "other"}}}
 	store := &handlerStore{repository: repo}
-	h := Handler{Service: application.New(store, nil, handlerIDs{})}
+	h := Handler{Service: application.New(store, handlerClock{}, handlerIDs{})}
 	if _, e := h.PatchListChannel(context.Background(), api.PatchListChannelRequestObject{ChannelId: "1", Body: &api.ListChannelPatch{}}); e != nil {
 		t.Fatal(e)
 	}
 	if repo.list.Channel.MessageID == nil || *repo.list.Channel.MessageID != "99" {
 		t.Fatal("omission cleared message")
 	}
-	if _, e := h.PatchListChannel(context.Background(), api.PatchListChannelRequestObject{ChannelId: "1", Body: &api.ListChannelPatch{MessageId: nullable.NewNullNullable[string]()}}); e != nil {
+	if _, e := h.CreateListChannel(context.Background(), api.CreateListChannelRequestObject{ChannelId: "1", Body: &api.ListChannelInput{ChannelId: "1", ListTitle: "new title", DefaultCategory: "other"}}); e != nil {
 		t.Fatal(e)
 	}
-	if repo.list.Channel.MessageID != nil {
-		t.Fatal("explicit null did not clear message")
+	if repo.list.Channel.MessageID == nil || *repo.list.Channel.MessageID != "99" || repo.list.Channel.ListTitle != "new title" {
+		t.Fatal("settings save lost output identity or title")
 	}
 }
 

@@ -1,53 +1,33 @@
-import { Client } from 'discord.js';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { InventoryChannelStore } from '../services/InventoryChannelStore';
-import { InventoryMessageManager } from '../services/InventoryMessageManager';
-import { InventoryRepository } from '../services/InventoryRepository';
 import { InventoryService } from '../services/InventoryService';
 import { parseInventoryAddCsvText } from '../utils/InventoryParser';
 import { Logger } from '../utils/logger';
 
 interface InventoryServicePort {
-  create(channelId: string, item: Omit<InventoryItem, 'id'>): Promise<{ success: boolean; message?: string }>;
+  createMany(channelId: string, items: Omit<InventoryItem, 'id'>[]): Promise<string[]>;
 }
 
-interface InventoryRepositoryPort {
-  fetchAll(channelId: string): Promise<InventoryItem[]>;
-}
 
 interface InventoryMetadataReaderPort {
   getChannelMetadata(channelId: string): Promise<{ defaultCategory?: string } | null>;
 }
 
-interface InventoryMessageManagerPort {
-  createOrUpdateMessage(
-    channelId: string,
-    items: InventoryItem[],
-    listTitle: string,
-    client: Client
-  ): Promise<{ success: boolean; errorMessage?: string }>;
-}
 
 export class InventoryAddModalHandler extends BaseModalHandler {
   private readonly inventoryService: InventoryServicePort;
   private readonly metadataReader: InventoryMetadataReaderPort;
-  private readonly repository: InventoryRepositoryPort;
-  private readonly messageManager: InventoryMessageManagerPort;
 
   constructor(
     logger: Logger,
     inventoryService: InventoryServicePort = InventoryService.getInstance(),
-    metadataReader: InventoryMetadataReaderPort = InventoryChannelStore.getInstance(),
-    repository: InventoryRepositoryPort = new InventoryRepository(),
-    messageManager: InventoryMessageManagerPort = InventoryMessageManager.getInstance()
+    metadataReader: InventoryMetadataReaderPort = InventoryChannelStore.getInstance()
   ) {
     super('inventory_add_modal', logger);
     this.inventoryService = inventoryService;
     this.metadataReader = metadataReader;
-    this.repository = repository;
-    this.messageManager = messageManager;
     this.deleteOnSuccess = true;
   }
 
@@ -77,31 +57,10 @@ export class InventoryAddModalHandler extends BaseModalHandler {
     const metadata = await this.metadataReader.getChannelMetadata(channelId);
     const defaultCategory = metadata?.defaultCategory ?? '';
     const unifiedCategory = trimmed !== '' ? trimmed : defaultCategory;
-    const skipped: string[] = [];
-
-    for (const item of parsed) {
-      const result = await this.inventoryService.create(channelId, {
-        name: item.name,
-        stock: item.stock,
-        category: unifiedCategory
-      });
-
-      if (!result.success) {
-        this.logger.warn('Skipped inventory item', {
-          name: item.name,
-          message: result.message
-        });
-        skipped.push(item.name);
-      }
+    const skipped = await this.inventoryService.createMany(channelId, parsed.map(item => ({ ...item, category: unifiedCategory })));
+    for (const name of skipped) {
+      this.logger.warn('Skipped inventory item', { name, message: '同名のアイテムが既に存在します' });
     }
-
-    const items = await this.repository.fetchAll(channelId);
-    await this.messageManager.createOrUpdateMessage(
-      channelId,
-      items,
-      '在庫リスト',
-      context.interaction.client
-    );
 
     if (skipped.length > 0) {
       return { success: true, message: `一部スキップ: ${skipped.join(', ')}` };

@@ -105,6 +105,17 @@ func (s *Service) EditTaskInventory(ctx context.Context, channel, id string, exp
 		if e = r.PutTask(ctx, t, ch.LinkedInventoryChannelID, true); e != nil {
 			return nil, e
 		}
+		if c != nil && changed {
+			if e = s.reserveCardOutput(ctx, r, c.Channel.ChannelID, c.Channel.ChannelID, OutputInventoryRender, "", OutputPayload{}); e != nil {
+				return nil, e
+			}
+			if e = s.reserveRelatedTaskCards(ctx, r, c.Channel.ChannelID); e != nil {
+				return nil, e
+			}
+		}
+		if e = s.reserveBusinessOutput(ctx, r, channel, id, OutputTaskCard, ch.OperationLogThreadID, OperationFacts{}, OutputPayload{}); e != nil {
+			return nil, e
+		}
 		return &RemindInventoryEditResult{Task: *t, InventoryChannelID: ch.LinkedInventoryChannelID, StockChanged: changed}, nil
 	})
 }

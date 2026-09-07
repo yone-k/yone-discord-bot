@@ -47,20 +47,10 @@ export class InitRemindListCommand extends BaseCommand {
       : 'リマインド';
     const listTitle = `${channelName}リマインド`;
 
-    const result = await this.initializationService.initialize(
+    await this.initializationService.initialize(
       context.channelId,
-      context.interaction.client,
       listTitle
     );
-
-    if (!result.success) {
-      throw new CommandError(
-        CommandErrorType.EXECUTION_FAILED,
-        'init-remind-list',
-        result.message || 'Initialization failed',
-        'リマインドリストの初期化に失敗しました。'
-      );
-    }
 
     await context.interaction.deleteReply();
   }

@@ -45,8 +45,7 @@ describe('RemindTaskAddModalHandler', () => {
         intervalDays: 7,
         timeOfDay: undefined,
         remindBeforeMinutes: 90
-      },
-      interaction.client
+      }
     );
   });
 });

@@ -17,7 +17,6 @@ type CreateTaskInput struct {
 	InventoryItems      []domain.InventoryConsumption
 }
 type TaskPatch struct {
-	MessageID           Optional[*string]
 	Title               Optional[string]
 	Description         Optional[*string]
 	IntervalDays        Optional[int]
@@ -29,7 +28,7 @@ type TaskPatch struct {
 }
 
 func (p TaskPatch) IsEmpty() bool {
-	return !p.MessageID.Present && !p.Title.Present && !p.Description.Present &&
+	return !p.Title.Present && !p.Description.Present &&
 		!p.IntervalDays.Present && !p.TimeOfDay.Present && !p.RemindBeforeMinutes.Present &&
 		!p.OverdueNotifyLimit.Present && !p.LastDoneAt.Present && !p.NextDueAt.Present
 }
@@ -136,6 +135,9 @@ func (s *Service) CreateTask(ctx context.Context, channel string, in CreateTaskI
 		if e = r.PutTask(ctx, t, ch.LinkedInventoryChannelID, true); e != nil {
 			return nil, e
 		}
+		if e = s.reserveBusinessOutput(ctx, r, channel, t.ID, OutputTaskCard, ch.OperationLogThreadID, OperationFacts{}, OutputPayload{}); e != nil {
+			return nil, e
+		}
 		return t, nil
 	})
 }
@@ -161,6 +163,9 @@ func (s *Service) mutateTask(ctx context.Context, channel, id string, expected i
 		if e = r.PutTask(ctx, t, ch.LinkedInventoryChannelID, false); e != nil {
 			return nil, e
 		}
+		if e = s.reserveBusinessOutput(ctx, r, channel, t.ID, OutputTaskCard, ch.OperationLogThreadID, OperationFacts{}, OutputPayload{}); e != nil {
+			return nil, e
+		}
 		return t, nil
 	})
 }
@@ -178,12 +183,6 @@ func (s *Service) PatchTask(ctx context.Context, channel, id string, expected in
 		})
 	}
 	return s.mutateTask(ctx, channel, id, expected, func(_ Repository, _ *domain.RemindChannelSettings, t *domain.RemindTask) error {
-		if p.MessageID.Present {
-			if e := validateID(p.MessageID.Value); e != nil {
-				return e
-			}
-			t.MessageID = p.MessageID.Value
-		}
 		if p.Title.Present {
 			t.Title = p.Title.Value
 		}
@@ -242,13 +241,25 @@ func (s *Service) SetTaskPaused(ctx context.Context, channel, id string, expecte
 }
 func (s *Service) DeleteTask(ctx context.Context, channel, id string) error {
 	return s.store.Write(ctx, func(r Repository) error {
-		if _, e := getRemind(ctx, r, channel, true); e != nil {
+		ch, e := getRemind(ctx, r, channel, true)
+		if e != nil {
 			return e
 		}
-		if _, e := getTask(ctx, r, channel, id, true); e != nil {
+		task, e := getTask(ctx, r, channel, id, true)
+		if e != nil {
 			return e
 		}
-		return r.DeleteTask(ctx, channel, id)
+		payload := OutputPayload{}
+		if task.MessageID != nil {
+			payload.MessageID = *task.MessageID
+		}
+		if e = r.DeleteTask(ctx, channel, id); e != nil {
+			return e
+		}
+		if e = r.DeleteCardView(ctx, channel, CardTask, id); e != nil {
+			return e
+		}
+		return s.reserveBusinessOutput(ctx, r, channel, id, OutputTaskCard, ch.OperationLogThreadID, OperationFacts{}, payload)
 	})
 }
 func (s *Service) ReorderTasks(ctx context.Context, channel string, ids []string) ([]domain.RemindTask, error) {
@@ -270,6 +281,10 @@ func (s *Service) ReorderTasks(ctx context.Context, channel string, ids []string
 		if e = domain.ValidateReorder(current, ids); e != nil {
 			return nil, e
 		}
+		operationID, e := s.reserveBusinessOperation(ctx, r, channel, ch.OperationLogThreadID, OperationFacts{})
+		if e != nil {
+			return nil, e
+		}
 		out := make([]domain.RemindTask, 0, len(ids))
 		now := s.now()
 		for n, id := range ids {
@@ -281,6 +296,9 @@ func (s *Service) ReorderTasks(ctx context.Context, channel string, ids []string
 			}
 			t.UpdatedAt = now
 			if e = r.PutTask(ctx, &t, ch.LinkedInventoryChannelID, false); e != nil {
+				return nil, e
+			}
+			if e = s.reserveCardOutput(ctx, r, channel, t.ID, OutputTaskCard, operationID, OutputPayload{}); e != nil {
 				return nil, e
 			}
 			out = append(out, t)
@@ -351,7 +369,13 @@ func (s *Service) CompleteTask(ctx context.Context, channel, id string, expected
 			return e
 		}
 		if c != nil {
-			return r.PutCatalog(ctx, c)
+			if e = r.PutCatalog(ctx, c); e != nil {
+				return e
+			}
+			if e = s.reserveCardOutput(ctx, r, c.Channel.ChannelID, c.Channel.ChannelID, OutputInventoryRender, "", OutputPayload{}); e != nil {
+				return e
+			}
+			return s.reserveRelatedTaskCards(ctx, r, c.Channel.ChannelID)
 		}
 		return nil
 	})

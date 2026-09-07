@@ -1,5 +1,6 @@
 import { MessageReaction, User, ModalBuilder } from 'discord.js';
 import { Logger } from '../utils/logger';
+import { withOutputOperation } from '../api/CoreClient';
 
 export interface ReactionHandlerContext {
   reaction: MessageReaction;
@@ -21,7 +22,7 @@ export abstract class BaseReactionHandler {
         return;
       }
 
-      await this.showModal(context);
+      await withOutputOperation({ actorId: context.user.id, operationKind: 'reaction' }, () => this.showModal(context));
       await context.reaction.users.remove(context.user.id);
     } catch (error) {
       this.logger.error(

@@ -43,6 +43,20 @@ function errorMessage(code: CoreErrorCode, details?: components['schemas']['ApiE
 
 // A preparation workflow shares one deadline across all API calls before showing a modal.
 const deadlines = new AsyncLocalStorage<{ deadline: number; acknowledged?: () => boolean }>();
+export interface OutputOperationContext {
+  actorId: string;
+  operationKind: string;
+  interactionId?: string;
+}
+const outputOperations = new AsyncLocalStorage<(OutputOperationContext & { writeAttempted: boolean }) | undefined>();
+export function hasOutputWrite(): boolean { return outputOperations.getStore()?.writeAttempted ?? false; }
+export function withOutputOperation<T>(operation: OutputOperationContext | undefined, action: () => Promise<T>): Promise<T> {
+  return outputOperations.run(operation ? { ...operation, writeAttempted: false } : undefined, action);
+}
+export function withInteractionOutput<T>(interaction: { user?: { id: string }; id?: string } | undefined, operationKind: string, action: () => Promise<T>): Promise<T> {
+  const operation = interaction?.user?.id ? { actorId: interaction.user.id, operationKind, interactionId: interaction.id } : undefined;
+  return withOutputOperation(operation, action);
+}
 export function withApiDeadline<T>(milliseconds: number, operation: () => Promise<T>): Promise<T> {
   return deadlines.run({ deadline: Math.min(deadlines.getStore()?.deadline ?? Infinity, Date.now() + milliseconds) }, operation);
 }
@@ -62,10 +76,17 @@ export class CoreClient {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), remaining);
     const writing = !['GET', 'HEAD'].includes(method);
+    const operation = writing ? outputOperations.getStore() : undefined;
+    const actorHeaders: Record<string, string> = operation ? {
+      'X-Actor-Id': operation.actorId,
+      'X-Operation-Kind': operation.operationKind,
+      ...(operation.interactionId ? { 'X-Interaction-Id': operation.interactionId } : {})
+    } : {};
     try {
+      if (operation && path !== '/v1/outputs/operation-log-events') operation.writeAttempted = true;
       const response = await this.fetcher(new URL(path, this.baseUrl), {
         method, signal: controller.signal, redirect: 'error',
-        headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json', 'X-Core-Timeout-Ms': String(Math.floor(remaining)) },
+        headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json', 'X-Core-Timeout-Ms': String(Math.floor(remaining)), ...actorHeaders },
         ...(body === undefined ? {} : { body: JSON.stringify(body) })
       });
       if (!response.ok) {
@@ -88,6 +109,8 @@ export class CoreClient {
   async assertReady(): Promise<void> {
     const result = await this.request<{ ready: boolean }>('GET', '/health');
     if (!result.ready) throw new CoreApiError('unavailable', 503);
+    const output = await this.request<{ contract: string }>('GET', '/v1/outputs/status');
+    if (output.contract !== 'go-discord-output-v1') throw new CoreApiError('unavailable', 503);
   }
 }
 

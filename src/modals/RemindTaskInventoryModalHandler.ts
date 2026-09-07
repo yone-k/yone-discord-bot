@@ -1,63 +1,24 @@
 import { Logger } from '../utils/logger';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
-import { RemindMessageManager } from '../services/RemindMessageManager';
 import { parseInventoryInput } from '../utils/RemindInventory';
-import type { RemindTask } from '../models/RemindTask';
-import { InventoryRepository } from '../services/InventoryRepository';
-import { InventoryMessageManager } from '../services/InventoryMessageManager';
-import type { InventoryItem } from '../models/InventoryItem';
-import { RemindTaskRefreshService } from '../services/RemindTaskRefreshService';
-
-interface InventoryRepositoryPort {
-  fetchAll(channelId: string): Promise<InventoryItem[]>;
-}
-
-interface InventoryMessageManagerPort {
-  createOrUpdateMessage(
-    channelId: string,
-    items: InventoryItem[],
-    listTitle: string,
-    client: ModalHandlerContext['interaction']['client']
-  ): Promise<{ success: boolean; errorMessage?: string }>;
-}
-
-interface RefreshServicePort {
-  refreshTasksUsingInventory(
-    linkedInventoryChannelId: string,
-    client: ModalHandlerContext['interaction']['client'],
-    options?: { excludeMessageId?: string }
-  ): Promise<void>;
-}
 
 export class RemindTaskInventoryModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
-  private messageManager: RemindMessageManager;
-  private inventoryRepository: InventoryRepositoryPort;
-  private inventoryMessageManager: InventoryMessageManagerPort;
-  private refreshService: RefreshServicePort;
 
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider,
-    repository?: RemindTaskRepository,
-    messageManager?: RemindMessageManager,
-    inventoryRepository?: InventoryRepositoryPort,
-    inventoryMessageManager?: InventoryMessageManagerPort,
-    refreshService?: RefreshServicePort
+    repository?: RemindTaskRepository
   ) {
     super('remind-task-inventory-modal', logger, operationLogService, metadataManager);
     this.deleteOnSuccess = true;
     this.silentOnSuccess = true;
     this.repository = repository || new RemindTaskRepository();
-    this.messageManager = messageManager || new RemindMessageManager();
-    this.inventoryRepository = inventoryRepository || new InventoryRepository();
-    this.inventoryMessageManager = inventoryMessageManager || InventoryMessageManager.getInstance();
-    this.refreshService = refreshService || new RemindTaskRefreshService();
   }
 
   public shouldHandle(context: ModalHandlerContext): boolean {
@@ -92,59 +53,13 @@ export class RemindTaskInventoryModalHandler extends BaseModalHandler {
 
 
     const input = context.interaction.fields.getTextInputValue('inventory-items');
-    let result: { task: RemindTask; inventoryChannelId: string | null; stockChanged: boolean };
     try {
       const items = parseInventoryInput(input);
-      result = await this.repository.editInventorySettings(channelId, task, items);
+      await this.repository.editInventorySettings(channelId, task, items);
     } catch (error) {
       return { success: false, message: error instanceof Error ? error.message : '在庫の更新に失敗しました' };
     }
-    if (result.stockChanged && result.inventoryChannelId) {
-      await this.refreshInventoryMessage(result.inventoryChannelId, context.interaction.client);
-      await this.refreshTasksUsingInventory(result.inventoryChannelId, context.interaction.client, messageId);
-    }
-    await this.messageManager.updateTaskMessage(channelId, messageId, result.task, context.interaction.client, new Date());
-
     return { success: true };
-  }
-
-  private async refreshInventoryMessage(
-    channelId: string,
-    client: ModalHandlerContext['interaction']['client']
-  ): Promise<void> {
-    try {
-      const items = await this.inventoryRepository.fetchAll(channelId);
-      const result = await this.inventoryMessageManager.createOrUpdateMessage(channelId, items, '在庫リスト', client);
-      if (!result.success) {
-        this.logger.warn('Failed to refresh inventory message after task inventory update', {
-          channelId,
-          error: result.errorMessage
-        });
-      }
-    } catch (error) {
-      this.logger.warn('Failed to refresh inventory message after task inventory update', {
-        channelId,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  }
-
-  private async refreshTasksUsingInventory(
-    linkedInventoryChannelId: string,
-    client: ModalHandlerContext['interaction']['client'],
-    messageId: string
-  ): Promise<void> {
-    try {
-      await this.refreshService.refreshTasksUsingInventory(linkedInventoryChannelId, client, {
-        excludeMessageId: messageId
-      });
-    } catch (error) {
-      this.logger.warn('Failed to refresh task messages after task inventory update', {
-        linkedInventoryChannelId,
-        messageId,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
   }
 
   private parseMessageId(customId: string): string | null {

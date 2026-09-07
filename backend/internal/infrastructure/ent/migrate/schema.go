@@ -9,6 +9,41 @@ import (
 )
 
 var (
+	// ChannelOutputSuspensionsColumns holds the columns for the "channel_output_suspensions" table.
+	ChannelOutputSuspensionsColumns = []*schema.Column{
+		{Name: "channel_id", Type: field.TypeString},
+		{Name: "suspended_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "suspended_by", Type: field.TypeString},
+	}
+	// ChannelOutputSuspensionsTable holds the schema information for the "channel_output_suspensions" table.
+	ChannelOutputSuspensionsTable = &schema.Table{
+		Name:       "channel_output_suspensions",
+		Columns:    ChannelOutputSuspensionsColumns,
+		PrimaryKey: []*schema.Column{ChannelOutputSuspensionsColumns[0]},
+	}
+	// DiscordCardViewsColumns holds the columns for the "discord_card_views" table.
+	DiscordCardViewsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID, Default: schema.Expr("uuidv7()")},
+		{Name: "channel_id", Type: field.TypeString},
+		{Name: "target_kind", Type: field.TypeString},
+		{Name: "target_id", Type: field.TypeString},
+		{Name: "mode", Type: field.TypeString},
+		{Name: "page", Type: field.TypeInt},
+		{Name: "view_version", Type: field.TypeInt64},
+	}
+	// DiscordCardViewsTable holds the schema information for the "discord_card_views" table.
+	DiscordCardViewsTable = &schema.Table{
+		Name:       "discord_card_views",
+		Columns:    DiscordCardViewsColumns,
+		PrimaryKey: []*schema.Column{DiscordCardViewsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "discordcardview_channel_id_target_kind_target_id",
+				Unique:  true,
+				Columns: []*schema.Column{DiscordCardViewsColumns[1], DiscordCardViewsColumns[2], DiscordCardViewsColumns[3]},
+			},
+		},
+	}
 	// InventoryChannelsColumns holds the columns for the "inventory_channels" table.
 	InventoryChannelsColumns = []*schema.Column{
 		{Name: "channel_id", Type: field.TypeString},
@@ -70,6 +105,72 @@ var (
 		Name:       "list_items",
 		Columns:    ListItemsColumns,
 		PrimaryKey: []*schema.Column{ListItemsColumns[0]},
+	}
+	// OperationRecordsColumns holds the columns for the "operation_records" table.
+	OperationRecordsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID, Default: schema.Expr("uuidv7()")},
+		{Name: "channel_id", Type: field.TypeString},
+		{Name: "actor_id", Type: field.TypeString},
+		{Name: "operation_kind", Type: field.TypeString},
+		{Name: "success", Type: field.TypeBool},
+		{Name: "occurred_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "facts", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "interaction_id", Type: field.TypeString, Unique: true, Nullable: true},
+	}
+	// OperationRecordsTable holds the schema information for the "operation_records" table.
+	OperationRecordsTable = &schema.Table{
+		Name:       "operation_records",
+		Columns:    OperationRecordsColumns,
+		PrimaryKey: []*schema.Column{OperationRecordsColumns[0]},
+	}
+	// OutputDispatchesColumns holds the columns for the "output_dispatches" table.
+	OutputDispatchesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID, Default: schema.Expr("uuidv7()")},
+		{Name: "task_id", Type: field.TypeUUID},
+		{Name: "attempt", Type: field.TypeInt},
+		{Name: "nonce", Type: field.TypeString, Default: ""},
+		{Name: "started_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "outcome", Type: field.TypeString},
+		{Name: "discord_message_id", Type: field.TypeString, Default: ""},
+	}
+	// OutputDispatchesTable holds the schema information for the "output_dispatches" table.
+	OutputDispatchesTable = &schema.Table{
+		Name:       "output_dispatches",
+		Columns:    OutputDispatchesColumns,
+		PrimaryKey: []*schema.Column{OutputDispatchesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "outputdispatch_task_id_attempt",
+				Unique:  true,
+				Columns: []*schema.Column{OutputDispatchesColumns[1], OutputDispatchesColumns[2]},
+			},
+		},
+	}
+	// OutputTasksColumns holds the columns for the "output_tasks" table.
+	OutputTasksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID, Default: schema.Expr("uuidv7()")},
+		{Name: "channel_id", Type: field.TypeString},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "target_id", Type: field.TypeString},
+		{Name: "operation_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "payload", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "destination_key", Type: field.TypeString},
+		{Name: "dedup_key", Type: field.TypeString, Unique: true, Nullable: true},
+		{Name: "output_order", Type: field.TypeInt64, Unique: true, Default: schema.Expr("nextval('output_tasks_output_order_seq'::regclass)")},
+		{Name: "state", Type: field.TypeString},
+		{Name: "attempts", Type: field.TypeInt, Default: 0},
+		{Name: "available_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "executor", Type: field.TypeString, Default: ""},
+		{Name: "last_error", Type: field.TypeString, Default: ""},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// OutputTasksTable holds the schema information for the "output_tasks" table.
+	OutputTasksTable = &schema.Table{
+		Name:       "output_tasks",
+		Columns:    OutputTasksColumns,
+		PrimaryKey: []*schema.Column{OutputTasksColumns[0]},
 	}
 	// RemindChannelsColumns holds the columns for the "remind_channels" table.
 	RemindChannelsColumns = []*schema.Column{
@@ -135,10 +236,15 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		ChannelOutputSuspensionsTable,
+		DiscordCardViewsTable,
 		InventoryChannelsTable,
 		InventoryItemsTable,
 		ListChannelsTable,
 		ListItemsTable,
+		OperationRecordsTable,
+		OutputDispatchesTable,
+		OutputTasksTable,
 		RemindChannelsTable,
 		RemindTasksTable,
 		RemindTaskInventoryItemsTable,
@@ -146,6 +252,12 @@ var (
 )
 
 func init() {
+	ChannelOutputSuspensionsTable.Annotation = &entsql.Annotation{
+		Table: "channel_output_suspensions",
+	}
+	DiscordCardViewsTable.Annotation = &entsql.Annotation{
+		Table: "discord_card_views",
+	}
 	InventoryChannelsTable.Annotation = &entsql.Annotation{
 		Table: "inventory_channels",
 	}
@@ -157,6 +269,15 @@ func init() {
 	}
 	ListItemsTable.Annotation = &entsql.Annotation{
 		Table: "list_items",
+	}
+	OperationRecordsTable.Annotation = &entsql.Annotation{
+		Table: "operation_records",
+	}
+	OutputDispatchesTable.Annotation = &entsql.Annotation{
+		Table: "output_dispatches",
+	}
+	OutputTasksTable.Annotation = &entsql.Annotation{
+		Table: "output_tasks",
 	}
 	RemindChannelsTable.Annotation = &entsql.Annotation{
 		Table: "remind_channels",

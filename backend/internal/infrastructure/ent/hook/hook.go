@@ -9,6 +9,30 @@ import (
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent"
 )
 
+// The ChannelOutputSuspensionFunc type is an adapter to allow the use of ordinary
+// function as ChannelOutputSuspension mutator.
+type ChannelOutputSuspensionFunc func(context.Context, *ent.ChannelOutputSuspensionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ChannelOutputSuspensionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ChannelOutputSuspensionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChannelOutputSuspensionMutation", m)
+}
+
+// The DiscordCardViewFunc type is an adapter to allow the use of ordinary
+// function as DiscordCardView mutator.
+type DiscordCardViewFunc func(context.Context, *ent.DiscordCardViewMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DiscordCardViewFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DiscordCardViewMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DiscordCardViewMutation", m)
+}
+
 // The InventoryChannelFunc type is an adapter to allow the use of ordinary
 // function as InventoryChannel mutator.
 type InventoryChannelFunc func(context.Context, *ent.InventoryChannelMutation) (ent.Value, error)
@@ -55,6 +79,42 @@ func (f ListItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ListItemMutation", m)
+}
+
+// The OperationRecordFunc type is an adapter to allow the use of ordinary
+// function as OperationRecord mutator.
+type OperationRecordFunc func(context.Context, *ent.OperationRecordMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OperationRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OperationRecordMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OperationRecordMutation", m)
+}
+
+// The OutputDispatchFunc type is an adapter to allow the use of ordinary
+// function as OutputDispatch mutator.
+type OutputDispatchFunc func(context.Context, *ent.OutputDispatchMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OutputDispatchFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OutputDispatchMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OutputDispatchMutation", m)
+}
+
+// The OutputTaskFunc type is an adapter to allow the use of ordinary
+// function as OutputTask mutator.
+type OutputTaskFunc func(context.Context, *ent.OutputTaskMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OutputTaskFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OutputTaskMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OutputTaskMutation", m)
 }
 
 // The RemindChannelFunc type is an adapter to allow the use of ordinary

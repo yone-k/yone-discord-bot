@@ -1,24 +1,10 @@
 import { StringSelectMenuInteraction } from 'discord.js';
 import { BaseSelectMenuHandler, SelectMenuHandlerContext } from '../base/BaseSelectMenuHandler';
 import { Logger } from '../utils/logger';
-import { OperationLogService } from './OperationLogService';
-import { ListChannelStore } from './ListChannelStore';
 
 export class SelectMenuManager {
   private handlers: Map<string, BaseSelectMenuHandler> = new Map();
-  private logger: Logger;
-  private operationLogService?: OperationLogService;
-  private metadataManager?: ListChannelStore;
-
-  constructor(
-    logger: Logger,
-    operationLogService?: OperationLogService,
-    metadataManager?: ListChannelStore
-  ) {
-    this.logger = logger;
-    this.operationLogService = operationLogService;
-    this.metadataManager = metadataManager;
-  }
+  constructor(private logger: Logger) {}
 
   public registerHandler(handler: BaseSelectMenuHandler): void {
     const customId = handler.getCustomId();
@@ -37,14 +23,6 @@ export class SelectMenuManager {
       customId,
       handlerName: handler.constructor.name
     });
-  }
-
-  public getOperationLogService(): OperationLogService | undefined {
-    return this.operationLogService;
-  }
-
-  public getMetadataManager(): ListChannelStore | undefined {
-    return this.metadataManager;
   }
 
   public async handleSelectMenuInteraction(interaction: StringSelectMenuInteraction): Promise<void> {

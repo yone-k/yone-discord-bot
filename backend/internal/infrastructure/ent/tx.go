@@ -14,6 +14,10 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// ChannelOutputSuspension is the client for interacting with the ChannelOutputSuspension builders.
+	ChannelOutputSuspension *ChannelOutputSuspensionClient
+	// DiscordCardView is the client for interacting with the DiscordCardView builders.
+	DiscordCardView *DiscordCardViewClient
 	// InventoryChannel is the client for interacting with the InventoryChannel builders.
 	InventoryChannel *InventoryChannelClient
 	// InventoryItem is the client for interacting with the InventoryItem builders.
@@ -22,6 +26,12 @@ type Tx struct {
 	ListChannel *ListChannelClient
 	// ListItem is the client for interacting with the ListItem builders.
 	ListItem *ListItemClient
+	// OperationRecord is the client for interacting with the OperationRecord builders.
+	OperationRecord *OperationRecordClient
+	// OutputDispatch is the client for interacting with the OutputDispatch builders.
+	OutputDispatch *OutputDispatchClient
+	// OutputTask is the client for interacting with the OutputTask builders.
+	OutputTask *OutputTaskClient
 	// RemindChannel is the client for interacting with the RemindChannel builders.
 	RemindChannel *RemindChannelClient
 	// RemindTask is the client for interacting with the RemindTask builders.
@@ -159,10 +169,15 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.ChannelOutputSuspension = NewChannelOutputSuspensionClient(tx.config)
+	tx.DiscordCardView = NewDiscordCardViewClient(tx.config)
 	tx.InventoryChannel = NewInventoryChannelClient(tx.config)
 	tx.InventoryItem = NewInventoryItemClient(tx.config)
 	tx.ListChannel = NewListChannelClient(tx.config)
 	tx.ListItem = NewListItemClient(tx.config)
+	tx.OperationRecord = NewOperationRecordClient(tx.config)
+	tx.OutputDispatch = NewOutputDispatchClient(tx.config)
+	tx.OutputTask = NewOutputTaskClient(tx.config)
 	tx.RemindChannel = NewRemindChannelClient(tx.config)
 	tx.RemindTask = NewRemindTaskClient(tx.config)
 	tx.RemindTaskInventoryItem = NewRemindTaskInventoryItemClient(tx.config)
@@ -175,7 +190,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: InventoryChannel.QueryXXX(), the query will be executed
+// applies a query, for example: ChannelOutputSuspension.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

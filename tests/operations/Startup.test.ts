@@ -8,6 +8,7 @@ let root: string;
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'db-start-'));
   cpSync('scripts', join(root, 'scripts'), { recursive: true });
+  cpSync('deploy', join(root, 'deploy'), { recursive: true });
   mkdirSync(join(root, 'bin'));
   mkdirSync(join(root, 'storage/postgres'), { recursive: true });
   mkdirSync(join(root, '.deploy-state'));
@@ -18,9 +19,10 @@ beforeEach(() => {
   writeFileSync(join(root, 'bin/docker'), `#!/bin/sh
 echo "$*" >> "$CALLS"
 case "$*" in
+  *'config --format json'*) printf '%s\\n' '{"services":{"bot":{"environment":{"DISCORD_BOT_TOKEN":"same","CORE_API_TOKEN":"same"}},"api":{"environment":{"DISCORD_BOT_TOKEN":"same","CORE_API_TOKEN":"same","DISCORD_OUTPUT_ENABLED":"false"}}}}' ;;
   *'ps --status running'*) [ "$RUNNING" = 0 ] || echo existing ;;
   *'ops --check'*) exit "$SCHEMA_FAIL" ;;
-  *'up -d --no-deps --no-build'*) [ -f .deploy-state/schema-v2-confirmed ] || exit 9; exit "$START_FAIL" ;;
+  *'up -d --no-deps --no-build'*) [ -f .deploy-state/schema-v3-confirmed ] || exit 9; exit "$START_FAIL" ;;
 esac
 `, { mode: 0o755 });
 });
@@ -42,15 +44,15 @@ it('refuses initialization while a database container is running', () => {
 });
 it('does not start either service if schema validation fails', () => {
   expect(run('pi-start.sh', { SCHEMA_FAIL: '1' }).status).not.toBe(0);
-  expect(existsSync(join(root, '.deploy-state/schema-v2-confirmed'))).toBe(false);
+  expect(existsSync(join(root, '.deploy-state/schema-v3-confirmed'))).toBe(false);
 });
-it('records confirmed v2 even if Compose startup fails', () => {
+it('records confirmed v3 even if Compose startup fails', () => {
   expect(run('pi-start.sh', { START_FAIL: '1' }).status).not.toBe(0);
-  expect(existsSync(join(root, '.deploy-state/schema-v2-confirmed'))).toBe(true);
+  expect(existsSync(join(root, '.deploy-state/schema-v3-confirmed'))).toBe(true);
 });
 it('requires both services stopped before manual startup', () => {
   expect(run('pi-start.sh', { RUNNING: '1' }).status).not.toBe(0);
-  expect(existsSync(join(root, '.deploy-state/schema-v2-confirmed'))).toBe(false);
+  expect(existsSync(join(root, '.deploy-state/schema-v3-confirmed'))).toBe(false);
 });
 
 it('starts and waits for API before starting and waiting for Bot', () => {

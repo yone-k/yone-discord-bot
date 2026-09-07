@@ -1,7 +1,7 @@
-import { CoreApiError } from '../api/CoreClient';
+import { CoreApiError, withInteractionOutput } from '../api/CoreClient';
 import { ModalSubmitInteraction } from 'discord.js';
 import { Logger } from '../utils/logger';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { OperationResult, OperationInfo } from '../models/types/OperationLog';
 
@@ -17,13 +17,13 @@ export abstract class BaseModalHandler {
   protected deleteOnFailure: boolean = false;
   protected silentOnSuccess: boolean = false;
   protected silentOnFailure: boolean = false;
-  protected operationLogService?: OperationLogService;
+  protected operationLogService?: UiOperationEvents;
   protected metadataManager?: MetadataProvider;
 
   constructor(
     customId: string, 
     logger: Logger, 
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider
   ) {
     this.customId = customId;
@@ -32,7 +32,11 @@ export abstract class BaseModalHandler {
     this.metadataManager = metadataManager;
   }
 
-  public async handle(context: ModalHandlerContext): Promise<void> {
+  public handle(context: ModalHandlerContext): Promise<void> {
+    return withInteractionOutput(context.interaction, this.constructor.name, () => this.handleInteraction(context));
+  }
+
+  private async handleInteraction(context: ModalHandlerContext): Promise<void> {
     try {
       if (!this.shouldHandle(context)) {
         return;
@@ -128,47 +132,11 @@ export abstract class BaseModalHandler {
    * 操作ログの記録を試行する（非侵襲的）
    */
   private async tryLogOperation(context: ModalHandlerContext, result: OperationResult): Promise<void> {
+    if (!this.operationLogService) return;
     try {
-      // 操作ログサービスとメタデータマネージャーが注入されていない場合はスキップ
-      if (!this.operationLogService || !this.metadataManager) {
-        return;
-      }
-
-      // guild、channelが存在しない場合はスキップ
-      if (!context.interaction.guild || !context.interaction.channelId) {
-        return;
-      }
-
-      const channelId = context.interaction.channelId;
-
-      // MetadataManagerからoperationLogThreadIdを取得
-      const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
-      
-      if (!metadataResult.success || !metadataResult.metadata?.operationLogThreadId) {
-        // operationLogThreadIdが存在しない場合はログ記録をスキップ
-        return;
-      }
-
-      // 操作情報を取得
-      const operationInfo = this.getOperationInfo(context);
-
-      // 操作ログを記録
-      await this.operationLogService.logOperation(
-        channelId,
-        operationInfo, 
-        result,
-        context.interaction.user.id,
-        context.interaction.client,
-        result.details
-      );
-
-    } catch (error) {
-      // 非侵襲的設計：例外を投げずに警告ログのみ記録
-      this.logger.warn('Failed to log operation', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        customId: this.customId,
-        userId: context.interaction.user.id
-      });
+      await this.operationLogService.record(context.interaction, this.constructor.name, result);
+    } catch {
+      this.logger.warn('Failed to record UI operation', { customId: this.customId });
     }
   }
 

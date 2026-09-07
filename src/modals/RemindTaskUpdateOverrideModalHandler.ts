@@ -1,28 +1,24 @@
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { MetadataProvider } from '../services/MetadataProvider';
-import { OperationLogService } from '../services/OperationLogService';
-import { RemindMessageManager } from '../services/RemindMessageManager';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 import { normalizeTimeOfDay } from '../utils/RemindSchedule';
 import { Logger } from '../utils/logger';
 
 export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
-  private messageManager: RemindMessageManager;
 
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider,
-    repository?: RemindTaskRepository,
-    messageManager?: RemindMessageManager
+    repository?: RemindTaskRepository
   ) {
     super('remind-task-update-override-modal', logger, operationLogService, metadataManager);
     this.deleteOnSuccess = true;
     this.silentOnSuccess = true;
     this.repository = repository || new RemindTaskRepository();
-    this.messageManager = messageManager || new RemindMessageManager();
   }
 
   public shouldHandle(context: ModalHandlerContext): boolean {
@@ -89,12 +85,11 @@ export class RemindTaskUpdateOverrideModalHandler extends BaseModalHandler {
       return { success: false, message: '前回完了日、次回期限、上限回数のいずれかを入力してください' };
     }
 
-    const updateResult = await this.repository.patchTask(channelId, task, {
+    await this.repository.patchTask(channelId, task, {
       ...(lastDoneAt ? { lastDoneAt } : {}),
       ...(nextDueAt ? { nextDueAt } : {}),
       overdueNotifyLimit: overdueNotifyLimit ?? null
     });
-    await this.messageManager.updateTaskMessage(channelId, messageId, updateResult.task, context.interaction.client, new Date());
 
     return { success: true };
   }

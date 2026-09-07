@@ -22,10 +22,16 @@ func (s *Service) SaveListChannel(ctx context.Context, c domain.ListChannel) (*d
 		if l == nil {
 			c.EditVersion = 0
 			l = &domain.List{Channel: c, Items: []domain.ListItem{}}
-		} else if e = l.UpdateSettings(c); e != nil {
-			return nil, e
+		} else {
+			c.MessageID, c.OperationLogThreadID = l.Channel.MessageID, l.Channel.OperationLogThreadID
+			if e = l.UpdateSettings(c); e != nil {
+				return nil, e
+			}
 		}
 		if e = r.PutList(ctx, l); e != nil {
+			return nil, e
+		}
+		if e = s.reserveBusinessOutput(ctx, r, c.ChannelID, c.ChannelID, OutputListRender, l.Channel.OperationLogThreadID, OperationFacts{}, OutputPayload{}); e != nil {
 			return nil, e
 		}
 		return &l.Channel, nil
@@ -54,6 +60,9 @@ func (s *Service) PatchListChannel(ctx context.Context, id string, p ChannelPatc
 		if e = r.PutList(ctx, l); e != nil {
 			return nil, e
 		}
+		if e = s.reserveBusinessOutput(ctx, r, id, id, OutputListRender, l.Channel.OperationLogThreadID, OperationFacts{}, OutputPayload{}); e != nil {
+			return nil, e
+		}
 		return &l.Channel, nil
 	})
 }
@@ -75,10 +84,21 @@ func (s *Service) mutateList(ctx context.Context, id string, fn func(*domain.Lis
 		if e != nil {
 			return nil, e
 		}
+		before := append([]domain.ListItem(nil), l.Items...)
 		if e = fn(l); e != nil {
 			return nil, e
 		}
 		if e = r.PutList(ctx, l); e != nil {
+			return nil, e
+		}
+		facts := OperationFacts{}
+		if actor, ok := OutputOperationFromContext(ctx); ok && actor.Kind == "EditListModalHandler" {
+			facts, e = listOperationFacts(before, l.Items)
+			if e != nil {
+				return nil, e
+			}
+		}
+		if e = s.reserveBusinessOutput(ctx, r, id, id, OutputListRender, l.Channel.OperationLogThreadID, facts, OutputPayload{}); e != nil {
 			return nil, e
 		}
 		return l, nil

@@ -1,5 +1,5 @@
 import type { InventoryChannelMetadata } from '../models/InventoryChannelMetadata';
-import type { InventoryChannel, InventoryChannelRepository, OperationResult } from '../api/contracts';
+import type { InventoryChannel, Schema, InventoryChannelRepository, OperationResult } from '../api/contracts';
 import { ApiInventoryChannelRepository } from '../api/Repositories';
 export type { InventoryChannelMetadata } from '../models/InventoryChannelMetadata';
 
@@ -17,17 +17,15 @@ export class InventoryChannelStore {
     return channel ? toMetadata(channel) : null;
   }
   async listChannelMetadata(): Promise<InventoryChannelMetadata[]> { return (await this.repository.list()).map(toMetadata); }
-  async createChannelMetadata(channelId: string, metadata: Omit<InventoryChannelMetadata, 'channelId'>): Promise<OperationResult> {
-    await this.repository.save({ channelId, messageId: metadata.messageId || null, listTitle: metadata.listTitle,
-      defaultCategory: metadata.defaultCategory, operationLogThreadId: metadata.operationLogThreadId || null });
+  async createChannelMetadata(channelId: string, metadata: Pick<InventoryChannelMetadata, 'listTitle' | 'defaultCategory'>): Promise<OperationResult> {
+    await this.repository.save({ channelId, listTitle: metadata.listTitle,
+      defaultCategory: metadata.defaultCategory });
     return { success: true };
   }
-  async updateChannelMetadata(channelId: string, updates: Partial<Omit<InventoryChannelMetadata, 'channelId'>>): Promise<OperationResult> {
-    const patch: Partial<Omit<InventoryChannel, 'channelId'>> = {};
-    if ('messageId' in updates) patch.messageId = updates.messageId || null;
+  async updateChannelMetadata(channelId: string, updates: Partial<Pick<InventoryChannelMetadata, 'listTitle' | 'defaultCategory'>>): Promise<OperationResult> {
+    const patch: Schema['InventoryChannelPatch'] = {};
     if (updates.listTitle !== undefined) patch.listTitle = updates.listTitle;
     if (updates.defaultCategory !== undefined) patch.defaultCategory = updates.defaultCategory;
-    if ('operationLogThreadId' in updates) patch.operationLogThreadId = updates.operationLogThreadId || null;
     await this.repository.patch(channelId, patch);
     return { success: true };
   }

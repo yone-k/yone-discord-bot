@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { EditListModalHandler } from '../../src/modals/EditListModalHandler';
 import { Logger } from '../../src/utils/logger';
 import { RepositoryError } from '../../src/api/contracts';
+import { serializeListCsv } from '../../src/utils/ListInput';
 const setup = (customId = 'edit-list-modal:123:456:7', text = '牛乳,,,'): {
     repo: {
         save: ReturnType<typeof vi.fn>;
@@ -21,6 +22,12 @@ const setup = (customId = 'edit-list-modal:123:456:7', text = '牛乳,,,'): {
   return { repo, handler, context, messages };
 };
 describe('編集モーダルDB保存', () => {
+  it('フォームでソートしたCSVの送信順とexpectedVersionを保存に渡す', async () => {
+    const items = ['z', 'a'].map(name => ({ name, category: null, until: null, isCompleted: false }));
+    const { repo, handler, context } = setup(undefined, serializeListCsv(items));
+    expect((await (handler as any).executeAction(context)).success).toBe(true);
+    expect(repo.save).toHaveBeenCalledExactlyOnceWith('123', '7', [items[1], items[0]]);
+  });
   it('開いた版を保存に渡す', async () => { const { repo, handler, context } = setup(); expect((await (handler as any).executeAction(context)).success).toBe(true); expect(repo.save).toHaveBeenCalledWith('123', '7', [{ name: '牛乳', category: null, until: null, isCompleted: false }]); });
   it('競合は再読込を促し再保存しない', async () => { const { repo, handler, context, messages } = setup(); repo.save.mockRejectedValue(new RepositoryError('conflict', 409)); const result = await (handler as any).executeAction(context); expect(result.success).toBe(false); expect(result.message).toContain('開き直'); expect(messages.createOrUpdateMessageWithMetadataV2).not.toHaveBeenCalled(); });
   it.each(['edit-list-modal:123:999:7', 'edit-list-modal:999:456:7', 'edit-list-modal'])('他人・別チャンネル・旧モーダルは拒否 %s', async (id) => { const { repo, handler, context } = setup(id); expect((await (handler as any).executeAction(context)).success).toBe(false); expect(repo.save).not.toHaveBeenCalled(); });

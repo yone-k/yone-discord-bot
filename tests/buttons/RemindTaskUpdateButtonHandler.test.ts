@@ -33,13 +33,15 @@ describe('RemindTaskUpdateButtonHandler', () => {
       user: { id: 'user-1', bot: false },
       channelId: 'channel-1',
       message: { id: 'msg-1' },
-      update: vi.fn().mockResolvedValue(undefined)
+      deferUpdate: vi.fn().mockResolvedValue(undefined),
+      editReply: vi.fn().mockResolvedValue(undefined)
     };
 
     await handler.handle({ interaction } as any);
 
-    expect(interaction.update).toHaveBeenCalled();
-    const payload = interaction.update.mock.calls[0][0];
+    expect(interaction.deferUpdate.mock.invocationCallOrder[0]).toBeLessThan(mockRepository.findTaskByMessageId.mock.invocationCallOrder[0]);
+    expect(interaction.editReply).toHaveBeenCalled();
+    const payload = interaction.editReply.mock.calls[0][0];
     expect(payload.components).toHaveLength(1);
     const container = payload.components[0];
     expect(container.type).toBe(ComponentType.Container);

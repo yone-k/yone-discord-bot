@@ -1,6 +1,7 @@
 import { ListItem } from '../models/ListItem';
 import { ListEditItem } from '../api/contracts';
 import { parseCsvRecords, quoteCsvCell } from './Csv';
+import { orderItemsForForm } from './ItemOrder';
 function date(value: string): string | null {
   if (!value)
     return null;
@@ -42,8 +43,8 @@ export function parseListAdd(text: string, category: string): ListEditItem[] {
     throw new Error('名前は必須です');
   return items;
 }
-export function serializeListCsv(items: ListEditItem[]): string {
-  return items.map(item => [item.name, item.category || '', item.until || '', item.isCompleted ? '1' : '']
+export function serializeListCsv(items: ListEditItem[], defaultCategory?: string): string {
+  return orderItemsForForm(items, defaultCategory).map(item => [item.name, item.category || '', item.until || '', item.isCompleted ? '1' : '']
     .map(quoteCsvCell).join(',')).join('\n');
 }
 export function toDisplayListItem(item: ListEditItem & {

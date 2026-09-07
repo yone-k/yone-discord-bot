@@ -1,5 +1,5 @@
 import type { InventoryItem } from '../models/InventoryItem';
-import { DEFAULT_CATEGORY } from '../models/CategoryType';
+import { orderItemsForForm } from './ItemOrder';
 import { parseCsvRecords, quoteCsvCell } from './Csv';
 export interface InventoryAddCsvItem {
     name: string;
@@ -39,31 +39,7 @@ export const parseInventoryAddCsvText = (text: string): InventoryAddCsvItem[] =>
   });
 };
 export const orderInventoryItemsForCsv = <T extends Pick<InventoryItem, 'name' | 'stock' | 'category'>>(items: T[], defaultCategory?: string): T[] => {
-  const grouped = new Map<string, T[]>();
-  for (const item of items) {
-    const effective = item.category && item.category.trim() !== ''
-      ? item.category
-      : (defaultCategory ?? '');
-    const groupKey = effective || DEFAULT_CATEGORY;
-    if (!grouped.has(groupKey)) {
-      grouped.set(groupKey, []);
-    }
-        grouped.get(groupKey)!.push(item);
-  }
-  const sortedCategories = [...grouped.keys()].sort((a, b) => {
-    if (a === DEFAULT_CATEGORY) {
-      return 1;
-    }
-    if (b === DEFAULT_CATEGORY) {
-      return -1;
-    }
-    return a.localeCompare(b, 'ja');
-  });
-  const ordered: T[] = [];
-  for (const cat of sortedCategories) {
-    ordered.push(...grouped.get(cat)!);
-  }
-  return ordered;
+  return orderItemsForForm(items, defaultCategory);
 };
 /** 行番号は編集開始時の在庫IDに対応する。新規行だけ番号を空欄にする。 */
 export function formatInventoryEditCsv(items: InventoryItem[], defaultCategory?: string): string {

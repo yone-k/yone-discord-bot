@@ -1,24 +1,10 @@
 import { ButtonInteraction } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
-import { OperationLogService } from './OperationLogService';
-import { ListChannelStore } from './ListChannelStore';
 
 export class ButtonManager {
   private handlers: Map<string, BaseButtonHandler> = new Map();
-  private logger: Logger;
-  private operationLogService?: OperationLogService;
-  private metadataManager?: ListChannelStore;
-
-  constructor(
-    logger: Logger, 
-    operationLogService?: OperationLogService,
-    metadataManager?: ListChannelStore
-  ) {
-    this.logger = logger;
-    this.operationLogService = operationLogService;
-    this.metadataManager = metadataManager;
-  }
+  constructor(private logger: Logger) {}
 
   public registerHandler(handler: BaseButtonHandler): void {
     const customId = handler.getCustomId();
@@ -37,14 +23,6 @@ export class ButtonManager {
       customId,
       handlerName: handler.constructor.name
     });
-  }
-
-  public getOperationLogService(): OperationLogService | undefined {
-    return this.operationLogService;
-  }
-
-  public getMetadataManager(): ListChannelStore | undefined {
-    return this.metadataManager;
   }
 
   public async handleButtonInteraction(interaction: ButtonInteraction): Promise<void> {

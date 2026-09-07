@@ -16,24 +16,12 @@ import { registerAllButtons } from './registry/RegisterButtons';
 import { registerAllModals } from './registry/RegisterModals';
 import { SelectMenuManager } from './services/SelectMenuManager';
 import { registerAllSelectMenus } from './registry/RegisterSelectMenus';
-import { OperationLogService } from './services/OperationLogService';
+import { UiOperationEvents } from './services/UiOperationEvents';
 import { ListChannelStore } from './services/ListChannelStore';
-import { NotificationScheduler } from './services/NotificationScheduler';
 import { AutocompleteManager } from './services/AutocompleteManager';
 import { registerAllAutocompletes } from './registry/RegisterAutocompletes';
 import { coreClient } from './api/CoreClient';
 import { CoreLifecycle } from './services/CoreLifecycle';
-import { refreshStoredDisplays } from './services/StartupDisplayRefresh';
-import { RemindChannelStore } from './services/RemindChannelStore';
-import { hydrateListItem, hydrateTask } from './api/Repositories';
-import type { Schema } from './api/contracts';
-import { fromStoredTask, RemindTaskRepository } from './services/RemindTaskRepository';
-import { RemindInitializationService } from './services/RemindInitializationService';
-import { MessageManager } from './services/MessageManager';
-import { InventoryMessageManager } from './services/InventoryMessageManager';
-import { RemindMessageManager } from './services/RemindMessageManager';
-import { ListFormatter } from './ui/ListFormatter';
-import { toDisplayListItem } from './utils/ListInput';
 
 class DiscordBot {
   private client: Client;
@@ -47,9 +35,8 @@ class DiscordBot {
   private autocompleteManager!: AutocompleteManager;
   private httpServer!: express.Application;
   private server: Server | null = null;
-  private operationLogService!: OperationLogService;
+  private operationLogService!: UiOperationEvents;
   private metadataManager!: ListChannelStore;
-  private remindScheduler!: NotificationScheduler;
   private coreLifecycle = new CoreLifecycle(() => coreClient().assertReady());
 
   constructor() {
@@ -90,14 +77,14 @@ class DiscordBot {
 
   private registerReactionAndModalHandlers(): void {
     try {
-      // ListChannelStoreとOperationLogServiceを初期化
+      // ListChannelStoreとUiOperationEventsを初期化
       this.metadataManager = ListChannelStore.getInstance();
-      this.operationLogService = new OperationLogService(this.logger, this.metadataManager);
+      this.operationLogService = new UiOperationEvents(this.logger);
       
       this.reactionManager = new ReactionManager(this.logger);
       this.modalManager = new ModalManager(this.logger);
-      this.buttonManager = new ButtonManager(this.logger, this.operationLogService, this.metadataManager);
-      this.selectMenuManager = new SelectMenuManager(this.logger, this.operationLogService, this.metadataManager);
+      this.buttonManager = new ButtonManager(this.logger);
+      this.selectMenuManager = new SelectMenuManager(this.logger);
       this.autocompleteManager = new AutocompleteManager();
 
       // 新しいレジストリ関数を使用してハンドラーを登録
@@ -230,14 +217,6 @@ class DiscordBot {
       // 起動時に統計情報をログ出力
       this.commandManager.logExecutionSummary();
 
-      this.coreLifecycle.initializeDisplays(
-        () => this.refreshDisplays(),
-        () => {
-          this.remindScheduler = new NotificationScheduler();
-          this.remindScheduler.start(this.client);
-        },
-        error => this.logger.error('Startup display refresh failed; retrying in 60 seconds', { error: error instanceof Error ? error.message : 'Unknown error' })
-      );
 
     });
 
@@ -361,7 +340,6 @@ class DiscordBot {
       
       // シャットダウン前に統計情報を出力
       this.commandManager.logExecutionSummary();
-      this.remindScheduler?.stop();
       this.coreLifecycle.stop();
       
       // HTTPサーバーを停止
@@ -384,42 +362,6 @@ class DiscordBot {
     }
   }
 
-  private async refreshDisplays(): Promise<void> {
-    const remindStore = RemindChannelStore.getInstance();
-    const snapshot = await coreClient().request<Schema['Initialization']>('GET', '/v1/display/initialization');
-    const messages = new MessageManager();
-    const reminderMessages = new RemindMessageManager();
-    const reminderInitialization = new RemindInitializationService(new RemindTaskRepository(), remindStore, reminderMessages);
-    const failures = await refreshStoredDisplays([
-      { list: (): Promise<{ channelId: string }[]> => Promise.resolve(snapshot.lists.map(display => display.channel)), render: async ({ channelId }): Promise<void> => {
-        const display = snapshot.lists.find(value => value.channel.channelId === channelId)!;
-        const metadata = display.channel;
-        const items = display.items.map(hydrateListItem).map(toDisplayListItem);
-        const content = await ListFormatter.formatDataListContent(metadata.listTitle, items, channelId, metadata.defaultCategory);
-        const result = await messages.createOrUpdateMessageWithMetadataV2(channelId, ListFormatter.buildListComponents(content), metadata.listTitle, this.client, 'list');
-        if (!result.success) throw new Error(result.errorMessage);
-      } },
-      { list: (): Promise<{ channelId: string }[]> => Promise.resolve(snapshot.inventories.map(display => display.channel)), render: async ({ channelId }): Promise<void> => {
-        const display = snapshot.inventories.find(value => value.channel.channelId === channelId)!;
-        const items = display.items.map(item => ({ ...item, category: item.category ?? '' }));
-        const result = await InventoryMessageManager.getInstance().createOrUpdateMessage(channelId, items, display.channel.listTitle, this.client);
-        if (!result.success) throw new Error(result.errorMessage);
-      } },
-      { list: (): Promise<{ channelId: string }[]> => Promise.resolve(snapshot.remindChannels), render: async ({ channelId }): Promise<void> => {
-        const metadata = snapshot.remindChannels.find(channel => channel.channelId === channelId)!;
-        const result = await reminderMessages.ensureReminderThread(channelId, this.client, metadata.remindNoticeThreadId ?? undefined, metadata.remindNoticeMessageId ?? undefined);
-        if (!result.success || !result.threadId || !result.parentMessageId) throw new Error(result.message);
-        await remindStore.updateChannelMetadata(channelId, { remindNoticeThreadId: result.threadId, remindNoticeMessageId: result.parentMessageId });
-        for (const display of snapshot.reminders.filter(value => value.channel.channelId === channelId)) {
-          const task = fromStoredTask(hydrateTask(display.task));
-          const rendered = await reminderInitialization.syncTaskMessage(channelId, task, this.client);
-          if (!rendered.success) throw new Error(rendered.message);
-        }
-      } }
-    ]);
-    for (const failure of failures) this.logger.error('Startup display refresh failed', failure);
-    if (failures.length) throw new Error('起動時の表示更新が完了しませんでした');
-  }
 }
 
 async function main(): Promise<void> {

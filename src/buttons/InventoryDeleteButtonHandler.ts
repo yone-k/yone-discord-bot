@@ -1,37 +1,29 @@
-import { MessageFlags } from 'discord.js';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
-import type { InventoryChannelMetadata } from '../models/InventoryChannelMetadata';
 import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import type { MetadataProvider } from '../services/MetadataProvider';
-import type { OperationLogService } from '../services/OperationLogService';
-import { InventoryChannelStore } from '../services/InventoryChannelStore';
+import type { UiOperationEvents } from '../services/UiOperationEvents';
 import { InventoryRepository } from '../services/InventoryRepository';
-import { InventoryFormatter } from '../ui/InventoryFormatter';
+import { OutputApi } from '../api/OutputApi';
+import { CoreApiError } from '../api/CoreClient';
 import { Logger } from '../utils/logger';
 
 interface InventoryRepositoryPort {
   fetchAll(channelId: string): Promise<InventoryItem[]>;
 }
 
-interface InventoryMetadataReader {
-  getChannelMetadata(channelId: string): Promise<InventoryChannelMetadata | null>;
-}
-
 export class InventoryDeleteButtonHandler extends BaseButtonHandler {
   private readonly repository: InventoryRepositoryPort;
-  private readonly inventoryMetadataManager?: InventoryMetadataReader;
 
   constructor(
     logger: Logger,
     repository: InventoryRepositoryPort = new InventoryRepository(),
-    inventoryMetadataManager?: InventoryMetadataReader,
-    operationLogService?: OperationLogService,
+    private readonly outputs: Pick<OutputApi, 'setCardView'> = new OutputApi(),
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider
   ) {
     super('inventory_delete', logger, operationLogService, metadataManager);
     this.repository = repository;
-    this.inventoryMetadataManager = inventoryMetadataManager;
     this.ephemeral = true;
   }
 
@@ -49,28 +41,27 @@ export class InventoryDeleteButtonHandler extends BaseButtonHandler {
   }
 
   protected async executeAction(context: ButtonHandlerContext): Promise<OperationResult> {
-    const channelId = context.interaction.channelId;
-    const items = await this.repository.fetchAll(channelId);
-
-    if (items.length === 0) {
-      await context.interaction.reply({
-        content: '在庫アイテムがありません。',
-        flags: ['Ephemeral']
-      });
-      return { success: false, message: '在庫アイテムがありません' };
+    const { interaction } = context;
+    const channelId = interaction.channelId;
+    if (!channelId) {
+      await interaction.reply({ content: 'チャンネルIDが取得できません', flags: ['Ephemeral'] });
+      return { success: false, message: 'チャンネルIDが取得できません' };
     }
-
-    const page = this.parsePage(context.interaction.customId);
-    const metadata = await this.getInventoryMetadata(channelId);
-    const listTitle = metadata?.listTitle || '在庫リスト';
-    const defaultCategory = metadata?.defaultCategory;
-    const content = await InventoryFormatter.formatDataContent(items, listTitle, channelId, defaultCategory);
-    const components = InventoryFormatter.buildInventorySelectionComponents(content, items, 'delete', page);
-    await context.interaction.update({
-      flags: MessageFlags.IsComponentsV2,
-      components
-    });
-    return { success: true, message: '在庫削除セレクトメニューを表示しました' };
+    await interaction.deferUpdate();
+    try {
+      const items = await this.repository.fetchAll(channelId);
+      if (items.length === 0) {
+        await interaction.followUp({ content: '在庫アイテムがありません。', flags: ['Ephemeral'] });
+        return { success: false, message: '在庫アイテムがありません' };
+      }
+      const page = this.parsePage(interaction.customId);
+      await this.outputs.setCardView(channelId, 'inventory', channelId, { mode: 'delete_selection', page });
+      return { success: true, message: '在庫削除セレクトメニューを表示しました' };
+    } catch (error) {
+      const message = error instanceof CoreApiError ? error.message : 'エラーが発生しました。もう一度お試しください。';
+      await interaction.followUp({ content: message, flags: ['Ephemeral'] });
+      return { success: false, message };
+    }
   }
 
   protected getOperationInfo(_context: ButtonHandlerContext): OperationInfo {
@@ -86,8 +77,4 @@ export class InventoryDeleteButtonHandler extends BaseButtonHandler {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
   }
 
-  private async getInventoryMetadata(channelId: string): Promise<InventoryChannelMetadata | null> {
-    const metadataManager = this.inventoryMetadataManager ?? InventoryChannelStore.getInstance();
-    return metadataManager.getChannelMetadata(channelId);
-  }
 }

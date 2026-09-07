@@ -21,6 +21,8 @@ func TestNegativeQuantitiesIdentifyTheFieldThroughContractValidation(t *testing.
 			}
 			r := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
 			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set("X-Actor-Id", "999")
+			r.Header.Set("X-Operation-Kind", "AddInventoryCommand")
 			w := httptest.NewRecorder()
 			h.ServeHTTP(w, r)
 			var payload struct{ Code, Target string }
@@ -54,6 +56,8 @@ func TestContractRejectsMalformedRequestsBeforeUseCase(t *testing.T) {
 			}
 			r := httptest.NewRequest(http.MethodPost, "/v1/inventories/123/items", strings.NewReader(tc.body))
 			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set("X-Actor-Id", "999")
+			r.Header.Set("X-Operation-Kind", "AddInventoryCommand")
 			w := httptest.NewRecorder()
 			h.ServeHTTP(w, r)
 			if called || w.Code != tc.status {
@@ -72,6 +76,8 @@ func TestContractPreservesExactDecimalInput(t *testing.T) {
 	}
 	r := httptest.NewRequest(http.MethodPost, "/v1/inventories/123/items", strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("X-Actor-Id", "999")
+	r.Header.Set("X-Operation-Kind", "AddInventoryCommand")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	if !called || w.Code != 204 {

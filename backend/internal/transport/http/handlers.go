@@ -8,8 +8,10 @@ import (
 )
 
 type Handler struct {
-	Service *application.Service
-	Check   func(context.Context) error
+	Service             *application.Service
+	Check               func(context.Context) error
+	OutputEnabled       bool
+	OutputWorkerRunning func() bool
 }
 
 var _ api.StrictServerInterface = (*Handler)(nil)
@@ -39,7 +41,7 @@ func (h *Handler) CreateListChannel(ctx context.Context, r api.CreateListChannel
 	if e := requireChannel(r.ChannelId, b.ChannelId); e != nil {
 		return nil, e
 	}
-	v, e := h.Service.SaveListChannel(ctx, domain.ListChannel{ChannelSettings: domain.ChannelSettings{ChannelID: b.ChannelId, MessageID: fromNullable(b.MessageId), ListTitle: b.ListTitle, OperationLogThreadID: fromNullable(b.OperationLogThreadId)}, DefaultCategory: b.DefaultCategory})
+	v, e := h.Service.SaveListChannel(ctx, domain.ListChannel{ChannelSettings: domain.ChannelSettings{ChannelID: b.ChannelId, ListTitle: b.ListTitle}, DefaultCategory: b.DefaultCategory})
 	if e != nil {
 		return nil, e
 	}
@@ -47,7 +49,7 @@ func (h *Handler) CreateListChannel(ctx context.Context, r api.CreateListChannel
 }
 func (h *Handler) PatchListChannel(ctx context.Context, r api.PatchListChannelRequestObject) (api.PatchListChannelResponseObject, error) {
 	b := r.Body
-	p := application.ChannelPatch{MessageID: optionalNullable(b.MessageId), ListTitle: optionalValue(b.ListTitle), OperationLogThreadID: optionalNullable(b.OperationLogThreadId), DefaultCategory: optionalValue(b.DefaultCategory)}
+	p := application.ChannelPatch{ListTitle: optionalValue(b.ListTitle), DefaultCategory: optionalValue(b.DefaultCategory)}
 	v, e := h.Service.PatchListChannel(ctx, r.ChannelId, p)
 	if e != nil {
 		return nil, e
@@ -133,7 +135,7 @@ func (h *Handler) CreateInventoryChannel(ctx context.Context, r api.CreateInvent
 	if e := requireChannel(r.ChannelId, b.ChannelId); e != nil {
 		return nil, e
 	}
-	v, e := h.Service.SaveInventoryChannel(ctx, domain.InventoryChannel{ChannelSettings: domain.ChannelSettings{ChannelID: b.ChannelId, MessageID: fromNullable(b.MessageId), ListTitle: b.ListTitle, OperationLogThreadID: fromNullable(b.OperationLogThreadId)}, DefaultCategory: b.DefaultCategory})
+	v, e := h.Service.SaveInventoryChannel(ctx, domain.InventoryChannel{ChannelSettings: domain.ChannelSettings{ChannelID: b.ChannelId, ListTitle: b.ListTitle}, DefaultCategory: b.DefaultCategory})
 	if e != nil {
 		return nil, e
 	}
@@ -141,7 +143,7 @@ func (h *Handler) CreateInventoryChannel(ctx context.Context, r api.CreateInvent
 }
 func (h *Handler) PatchInventoryChannel(ctx context.Context, r api.PatchInventoryChannelRequestObject) (api.PatchInventoryChannelResponseObject, error) {
 	b := r.Body
-	p := application.ChannelPatch{MessageID: optionalNullable(b.MessageId), ListTitle: optionalValue(b.ListTitle), OperationLogThreadID: optionalNullable(b.OperationLogThreadId), DefaultCategory: optionalValue(b.DefaultCategory)}
+	p := application.ChannelPatch{ListTitle: optionalValue(b.ListTitle), DefaultCategory: optionalValue(b.DefaultCategory)}
 	v, e := h.Service.PatchInventoryChannel(ctx, r.ChannelId, p)
 	if e != nil {
 		return nil, e
@@ -185,6 +187,22 @@ func (h *Handler) AppendInventoryItem(ctx context.Context, r api.AppendInventory
 		return nil, e
 	}
 	return api.AppendInventoryItem200JSONResponse(mapInventoryItem(*v)), nil
+}
+
+func (h *Handler) AppendInventoryItems(ctx context.Context, r api.AppendInventoryItemsRequestObject) (api.AppendInventoryItemsResponseObject, error) {
+	items := make([]domain.InventoryItem, len(r.Body.Items))
+	for n, item := range r.Body.Items {
+		parsed, err := inputInventoryItem("", item)
+		if err != nil {
+			return nil, err
+		}
+		items[n] = parsed
+	}
+	skipped, err := h.Service.AppendInventoryItems(ctx, r.ChannelId, items)
+	if err != nil {
+		return nil, err
+	}
+	return api.AppendInventoryItems200JSONResponse{SkippedNames: skipped}, nil
 }
 func (h *Handler) UpdateInventoryItem(ctx context.Context, r api.UpdateInventoryItemRequestObject) (api.UpdateInventoryItemResponseObject, error) {
 	input, e := inputInventoryItem(r.Id, *r.Body)

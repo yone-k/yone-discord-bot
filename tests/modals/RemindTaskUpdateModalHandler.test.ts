@@ -22,23 +22,19 @@ describe('RemindTaskUpdateModalHandler', () => {
       findTaskByMessageId: vi.fn().mockResolvedValue(task),
       patchTask: vi.fn().mockResolvedValue({ success: true })
     };
-    const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
-    };
 
     const handler = new RemindTaskUpdateModalHandler(
       new Logger(),
       undefined,
       undefined,
-      mockRepository as any,
-      mockMessageManager as any
+      mockRepository as any
     );
 
     const interaction = {
       customId: 'remind-task-update-modal:msg-1:0',
       user: { id: 'user-1' },
       channelId: 'channel-1',
-      client: {} as any,
+      client: { channels: { fetch: vi.fn() } },
       fields: {
         getTextInputValue: vi.fn((key: string) => {
           if (key === 'title') return '掃除';
@@ -58,7 +54,8 @@ describe('RemindTaskUpdateModalHandler', () => {
 
     expect(mockRepository.findTaskByMessageId).toHaveBeenCalledWith('channel-1', 'msg-1');
     expect(mockRepository.patchTask).toHaveBeenCalled();
-    expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();
+    expect(interaction.client.channels.fetch).not.toHaveBeenCalled();
+    expect(interaction.deleteReply).toHaveBeenCalledOnce();
   });
 
   it('keeps nextDueAt and notification fields on basic update', async () => {
@@ -84,23 +81,19 @@ describe('RemindTaskUpdateModalHandler', () => {
       findTaskByMessageId: vi.fn().mockResolvedValue(task),
       patchTask: vi.fn().mockResolvedValue({ success: true })
     };
-    const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
-    };
 
     const handler = new RemindTaskUpdateModalHandler(
       new Logger(),
       undefined,
       undefined,
-      mockRepository as any,
-      mockMessageManager as any
+      mockRepository as any
     );
 
     const interaction = {
       customId: 'remind-task-update-modal:msg-2:0',
       user: { id: 'user-2' },
       channelId: 'channel-2',
-      client: {} as any,
+      client: { channels: { fetch: vi.fn() } },
       fields: {
         getTextInputValue: vi.fn((key: string) => {
           if (key === 'title') return '洗濯';

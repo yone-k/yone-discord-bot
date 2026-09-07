@@ -17,9 +17,11 @@ type Store interface {
 	Write(context.Context, func(Repository) error) error
 }
 
-// Repository exchanges domain aggregates only. Locking reads acquire parent
-// channel locks before item locks, and retain them for the write unit.
+// Repository exchanges domain aggregates and application-owned output records.
+// Locking reads acquire parent channel locks before item locks and retain them
+// for the write unit. Outbox writes use that same unit.
 type Repository interface {
+	OutputQueue
 	Lists(context.Context) ([]domain.ListChannel, error)
 	GetListChannel(ctx context.Context, channelID string) (*domain.ListChannel, error)
 	GetList(ctx context.Context, channelID string, lock bool) (*domain.List, error)

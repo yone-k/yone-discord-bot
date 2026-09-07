@@ -6,6 +6,12 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// ChannelOutputSuspension is the predicate function for channeloutputsuspension builders.
+type ChannelOutputSuspension func(*sql.Selector)
+
+// DiscordCardView is the predicate function for discordcardview builders.
+type DiscordCardView func(*sql.Selector)
+
 // InventoryChannel is the predicate function for inventorychannel builders.
 type InventoryChannel func(*sql.Selector)
 
@@ -17,6 +23,15 @@ type ListChannel func(*sql.Selector)
 
 // ListItem is the predicate function for listitem builders.
 type ListItem func(*sql.Selector)
+
+// OperationRecord is the predicate function for operationrecord builders.
+type OperationRecord func(*sql.Selector)
+
+// OutputDispatch is the predicate function for outputdispatch builders.
+type OutputDispatch func(*sql.Selector)
+
+// OutputTask is the predicate function for outputtask builders.
+type OutputTask func(*sql.Selector)
 
 // RemindChannel is the predicate function for remindchannel builders.
 type RemindChannel func(*sql.Selector)

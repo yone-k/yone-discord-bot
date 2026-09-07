@@ -12,14 +12,8 @@ class MockLogger {
 describe('InventoryDeleteModalHandler', () => {
   let handler: InventoryDeleteModalHandler;
   let mockLogger: MockLogger;
-  let mockRepository: {
-    fetchAll: ReturnType<typeof vi.fn>;
-  };
   let mockInventoryService: {
     delete: ReturnType<typeof vi.fn>;
-  };
-  let mockInventoryMessageManager: {
-    createOrUpdateMessage: ReturnType<typeof vi.fn>;
   };
   let mockMetadataManager: {
     getChannelMetadata: ReturnType<typeof vi.fn>;
@@ -30,16 +24,8 @@ describe('InventoryDeleteModalHandler', () => {
     vi.clearAllMocks();
 
     mockLogger = new MockLogger();
-    mockRepository = {
-      fetchAll: vi.fn().mockResolvedValue([
-        { id: 'inventory-item-2', name: '電池', stock: '4', category: '消耗品' }
-      ])
-    };
     mockInventoryService = {
       delete: vi.fn().mockResolvedValue(undefined)
-    };
-    mockInventoryMessageManager = {
-      createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true })
     };
     mockMetadataManager = {
       getChannelMetadata: vi.fn().mockResolvedValue({
@@ -52,7 +38,7 @@ describe('InventoryDeleteModalHandler', () => {
       user: { id: 'user-1' },
       guildId: 'guild-1',
       channelId: 'inventory-channel-1',
-      client: {} as any,
+      client: { channels: { fetch: vi.fn() } },
       fields: {
         getTextInputValue: vi.fn().mockReturnValue('YES')
       },
@@ -65,13 +51,11 @@ describe('InventoryDeleteModalHandler', () => {
       mockLogger as unknown as Logger,
       undefined,
       mockMetadataManager as any,
-      mockRepository as any,
       mockInventoryService as any,
-      mockInventoryMessageManager as any
     );
   });
 
-  it('確認OKの場合、InventoryService.deleteを呼び表示更新して成功応答する', async () => {
+  it('確認OKの場合、InventoryService.deleteを呼びTSから描画せず成功応答する', async () => {
     // Given
     interaction.fields.getTextInputValue.mockReturnValue('YES');
 
@@ -81,13 +65,7 @@ describe('InventoryDeleteModalHandler', () => {
     // Then
     expect(interaction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(mockInventoryService.delete).toHaveBeenCalledWith('inventory-channel-1', 'inventory-item-1');
-    expect(mockRepository.fetchAll).toHaveBeenCalledWith('inventory-channel-1');
-    expect(mockInventoryMessageManager.createOrUpdateMessage).toHaveBeenCalledWith(
-      'inventory-channel-1',
-      [{ id: 'inventory-item-2', name: '電池', stock: '4', category: '消耗品' }],
-      '在庫リスト',
-      interaction.client
-    );
+    expect(interaction.client.channels.fetch).not.toHaveBeenCalled();
     expect(interaction.editReply).toHaveBeenCalledWith({ content: '処理が完了しました。' });
     expect(interaction.deleteReply).toHaveBeenCalled();
   });
@@ -103,7 +81,7 @@ describe('InventoryDeleteModalHandler', () => {
 
     // Then
     expect(mockInventoryService.delete).toHaveBeenCalledWith('inventory-channel-1', 'inventory-item-1');
-    expect(mockInventoryMessageManager.createOrUpdateMessage).not.toHaveBeenCalled();
+    expect(interaction.client.channels.fetch).not.toHaveBeenCalled();
     expect(interaction.editReply).toHaveBeenCalledWith({
       content: expect.stringContaining('参照中のタスクがあります')
     });
@@ -124,7 +102,7 @@ describe('InventoryDeleteModalHandler', () => {
 
     // Then
     expect(mockInventoryService.delete).not.toHaveBeenCalled();
-    expect(mockInventoryMessageManager.createOrUpdateMessage).not.toHaveBeenCalled();
+    expect(interaction.client.channels.fetch).not.toHaveBeenCalled();
     expect(interaction.editReply).toHaveBeenCalledWith({
       content: expect.stringContaining('キャンセル')
     });

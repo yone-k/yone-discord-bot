@@ -19,6 +19,7 @@ type Fixture = {
   pullFail?: boolean; configFail?: boolean; stopFail?: boolean; busy?: boolean; missing?: boolean;
   starting?: string[]; platform?: string; upFail?: string[]; incompatible?: string[]; apiCurrent?: string; failedService?: string;
   stopFailImage?: string; stopFailService?: string; interruptOnStart?: boolean;
+  settingsMismatch?: boolean;
 };
 let fixture: Fixture;
 
@@ -39,7 +40,11 @@ if(a[0] === 'image' && a[1] === 'inspect') {
 }
 if(a[0] === 'compose') {
   if(a.includes('run')) finish(s.incompatible?.includes(process.env.BOT_IMAGE) ? 1 : 0);
-  if(a.includes('config')) finish(s.configFail ? 1 : 0);
+  if(a.includes('config')) {
+    if(s.configFail) finish(1);
+    if(a.includes('--format')) finish(0, JSON.stringify({services:{bot:{environment:{DISCORD_BOT_TOKEN:'synthetic',CORE_API_TOKEN:'api'}},api:{environment:{DISCORD_BOT_TOKEN:s.settingsMismatch?'different':'synthetic',CORE_API_TOKEN:'api',DISCORD_OUTPUT_ENABLED:'false'}}}}));
+    finish();
+  }
   if(a.includes('ps')) finish(0, s.missing ? '' : a[a.length-1]);
   if(a.includes('stop')) { if(s.stopFail || s.stopFailImage===process.env.BOT_IMAGE || s.stopFailService===a[a.length-1]) finish(1); s['stopped_'+a[a.length-1]]=true; fs.writeFileSync(f,JSON.stringify(s)); finish(); }
   if(a.includes('up')) { if(s.interruptOnStart) { process.kill(process.ppid,'SIGTERM'); finish(1); } if(s.upFail?.includes(process.env.BOT_IMAGE)) finish(1); if(a[a.length-1]==='api') s.apiCurrent=process.env.BOT_IMAGE; else s.current=process.env.BOT_IMAGE; s['stopped_'+a[a.length-1]]=false; fs.writeFileSync(f,JSON.stringify(s)); finish(); }
@@ -59,6 +64,8 @@ beforeEach(() => {
   bin = join(dir, 'bin');
   mkdirSync(bin);
   mkdirSync(join(dir, 'scripts'));
+  mkdirSync(join(dir, 'deploy'));
+  copyFileSync('deploy/verify-service-settings.py', join(dir, 'deploy/verify-service-settings.py'));
   if (existsSync('scripts/pi-update.sh')) copyFileSync('scripts/pi-update.sh', join(dir, 'scripts/pi-update.sh'));
   writeFileSync(join(dir, 'scripts/pi-db-preflight.sh'), '#!/bin/sh\nexit 0\n');
   writeFileSync(join(dir, 'docker-compose.yml'), 'name: discord-bot\n');
@@ -90,6 +97,13 @@ function clearCalls(): void { writeFileSync(join(dir, 'calls'), ''); }
 function upCalls(): string[][] { return calls().filter(c => c.includes('up')); }
 
 describe('Pi update lifecycle', { timeout: scenarioTimeoutMs }, () => {
+  it('rejects mismatched service credentials before stopping either service', () => {
+    initialize(); clearCalls(); fixture.settingsMismatch = true;
+    const result = run();
+    expect(result.status).not.toBe(0);
+    expect(calls().filter(c => c.includes('stop') || c.includes('up'))).toHaveLength(0);
+    expect(`${result.stdout}${result.stderr}`).not.toContain('synthetic');
+  });
   it('stops Bot then API and starts healthy API before Bot', () => {
     initialize(); clearCalls();
     expect(run().status).toBe(0);

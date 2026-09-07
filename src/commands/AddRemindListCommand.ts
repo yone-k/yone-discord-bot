@@ -139,7 +139,7 @@ export class AddRemindListCommand extends BaseCommand {
       }
     }
 
-    const result = await this.remindTaskService.addTask(
+    await this.remindTaskService.addTask(
       context.channelId,
       {
         title,
@@ -148,18 +148,8 @@ export class AddRemindListCommand extends BaseCommand {
         timeOfDay,
         remindBeforeMinutes,
         inventoryItems
-      },
-      context.interaction.client
+      }
     );
-
-    if (!result.success) {
-      throw new CommandError(
-        CommandErrorType.EXECUTION_FAILED,
-        'add-remind-list',
-        result.message || 'Failed to add remind task',
-        'リマインドタスクの登録に失敗しました。'
-      );
-    }
 
     await context.interaction.deleteReply();
   }

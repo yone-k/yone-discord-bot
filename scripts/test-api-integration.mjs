@@ -4,6 +4,7 @@ import { mkdir, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
+import { startDiscordBoundary } from '../tests/api-integration/fake-discord.mjs';
 
 // This suite destroys only an explicitly named, local *_http test database.
 const root = resolve(import.meta.dirname, '..');
@@ -49,6 +50,7 @@ const directory = resolve(root, '.agent_tmp', 'api-integration', `${process.pid}
 await mkdir(directory, { recursive: true });
 let api;
 let tests;
+let discord;
 let cleanupStarted = false;
 async function stop(child) {
   if (!child || child.exitCode !== null || child.signalCode !== null) return;
@@ -63,6 +65,7 @@ async function cleanup() {
   cleanupStarted = true;
   await stop(tests);
   await stop(api);
+  await discord?.close();
   try {
     psql(`DROP DATABASE IF EXISTS "${restoreDatabase}" WITH (FORCE)`, 'postgres');
   } finally {
@@ -77,7 +80,7 @@ try {
   command('go', ['build', '-o', resolve(directory, 'api'), './cmd/api'], { cwd: resolve(root, 'backend') });
   const limited = new URL(raw); limited.username = role; limited.password = password;
   const token = randomBytes(24).toString('hex');
-  const env = { ...process.env, DATABASE_URL: limited.toString(), CORE_API_URL: 'http://127.0.0.1:8080', CORE_API_TOKEN: token, MIGRATIONS_DIR: resolve(root, 'db/migrations'), API_INTEGRATION_CLUSTER_ID: identity, API_INTEGRATION_RUN_ID: runId };
+  const env = { ...process.env, DISCORD_OUTPUT_ENABLED: 'false', DATABASE_URL: limited.toString(), CORE_API_URL: 'http://127.0.0.1:8080', CORE_API_TOKEN: token, MIGRATIONS_DIR: resolve(root, 'db/migrations'), API_INTEGRATION_CLUSTER_ID: identity, API_INTEGRATION_RUN_ID: runId };
   api = spawn(resolve(directory, 'api'), [], { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe'] });
   let logs = ''; api.stdout.on('data', chunk => { logs += chunk; }); api.stderr.on('data', chunk => { logs += chunk; });
   const deadline = Date.now() + 15000;
@@ -87,9 +90,36 @@ try {
     if (Date.now() >= deadline) throw new Error(`API readiness timed out: ${logs}`);
     await new Promise(resolve => setTimeout(resolve, 50));
   }
-  tests = spawn(process.execPath, ['node_modules/vitest/vitest.mjs', 'run', '--config', 'vitest.api-integration.config.ts'], { cwd: root, env, stdio: 'inherit' });
+  tests = spawn(process.execPath, ['node_modules/vitest/vitest.mjs', 'run', '--config', 'vitest.api-integration.config.ts', 'bot.integration.ts', 'backup.integration.ts'], { cwd: root, env, stdio: 'inherit' });
   // Includes the 90s backup scenario, eight 15s API scenarios and hook budgets.
   const watchdog = setTimeout(() => { tests.kill('SIGKILL'); }, 300000);
   try { const [status] = await once(tests, 'exit'); process.exitCode = status ?? 1; }
   finally { clearTimeout(watchdog); }
+  if (!process.exitCode) {
+    await stop(api);
+    psql('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+    command(resolve(directory, 'db-migrate'), [], { env: { ...process.env, DATABASE_ADMIN_URL: raw, DATABASE_BOT_ROLE: role, MIGRATIONS_DIR: resolve(root, 'db/migrations') } });
+    psql(`INSERT INTO data_imports(singleton,snapshot_sha256,schema_version,completed_at,report) VALUES(true,repeat('0',64),1,CURRENT_TIMESTAMP,'{}');`);
+    command('go', ['test', '-c', '-tags=integration', '-o', resolve(directory, 'output-api'), './cmd/api'], { cwd: resolve(root, 'backend') });
+    discord = await startDiscordBoundary(nonce => psql(`SELECT count(*) FROM output_dispatches WHERE nonce='${nonce}' AND outcome='unknown'`) === '1');
+    const enabledEnv = { ...env, DISCORD_OUTPUT_ENABLED: 'true', DISCORD_BOT_TOKEN: 'integration-output-token', ISSUE44_RUNTIME_CHILD: '1', ISSUE44_RUNTIME_DISCORD: discord.url };
+    api = spawn(resolve(directory, 'output-api'), ['-test.run=^TestOutputRuntimeChild$', '-test.timeout=90s'], { cwd: root, env: enabledEnv, stdio: ['ignore', 'pipe', 'pipe'] });
+    logs = ''; api.stdout.on('data', chunk => { logs += chunk; }); api.stderr.on('data', chunk => { logs += chunk; });
+    const enabledDeadline = Date.now() + 15000;
+    for (;;) {
+      if (api.exitCode !== null) throw new Error(`Output API exited before readiness: ${logs}`);
+      try {
+        const response = await fetch(`${env.CORE_API_URL}/v1/outputs/status`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(500) });
+        const state = await response.json();
+        if (response.ok && state.enabled && state.workerRunning) break;
+      } catch { /* poll worker readiness until deadline */ }
+      if (Date.now() >= enabledDeadline) throw new Error(`Output worker readiness timed out: ${logs}`);
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    tests = spawn(process.execPath, ['node_modules/vitest/vitest.mjs', 'run', '--config', 'vitest.api-integration.config.ts', 'output.integration.ts'], { cwd: root, env: enabledEnv, stdio: 'inherit' });
+    const outputWatchdog = setTimeout(() => tests.kill('SIGKILL'), 60000);
+    try { const [status] = await once(tests, 'exit'); process.exitCode = status ?? 1; }
+    finally { clearTimeout(outputWatchdog); }
+    if (process.exitCode) process.stderr.write(logs);
+  }
 } finally { await cleanup(); }

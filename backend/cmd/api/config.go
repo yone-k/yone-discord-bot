@@ -10,9 +10,11 @@ import (
 )
 
 type config struct {
-	Database   *pgx.ConnConfig
-	Token      string
-	Migrations string
+	Database      *pgx.ConnConfig
+	Token         string
+	Migrations    string
+	OutputEnabled bool
+	DiscordToken  string
 }
 
 func loadConfig() (config, error) {
@@ -35,6 +37,18 @@ func loadConfig() (config, error) {
 	result.Migrations = os.Getenv("MIGRATIONS_DIR")
 	if result.Migrations == "" {
 		result.Migrations = "db/migrations"
+	}
+	switch os.Getenv("DISCORD_OUTPUT_ENABLED") {
+	case "", "true":
+		result.OutputEnabled = true
+	case "false":
+		result.OutputEnabled = false
+	default:
+		return result, errors.New("DISCORD_OUTPUT_ENABLED must be true or false")
+	}
+	result.DiscordToken = strings.TrimSpace(os.Getenv("DISCORD_BOT_TOKEN"))
+	if result.OutputEnabled && result.DiscordToken == "" {
+		return result, errors.New("DISCORD_BOT_TOKEN is required when output is enabled")
 	}
 	return result, nil
 }

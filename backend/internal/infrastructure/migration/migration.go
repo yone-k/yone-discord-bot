@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-const ExpectedSchemaVersion = 2
+const ExpectedSchemaVersion = 3
 
 type Migration struct {
 	Version       int
@@ -221,7 +221,7 @@ func GrantRuntimePermissions(ctx context.Context, tx *sql.Tx, role string) error
 		return err
 	}
 	r, d := quote(role), quote(database)
-	for _, s := range []string{"REVOKE ALL ON ALL TABLES IN SCHEMA public FROM " + r, "REVOKE ALL ON SCHEMA public FROM " + r, "REVOKE ALL ON DATABASE " + d + " FROM PUBLIC", "REVOKE ALL ON DATABASE " + d + " FROM " + r, "GRANT CONNECT ON DATABASE " + d + " TO " + r, "GRANT USAGE ON SCHEMA public TO " + r, "GRANT SELECT,INSERT,UPDATE,DELETE ON list_channels,inventory_channels,remind_channels,list_items,inventory_items,remind_tasks,remind_task_inventory_items TO " + r, "GRANT SELECT ON schema_migrations,data_imports TO " + r} {
+	for _, s := range []string{"REVOKE ALL ON ALL TABLES IN SCHEMA public FROM " + r, "REVOKE ALL ON SCHEMA public FROM " + r, "REVOKE ALL ON DATABASE " + d + " FROM PUBLIC", "REVOKE ALL ON DATABASE " + d + " FROM " + r, "GRANT CONNECT ON DATABASE " + d + " TO " + r, "GRANT USAGE ON SCHEMA public TO " + r, "GRANT SELECT,INSERT,UPDATE,DELETE ON list_channels,inventory_channels,remind_channels,list_items,inventory_items,remind_tasks,remind_task_inventory_items,operation_records,output_tasks,output_dispatches,channel_output_suspensions,discord_card_views TO " + r, "GRANT USAGE ON SEQUENCE output_tasks_output_order_seq TO " + r, "GRANT SELECT ON schema_migrations,data_imports TO " + r} {
 		if _, err := tx.ExecContext(ctx, s); err != nil {
 			return err
 		}

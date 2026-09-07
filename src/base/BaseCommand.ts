@@ -1,4 +1,4 @@
-import { withInteractionDeadline, CoreApiError } from '../api/CoreClient';
+import { withInteractionDeadline, withInteractionOutput, CoreApiError } from '../api/CoreClient';
 import { ChatInputCommandInteraction, ThreadChannel, SlashCommandBuilder } from 'discord.js';
 import { Logger } from '../utils/logger';
 import { CommandError, CommandErrorType } from '../utils/CommandError';
@@ -64,7 +64,7 @@ export abstract class BaseCommand {
         executionContext = { ...context, thread };
       }
 
-      await withInteractionDeadline(context?.interaction, () => this.execute(executionContext));
+      await withInteractionOutput(context?.interaction, this.constructor.name, () => withInteractionDeadline(context?.interaction, () => this.execute(executionContext)));
       
       // コマンド成功時、削除オプションが有効な場合はスレッド全体と初期メッセージを削除
       if (this.deleteOnSuccess && this.useThread && context?.interaction) {

@@ -13,7 +13,6 @@ func TestTaskPatchIsEmptyIncludesEveryField(t *testing.T) {
 		t.Fatal("a patch without fields must be empty")
 	}
 	for name, patch := range map[string]TaskPatch{
-		"messageId":           {MessageID: Some[*string](nil)},
 		"title":               {Title: Some("")},
 		"description":         {Description: Some[*string](nil)},
 		"intervalDays":        {IntervalDays: Some(0)},
@@ -34,7 +33,16 @@ func TestTaskPatchIsEmptyIncludesEveryField(t *testing.T) {
 type taskPatchRepository struct {
 	// Unused ports fail immediately if PatchTask accesses an unrelated aggregate.
 	Repository
-	task domain.RemindTask
+	task    domain.RemindTask
+	outputs []OutputTask
+}
+
+type taskPatchIDs struct{}
+
+func (taskPatchIDs) NewID() (string, error) { return "01992c1d-c100-7000-8000-000000000001", nil }
+func (r *taskPatchRepository) EnqueueOutput(_ context.Context, task OutputTask) (string, error) {
+	r.outputs = append(r.outputs, task)
+	return task.ID, nil
 }
 
 func (r *taskPatchRepository) GetRemindChannel(context.Context, string, bool) (*domain.RemindChannelSettings, error) {
@@ -59,7 +67,7 @@ func TestPatchTaskNormalizesLastDoneAtBeforeReturningAndPersisting(t *testing.T)
 		ID: "legacy", ChannelID: "3", Title: "task", IntervalDays: 1, TimeOfDay: "21:00",
 		StartAt: now.Add(-48 * time.Hour), NextDueAt: now.Add(24 * time.Hour), CreatedAt: now.Add(-48 * time.Hour), UpdatedAt: now,
 	}}
-	service := New(readStore{repo}, &countingClock{time: now}, nil)
+	service := New(readStore{repo}, &countingClock{time: now}, taskPatchIDs{})
 	updated, err := service.PatchTask(context.Background(), "3", "legacy", 0, TaskPatch{LastDoneAt: Some(&input)})
 	if err != nil {
 		t.Fatal(err)
@@ -72,5 +80,8 @@ func TestPatchTaskNormalizesLastDoneAtBeforeReturningAndPersisting(t *testing.T)
 	}
 	if input != original {
 		t.Fatal("patch mutated the caller's timestamp")
+	}
+	if len(repo.outputs) != 1 || repo.outputs[0].Kind != OutputTaskCard || repo.outputs[0].TargetID != "legacy" || repo.outputs[0].State != OutputPending {
+		t.Fatal("patch must reserve its task card", repo.outputs)
 	}
 }

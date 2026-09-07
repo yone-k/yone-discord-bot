@@ -12,10 +12,15 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/channeloutputsuspension"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/discordcardview"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/inventorychannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/inventoryitem"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listchannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listitem"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/operationrecord"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputdispatch"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputtask"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/remindchannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/remindtask"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/remindtaskinventoryitem"
@@ -79,10 +84,15 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			channeloutputsuspension.Table: channeloutputsuspension.ValidColumn,
+			discordcardview.Table:         discordcardview.ValidColumn,
 			inventorychannel.Table:        inventorychannel.ValidColumn,
 			inventoryitem.Table:           inventoryitem.ValidColumn,
 			listchannel.Table:             listchannel.ValidColumn,
 			listitem.Table:                listitem.ValidColumn,
+			operationrecord.Table:         operationrecord.ValidColumn,
+			outputdispatch.Table:          outputdispatch.ValidColumn,
+			outputtask.Table:              outputtask.ValidColumn,
 			remindchannel.Table:           remindchannel.ValidColumn,
 			remindtask.Table:              remindtask.ValidColumn,
 			remindtaskinventoryitem.Table: remindtaskinventoryitem.ValidColumn,

@@ -9,7 +9,7 @@ if [ -f "$root/.env.storage" ]; then set -a; . "$root/.env.storage"; set +a; fi
 role=${1:-bot}
 case "$role" in
   bot) names='DISCORD_BOT_TOKEN CLIENT_ID CORE_API_URL CORE_API_TOKEN NODE_ENV'; count=5; target=.env ;;
-  api) names='DATABASE_URL CORE_API_TOKEN'; count=2; target=.env.api ;;
+  api) names='DATABASE_URL CORE_API_TOKEN DISCORD_BOT_TOKEN DISCORD_OUTPUT_ENABLED'; count=4; target=.env.api ;;
   *) exit 1 ;;
 esac
 temp=$(mktemp "$root/.env.XXXXXX")
@@ -24,6 +24,9 @@ cat > "$temp"
     [ "$line" != "$name=\"\"" ] || exit 1
   done
   [ "$role" != bot ] || [ "$line" = 'NODE_ENV="production"' ] || exit 1
+  if [ "$role" = api ]; then
+    case "$line" in 'DISCORD_OUTPUT_ENABLED="true"'|'DISCORD_OUTPUT_ENABLED="false"') ;; *) exit 1 ;; esac
+  fi
 } < "$temp"
 if [ "$role" = bot ]; then export BOT_ENV_FILE="$temp"; else export API_ENV_FILE="$temp"; fi
 docker compose --env-file "$temp" --project-directory "$root" \

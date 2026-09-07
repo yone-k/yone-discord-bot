@@ -6,7 +6,11 @@ import { CoreApiError } from '../api/CoreClient';
 export interface ShortageItem { inventoryId: string; name: string; required: string; available: string }
 export class InventoryService {
   private static instance: InventoryService | undefined;
-  constructor(private readonly inventoryRepository: Pick<InventoryRepository, 'resolveByName' | 'findById' | 'append' | 'update' | 'delete'>) {}
+  constructor(private readonly inventoryRepository: Pick<InventoryRepository, 'resolveByName' | 'findById' | 'append' | 'appendMany' | 'update' | 'delete'>) {}
+  /** Returns names skipped because an item with the same name already exists. */
+  createMany(channelId: string, items: Omit<InventoryItem, 'id'>[]): Promise<string[]> {
+    return this.inventoryRepository.appendMany(channelId, items);
+  }
   static getInstance(): InventoryService {
     return this.instance ??= new InventoryService(new InventoryRepository());
   }

@@ -1,26 +1,26 @@
 import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
-import { RemindMessageManager } from '../services/RemindMessageManager';
+import { OutputApi } from '../api/OutputApi';
 import { CoreApiError } from '../api/CoreClient';
 
 export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
-  private messageManager: RemindMessageManager;
+  private outputs: Pick<OutputApi, 'setCardView'>;
 
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
-    messageManager?: RemindMessageManager
+    outputs?: Pick<OutputApi, 'setCardView'>
   ) {
     super('remind-task-update', logger, operationLogService, metadataManager);
     this.repository = repository || new RemindTaskRepository();
-    this.messageManager = messageManager || new RemindMessageManager();
+    this.outputs = outputs ?? new OutputApi();
     this.ephemeral = true;
   }
 
@@ -73,9 +73,8 @@ export class RemindTaskUpdateButtonHandler extends BaseButtonHandler {
         return await fail('タスクが見つかりません。画面を開き直してください。');
       }
       log('debug');
-      stage = 'selection_build';
-      const components = await this.messageManager.buildUpdateSelectionComponents(task, messageId, new Date(), channelId);
-      await interaction.editReply({ components });
+      stage = 'output_reservation';
+      await this.outputs.setCardView(channelId, 'task', task.id, { mode: 'update_selection' });
       log('debug');
       return { success: true, message: '更新選択を表示しました' };
     } catch (error) {

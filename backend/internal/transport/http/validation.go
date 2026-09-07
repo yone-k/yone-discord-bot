@@ -15,7 +15,7 @@ import (
 
 // ValidateRoutes enforces the generated contract before any business operation.
 // Authentication is performed by NewHandler before this middleware is entered.
-func ValidateRoutes(next http.Handler) (http.Handler, error) {
+func ValidateRoutes(next http.Handler, onReject ...func(*http.Request, string, api.ApiError)) (http.Handler, error) {
 	spec, err := api.GetSwagger()
 	if err != nil {
 		return nil, err
@@ -30,10 +30,17 @@ func ValidateRoutes(next http.Handler) (http.Handler, error) {
 			writeJSON(w, 404, api.ApiError{Code: api.ApiErrorCodeNotFound})
 			return
 		}
+		var body []byte
+		reject := func(status int, response api.ApiError) {
+			if len(onReject) > 0 && r.Method != http.MethodGet && r.Method != http.MethodHead && params["channelId"] != "" && matchesBusinessCall(route.Operation.OperationID, r.Header.Get("X-Operation-Kind"), params, body) {
+				onReject[0](r, params["channelId"], response)
+			}
+			writeJSON(w, status, response)
+		}
 		if r.Body != nil {
-			body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 4<<20))
+			body, err = io.ReadAll(http.MaxBytesReader(w, r.Body, 4<<20))
 			if err != nil || (len(body) > 0 && !json.Valid(body)) {
-				writeJSON(w, 400, api.ApiError{Code: api.ApiErrorCodeInvalidInput})
+				reject(400, api.ApiError{Code: api.ApiErrorCodeInvalidInput})
 				return
 			}
 			r.Body = io.NopCloser(bytes.NewReader(body))
@@ -62,7 +69,11 @@ func ValidateRoutes(next http.Handler) (http.Handler, error) {
 				}
 				cause = schemaError.Origin
 			}
-			writeJSON(w, status, response)
+			reject(status, response)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && !matchesBusinessCall(route.Operation.OperationID, r.Header.Get("X-Operation-Kind"), params, body) {
+			writeJSON(w, http.StatusBadRequest, api.ApiError{Code: api.ApiErrorCodeInvalidInput})
 			return
 		}
 		next.ServeHTTP(w, r)

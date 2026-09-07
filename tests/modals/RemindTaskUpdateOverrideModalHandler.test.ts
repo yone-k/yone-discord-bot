@@ -23,23 +23,19 @@ describe('RemindTaskUpdateOverrideModalHandler', () => {
       findTaskByMessageId: vi.fn().mockResolvedValue(task),
       patchTask: vi.fn().mockResolvedValue({ success: true, task: { ...task, revision: '1' } })
     };
-    const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
-    };
 
     const handler = new RemindTaskUpdateOverrideModalHandler(
       new Logger(),
       undefined,
       undefined,
-      mockRepository as any,
-      mockMessageManager as any
+      mockRepository as any
     );
 
     const interaction = {
       customId: 'remind-task-update-override-modal:msg-1:0',
       user: { id: 'user-1' },
       channelId: 'channel-1',
-      client: {} as any,
+      client: { channels: { fetch: vi.fn() } },
       fields: {
         getTextInputValue: vi.fn((key: string) => {
           if (key === 'last-done-at') return '2025/12/01';
@@ -63,7 +59,8 @@ describe('RemindTaskUpdateOverrideModalHandler', () => {
     expect(new Date(updatedTask.lastDoneAt!).getTime()).toBe(expectedLastDoneAt.getTime());
     expect(new Date(updatedTask.nextDueAt).getTime()).toBe(expectedNextDueAt.getTime());
     expect(updatedTask.overdueNotifyLimit).toBe(2);
-    expect(mockMessageManager.updateTaskMessage).toHaveBeenCalled();
+    expect(interaction.client.channels.fetch).not.toHaveBeenCalled();
+    expect(interaction.deleteReply).toHaveBeenCalledOnce();
   });
 
   it('updates limit without resetting counts when dates are unchanged', async () => {
@@ -87,23 +84,19 @@ describe('RemindTaskUpdateOverrideModalHandler', () => {
       findTaskByMessageId: vi.fn().mockResolvedValue(task),
       patchTask: vi.fn().mockResolvedValue({ success: true, task: { ...task, revision: '1' } })
     };
-    const mockMessageManager = {
-      updateTaskMessage: vi.fn().mockResolvedValue({ success: true })
-    };
 
     const handler = new RemindTaskUpdateOverrideModalHandler(
       new Logger(),
       undefined,
       undefined,
-      mockRepository as any,
-      mockMessageManager as any
+      mockRepository as any
     );
 
     const interaction = {
       customId: 'remind-task-update-override-modal:msg-1:0',
       user: { id: 'user-1' },
       channelId: 'channel-1',
-      client: {} as any,
+      client: { channels: { fetch: vi.fn() } },
       fields: {
         getTextInputValue: vi.fn((key: string) => {
           if (key === 'last-done-at') return '';

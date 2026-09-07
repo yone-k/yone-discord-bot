@@ -118,6 +118,9 @@ schema_compatible() {
   bash "$root/scripts/pi-db-preflight.sh" >/dev/null 2>&1 &&
     compose "$1" --profile ops run --rm --no-deps ops --check >/dev/null 2>&1
 }
+settings_valid() {
+  compose "$1" config --format json 2>/dev/null | python3 -B "$root/deploy/verify-service-settings.py"
+}
 
 # Any exit while a replacement is pending requires explicit recovery. Persist
 # this immediately for catchable interruptions; pending also guards power loss.
@@ -149,6 +152,7 @@ fi
 if [ "$action" = --verify ]; then
   [ "$initialized" = 1 ] && [ "$blocked" = 0 ] && [ "$pending" = 0 ] || fail not-ready
   [ "$current" = "$2" ] && healthy "$2" || fail deployed-version-not-healthy
+  settings_valid "$2" || fail deployed-settings-invalid
   log verified
   exit 0
 fi
@@ -158,6 +162,7 @@ if [ "$action" = --accept-v2 ]; then
   [ -f "$state_dir/ci-disabled" ] || fail cutover-requires-disabled-ci
   [ ! -e "$state_dir/state.before-v2" ] || fail cutover-already-recorded
   image_available "$2" && healthy "$2" || fail initial-digest-not-healthy
+  settings_valid "$2" || fail initial-settings-invalid
   schema_compatible "$2" || fail initial-schema-incompatible
   cp -p "$state_dir/state" "$state_dir/state.before-v2"
   current=$2 previous= rejected= pending=0 blocked=0
@@ -169,6 +174,7 @@ fi
 if [ "$action" = --initialize ]; then
   [ "$initialized" = 0 ] || fail already-initialized
   image_available "$2" && healthy "$2" || fail initial-digest-not-healthy
+  settings_valid "$2" || fail initial-settings-invalid
   schema_compatible "$2" || fail initial-schema-incompatible
   current=$2 initialized=1
   write_state
@@ -192,7 +198,7 @@ fi
 # Explicit operator recovery is the only path allowed to replace a blocked pair.
 if [ "$action" = --recover ]; then
   image_available "$2" || fail recovery-image-unavailable
-  compose "$2" config --quiet >/dev/null 2>&1 || fail recovery-config-invalid
+  settings_valid "$2" || fail recovery-config-invalid
   schema_compatible "$2" || fail recovery-schema-incompatible
   blocked=1 pending=1
   write_state
@@ -233,7 +239,7 @@ if [ "$candidate" = "$current" ]; then log unchanged; exit 0; fi
 if [ "$candidate" = "$rejected" ]; then log rejected-version; exit 0; fi
 image_available "$candidate" || fail invalid-platform
 image_available "$current" || fail rollback-image-unavailable
-compose "$candidate" config --quiet >/dev/null 2>&1 || fail config-invalid
+settings_valid "$candidate" || fail config-invalid
 schema_compatible "$candidate" || fail candidate-schema-incompatible
 schema_compatible "$current" || fail rollback-schema-incompatible
 

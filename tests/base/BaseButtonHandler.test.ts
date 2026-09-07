@@ -5,7 +5,7 @@ import { ButtonInteraction } from 'discord.js';
 
 // 実際の型をインポート
 import { OperationInfo, OperationResult } from '../../src/models/types/OperationLog';
-import { OperationLogService } from '../../src/services/OperationLogService';
+import { UiOperationEvents } from '../../src/services/UiOperationEvents';
 import { MetadataProvider } from '../../src/services/MetadataProvider';
 import { Client } from 'discord.js';
 
@@ -20,7 +20,7 @@ class TestButtonHandler extends BaseButtonHandler {
   constructor(
     customId: string, 
     logger: Logger, 
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider
   ) {
     super(customId, logger, operationLogService, metadataManager);
@@ -55,7 +55,7 @@ describe('BaseButtonHandler - 操作ログ機能統合', () => {
   let loggerInfoSpy: MockedFunction<typeof logger.info>;
   let loggerErrorSpy: MockedFunction<typeof logger.error>;
   let loggerWarnSpy: MockedFunction<typeof logger.warn>;
-  let mockOperationLogService: OperationLogService;
+  let mockUiOperationEvents: UiOperationEvents;
   let mockMetadataManager: MetadataProvider;
   let mockInteraction: ButtonInteraction;
 
@@ -65,8 +65,8 @@ describe('BaseButtonHandler - 操作ログ機能統合', () => {
     loggerErrorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
     loggerWarnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
 
-    mockOperationLogService = {
-      logOperation: vi.fn().mockResolvedValue(undefined),
+    mockUiOperationEvents = {
+      record: vi.fn().mockResolvedValue(undefined),
       formatLogMessage: vi.fn().mockReturnValue('mocked log message'),
       createLogThread: vi.fn().mockResolvedValue({ id: 'thread-123' })
     } as any;
@@ -94,20 +94,20 @@ describe('BaseButtonHandler - 操作ログ機能統合', () => {
   });
 
   describe('コンストラクタでのサービス注入', () => {
-    it('OperationLogServiceを注入できる', () => {
+    it('UiOperationEventsを注入できる', () => {
       // 現在の実装では失敗することが期待される
       expect(() => {
-        new TestButtonHandler('test', logger, mockOperationLogService);
-        // この時点では、BaseButtonHandlerはOperationLogServiceを受け取らない
+        new TestButtonHandler('test', logger, mockUiOperationEvents);
+        // この時点では、BaseButtonHandlerはUiOperationEventsを受け取らない
         // 将来的にコンストラクタが拡張される予定
       }).not.toThrow();
     });
 
-    it('OperationLogServiceがオプショナルである', () => {
+    it('UiOperationEventsがオプショナルである', () => {
       // 現在の実装では失敗することが期待される
       expect(() => {
         new TestButtonHandler('test', logger);
-        // OperationLogServiceなしでも作成できることを確認
+        // UiOperationEventsなしでも作成できることを確認
       }).not.toThrow();
     });
 
@@ -120,55 +120,45 @@ describe('BaseButtonHandler - 操作ログ機能統合', () => {
   });
 
   describe('handle()メソッドでの操作ログ統合', () => {
-    it('MetadataManagerからoperationLogThreadIdを取得する', async () => {
-      const handler = new TestButtonHandler('test-button', logger, mockOperationLogService, mockMetadataManager);
+    it('ログ先の解決をGoへ任せ、TSではメタデータを取得しない', async () => {
+      const handler = new TestButtonHandler('test-button', logger, mockUiOperationEvents, mockMetadataManager);
       const context: ButtonHandlerContext = { interaction: mockInteraction };
 
       await handler.handle(context);
 
       // MetadataManagerからチャンネルメタデータを取得することを確認
-      expect(mockMetadataManager.getChannelMetadata).toHaveBeenCalledWith('channel-123');
+      expect(mockMetadataManager.getChannelMetadata).not.toHaveBeenCalled();
     });
 
-    it('operationLogThreadIdが存在する場合のみlogOperation()を呼び出す', async () => {
-      const handler = new TestButtonHandler('test-button', logger, mockOperationLogService, mockMetadataManager);
+    it('UIの操作結果とハンドラー種別をrecordへ渡す', async () => {
+      const handler = new TestButtonHandler('test-button', logger, mockUiOperationEvents, mockMetadataManager);
       const context: ButtonHandlerContext = { interaction: mockInteraction };
 
       await handler.handle(context);
 
-      // OperationLogServiceのlogOperationが正しい引数で呼ばれることを確認
-      expect(mockOperationLogService.logOperation).toHaveBeenCalledWith(
-        'channel-123',
-        {
-          operationType: 'test',
-          actionName: 'Test operation'
-        },
-        {
-          success: true,
-          message: 'Test operation completed'
-        },
-        'user-123',
-        {}
+      // UiOperationEventsのrecordが正しい引数で呼ばれることを確認
+      expect(mockUiOperationEvents.record).toHaveBeenCalledWith(
+        mockInteraction, 'TestButtonHandler', { success: true, message: 'Test operation completed' }
       );
     });
 
-    it('operationLogThreadIdが存在しない場合はログ記録をスキップする', async () => {
+    it('ログ先の有無にかかわらずUIイベントを渡す', async () => {
       mockMetadataManager.getChannelMetadata = vi.fn().mockResolvedValue({
         success: true,
         metadata: { operationLogThreadId: null }
       });
-      const handler = new TestButtonHandler('test-button', logger, mockOperationLogService, mockMetadataManager);
+      const handler = new TestButtonHandler('test-button', logger, mockUiOperationEvents, mockMetadataManager);
       const context: ButtonHandlerContext = { interaction: mockInteraction };
 
       await handler.handle(context);
 
-      // operationLogThreadIdが存在しない場合はlogOperationが呼ばれないことを確認
-      expect(mockOperationLogService.logOperation).not.toHaveBeenCalled();
+      // operationLogThreadIdが存在しない場合はrecordが呼ばれないことを確認
+      expect(mockUiOperationEvents.record).toHaveBeenCalledOnce();
     });
 
     it('ログ投稿失敗時も処理が継続する（非侵襲的動作）', async () => {
-      mockOperationLogService.logOperation = vi.fn().mockRejectedValue(new Error('Log posting failed'));
-      const handler = new TestButtonHandler('test-button', logger, mockOperationLogService, mockMetadataManager);
+      mockUiOperationEvents.record = vi.fn().mockRejectedValue(new Error('Log posting failed'));
+      const handler = new TestButtonHandler('test-button', logger, mockUiOperationEvents, mockMetadataManager);
       const context: ButtonHandlerContext = { interaction: mockInteraction };
 
       // エラーが投げられずに処理が完了することを確認
@@ -176,9 +166,9 @@ describe('BaseButtonHandler - 操作ログ機能統合', () => {
 
       // ログ投稿エラーが警告として記録されることを確認（将来的な実装）
       expect(loggerWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to log operation'),
+        expect.stringContaining('Failed to record UI operation'),
         expect.objectContaining({
-          error: 'Log posting failed'
+          customId: 'test-button'
         })
       );
     });

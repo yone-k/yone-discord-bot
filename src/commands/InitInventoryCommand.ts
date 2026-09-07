@@ -7,7 +7,6 @@ import {
   type InventoryInitializationResult
 } from '../services/InventoryInitializationService';
 import { InventoryChannelStore } from '../services/InventoryChannelStore';
-import { InventoryMessageManager } from '../services/InventoryMessageManager';
 
 interface InventoryInitializer {
   initializeInventory(context: InitializationContext): Promise<InventoryInitializationResult>;
@@ -55,26 +54,17 @@ export class InitInventoryCommand extends BaseCommand {
     const channelName = (context.interaction.channel && 'name' in context.interaction.channel)
       ? context.interaction.channel.name
       : '在庫';
-    const result = await this.getInitializationService().initializeInventory({
+    await this.getInitializationService().initializeInventory({
       channelId: context.channelId,
-      listTitle: `${channelName}の在庫`,
-      client: context.interaction.client
+      listTitle: `${channelName}の在庫`
     });
-
-    if (!result.success) {
-      await context.interaction.editReply({
-        content: `在庫管理の初期化に失敗しました。${result.message ?? ''}`.trim()
-      });
-      return;
-    }
 
     await context.interaction.deleteReply();
   }
 
   private getInitializationService(): InventoryInitializer {
     return this.initializationService ?? new InventoryInitializationService(
-      InventoryChannelStore.getInstance(),
-      InventoryMessageManager.getInstance()
+      InventoryChannelStore.getInstance()
     );
   }
 }

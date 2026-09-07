@@ -38,7 +38,7 @@ it('preserves existing configuration if Compose validation fails', () => {
 });
 
 it('installs the API role to its own file while retaining Bot configuration', () => {
-  const input = 'DATABASE_URL="postgresql://bot:dummy@db/discord_bot"\nCORE_API_TOKEN="synthetic-token"\n';
+  const input = 'DATABASE_URL="postgresql://bot:dummy@db/discord_bot"\nCORE_API_TOKEN="synthetic-token"\nDISCORD_BOT_TOKEN="synthetic-bot"\nDISCORD_OUTPUT_ENABLED="false"\n';
   const result = spawnSync('/bin/bash', [join(dir, 'scripts/install-pi-env.sh'), 'api'], {
     input, encoding: 'utf8', env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}`,
       BOT_IMAGE: `ghcr.io/yone-k/yone-discord-bot@sha256:${'a'.repeat(64)}` }

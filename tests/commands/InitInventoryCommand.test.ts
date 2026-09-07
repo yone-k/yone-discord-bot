@@ -65,36 +65,26 @@ describe('InitInventoryCommand', () => {
     expect(interaction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(initializationService.initializeInventory).toHaveBeenCalledWith({
       channelId: 'inventory-channel-1',
-      listTitle: 'stockの在庫',
-      client: interaction.client
+      listTitle: 'stockの在庫'
     });
     expect(interaction.deleteReply).toHaveBeenCalled();
     expect(interaction.editReply).not.toHaveBeenCalled();
   });
 
-  it('InventoryInitializationService が失敗した場合は editReply でエラー応答する', async () => {
+  it('InventoryInitializationService の例外をコマンド共通処理へ伝播する', async () => {
     // Given
-    initializationService.initializeInventory.mockResolvedValue({
-      success: false,
-      message: 'シートの作成に失敗しました'
-    });
+    initializationService.initializeInventory.mockRejectedValue(new Error('設定の保存に失敗しました'));
 
     // When
-    await command.execute(context);
+    await expect(command.execute(context)).rejects.toThrow('設定の保存に失敗しました');
 
     // Then
     expect(interaction.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(initializationService.initializeInventory).toHaveBeenCalledWith({
       channelId: 'inventory-channel-1',
-      listTitle: 'stockの在庫',
-      client: interaction.client
+      listTitle: 'stockの在庫'
     });
-    expect(interaction.editReply).toHaveBeenCalledWith({
-      content: expect.stringContaining('在庫管理の初期化に失敗しました')
-    });
-    expect(interaction.editReply).toHaveBeenCalledWith({
-      content: expect.stringContaining('シートの作成に失敗しました')
-    });
+    expect(interaction.editReply).not.toHaveBeenCalled();
     expect(interaction.deleteReply).not.toHaveBeenCalled();
   });
 
@@ -108,8 +98,7 @@ describe('InitInventoryCommand', () => {
     // Then
     expect(initializationService.initializeInventory).toHaveBeenCalledWith({
       channelId: 'inventory-channel-1',
-      listTitle: '日用品の在庫',
-      client: interaction.client
+      listTitle: '日用品の在庫'
     });
   });
 });

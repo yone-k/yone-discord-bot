@@ -49,6 +49,20 @@ func setup(t *testing.T) *application.Service {
 	return application.New(repository.New(db), fixedClock{time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)}, ids{})
 }
 
+func persistTaskMessage(t *testing.T, task domain.RemindTask, messageID string) *domain.RemindTask {
+	t.Helper()
+	store := repository.New(dbtest.Open(t))
+	rpWrite(t, store, func(r application.Repository) error {
+		channel, err := r.GetRemindChannel(t.Context(), task.ChannelID, true)
+		if err != nil {
+			return err
+		}
+		task.MessageID = &messageID
+		return r.PutTask(t.Context(), &task, channel.LinkedInventoryChannelID, false)
+	})
+	return &task
+}
+
 func TestNewServiceEntitiesPersistUUIDv7AsBothIdentifiers(t *testing.T) {
 	s := setup(t)
 	db := dbtest.Open(t)
@@ -216,7 +230,15 @@ func TestListSnapshotConflictAndNotificationPreservation(t *testing.T) {
 	if e != nil {
 		t.Fatal("same day list ack must be idempotent", e)
 	}
-	changed, e := s.PatchListChannel(ctx, "1", application.ChannelPatch{MessageID: application.Some(ptr("88"))})
+	rpWrite(t, repository.New(dbtest.Open(t)), func(r application.Repository) error {
+		list, err := r.GetList(ctx, "1", true)
+		if err != nil {
+			return err
+		}
+		list.Channel.MessageID = ptr("88")
+		return r.PutList(ctx, list)
+	})
+	changed, e := s.GetListChannel(ctx, "1")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -269,7 +291,7 @@ func TestInventoryApplyRenameReorderAndReferencedDeletion(t *testing.T) {
 	}
 }
 
-func TestTaskSettingsAreAtomicAndMessagePatchKeepsReferences(t *testing.T) {
+func TestTaskSettingsAreAtomicAndMessagePersistenceKeepsReferences(t *testing.T) {
 	s := setup(t)
 	ctx := context.Background()
 	_, _, task := inventoryFixture(t, s)
@@ -294,12 +316,13 @@ func TestTaskSettingsAreAtomicAndMessagePatchKeepsReferences(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	patched, e := s.PatchTask(ctx, "3", task.ID, updated.Task.Revision, application.TaskPatch{MessageID: application.Some(ptr("55"))})
+	persistTaskMessage(t, updated.Task, "55")
+	patched, e := s.GetTask(ctx, "3", task.ID)
 	if e != nil {
 		t.Fatal(e)
 	}
 	if patched.MessageID == nil || *patched.MessageID != "55" || patched.InventoryItems[0].Consume.String() != "0.0123" {
-		t.Fatal("message patch changed business settings")
+		t.Fatal("message persistence changed business settings")
 	}
 }
 
@@ -330,10 +353,7 @@ func TestReminderAckConflictsAndReturnsLatestRevision(t *testing.T) {
 	s := setup(t)
 	ctx := context.Background()
 	_, _, task := inventoryFixture(t, s)
-	taskPtr, e := s.PatchTask(ctx, "3", task.ID, task.Revision, application.TaskPatch{MessageID: application.Some(ptr("55"))})
-	if e != nil {
-		t.Fatal(e)
-	}
+	taskPtr := persistTaskMessage(t, task, "55")
 	plan, e := s.PollNotifications(ctx)
 	if e != nil {
 		t.Fatal(e)
@@ -562,10 +582,7 @@ func TestConcurrentCompletionAndAckCannotOverwriteOneAnother(t *testing.T) {
 	s := setup(t)
 	ctx := context.Background()
 	a, _, task := inventoryFixture(t, s)
-	current, err := s.PatchTask(ctx, "3", task.ID, task.Revision, application.TaskPatch{MessageID: application.Some(ptr("55"))})
-	if err != nil {
-		t.Fatal(err)
-	}
+	current := persistTaskMessage(t, task, "55")
 	plan, err := s.PollNotifications(ctx)
 	if err != nil {
 		t.Fatal(err)

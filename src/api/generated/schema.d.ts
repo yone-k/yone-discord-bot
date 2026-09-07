@@ -20,22 +20,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/display/initialization": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getInitialization"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/inventories": {
         parameters: {
             query?: never;
@@ -126,6 +110,22 @@ export interface paths {
         get: operations["getInventoryItems"];
         put?: never;
         post: operations["appendInventoryItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inventories/{channelId}/items/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["appendInventoryItems"];
         delete?: never;
         options?: never;
         head?: never;
@@ -340,7 +340,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/notifications/ack": {
+    "/v1/outputs/card-view/{channelId}/{targetKind}/{targetId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -349,14 +349,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["ackNotification"];
+        post: operations["setOutputCardView"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/notifications/poll": {
+    "/v1/outputs/delete-all/{channelId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -365,7 +365,87 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["pollNotifications"];
+        post: operations["requestDeleteAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/outputs/initialize/{channelId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["initializeOutputs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/outputs/jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getOutputJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/outputs/operation-log-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["recordOutputEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/outputs/redraw/{channelId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["redrawOutputs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/outputs/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getOutputStatus"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -582,6 +662,12 @@ export interface components {
             shortages?: components["schemas"]["Shortage"][];
             references?: components["schemas"]["StoredRemindTask"][];
         };
+        AppendInventoryItemsInput: {
+            items: components["schemas"]["InventoryItemInput"][];
+        };
+        AppendInventoryItemsResult: {
+            skippedNames: string[];
+        };
         ApplyInventoryInput: {
             expected: components["schemas"]["InventoryEditItem"][];
             items: components["schemas"]["ApplyInventoryItem"][];
@@ -599,9 +685,7 @@ export interface components {
         BusinessDate: string;
         BusinessTime: string;
         ChannelPatch: {
-            messageId?: (string & components["schemas"]["Id"]) | null;
             listTitle?: string;
-            operationLogThreadId?: (string & components["schemas"]["Id"]) | null;
         };
         ChannelSettings: {
             channelId: components["schemas"]["Id"];
@@ -638,12 +722,6 @@ export interface components {
         };
         /** @description Opaque legacy business ID or Discord ID; never assume globally unique or UUID. */
         Id: string;
-        Initialization: {
-            lists: components["schemas"]["ListDisplay"][];
-            inventories: components["schemas"]["InventoryDisplay"][];
-            reminders: components["schemas"]["TaskDisplay"][];
-            remindChannels: components["schemas"]["RemindChannel"][];
-        };
         /** Format: int32 */
         IntervalDays: number;
         InventoryChannel: {
@@ -653,19 +731,18 @@ export interface components {
             operationLogThreadId: (string & components["schemas"]["Id"]) | null;
             defaultCategory: string;
         };
+        InventoryChannelInput: {
+            channelId: components["schemas"]["Id"];
+            listTitle: string;
+            defaultCategory: string;
+        };
         InventoryChannelPatch: {
-            messageId?: (string & components["schemas"]["Id"]) | null;
             listTitle?: string;
-            operationLogThreadId?: (string & components["schemas"]["Id"]) | null;
             defaultCategory?: string;
         };
         InventoryConsumption: {
             inventoryId: components["schemas"]["Id"];
             consume: components["schemas"]["Quantity"];
-        };
-        InventoryDisplay: {
-            channel: components["schemas"]["InventoryChannel"];
-            items: components["schemas"]["StoredInventoryItem"][];
         };
         InventoryEditItem: {
             name: string;
@@ -692,20 +769,12 @@ export interface components {
         };
         ListChannelInput: {
             channelId: components["schemas"]["Id"];
-            messageId: (string & components["schemas"]["Id"]) | null;
             listTitle: string;
-            operationLogThreadId: (string & components["schemas"]["Id"]) | null;
             defaultCategory: string;
         };
         ListChannelPatch: {
-            messageId?: (string & components["schemas"]["Id"]) | null;
             listTitle?: string;
-            operationLogThreadId?: (string & components["schemas"]["Id"]) | null;
             defaultCategory?: string;
-        };
-        ListDisplay: {
-            channel: components["schemas"]["ListChannel"];
-            items: components["schemas"]["StoredListItem"][];
         };
         ListEditItem: {
             name: string;
@@ -719,55 +788,91 @@ export interface components {
         };
         /** Format: int32 */
         NonnegativeInteger: number;
-        /** @description kind=list requires non-null list and item with null reminder. kind=before or overdue requires non-null reminder with null list and item. Reminder deadlines are timestamps and revisions are non-null; list deadlines are dates and revisions are null. */
-        Notification: {
-            /** @enum {string} */
-            kind: "list" | "before" | "overdue";
+        OutputAccepted: {
+            taskIds: components["schemas"]["Id"][];
+        };
+        /** @enum {string} */
+        OutputCardMode: "normal" | "update_selection" | "delete_selection";
+        OutputCardView: {
             channelId: components["schemas"]["Id"];
-            id: components["schemas"]["Id"];
-            evaluatedAt: components["schemas"]["Timestamp"];
-            /** @description BusinessDate for list notifications, Timestamp for reminder notifications. */
-            targetDueAt: components["schemas"]["NotificationDeadline"];
-            /** @description null for list notifications; the captured task revision for reminders. */
-            expectedRevision: (string & components["schemas"]["Revision"]) | null;
-            list: components["schemas"]["ListDisplay"] | null;
-            item: components["schemas"]["StoredListItem"] | null;
-            reminder: components["schemas"]["TaskDisplay"] | null;
+            targetKind: components["schemas"]["OutputTargetKind"];
+            targetId: components["schemas"]["Id"];
+            mode: components["schemas"]["OutputCardMode"];
+            page: components["schemas"]["NonnegativeInteger"];
+            version: components["schemas"]["Revision"];
         };
-        NotificationAckResult: {
-            item: components["schemas"]["StoredListItem"] | null;
-            task: components["schemas"]["StoredRemindTask"] | null;
+        OutputCardViewInput: {
+            mode: components["schemas"]["OutputCardMode"];
+            page?: number;
         };
-        /** @description List deadline (YYYY-MM-DD) or reminder deadline (RFC3339 with milliseconds). kind selects the applicable representation. */
-        NotificationDeadline: string;
-        NotificationPlan: {
-            evaluatedAt: components["schemas"]["Timestamp"];
-            notifications: components["schemas"]["Notification"][];
-            progress: components["schemas"]["ProgressUpdate"][];
-        };
-        NotificationToken: {
-            /** @enum {string} */
-            kind: "list" | "before" | "overdue";
+        OutputChannelStop: {
             channelId: components["schemas"]["Id"];
-            id: components["schemas"]["Id"];
-            evaluatedAt: components["schemas"]["Timestamp"];
-            /** @description BusinessDate for list notifications, Timestamp for reminder notifications. */
-            targetDueAt: components["schemas"]["NotificationDeadline"];
-            /** @description null for list notifications; the captured task revision for reminders. */
-            expectedRevision: (string & components["schemas"]["Revision"]) | null;
+            suspendedAt: components["schemas"]["Timestamp"];
+            suspendedBy: components["schemas"]["Id"];
         };
+        OutputHold: {
+            taskId: components["schemas"]["Id"];
+            channelId: components["schemas"]["Id"];
+            kind: components["schemas"]["OutputTaskKind"];
+            state: components["schemas"]["OutputTaskState"];
+            reason: string;
+            dependencyTaskId: (string & components["schemas"]["Id"]) | null;
+        };
+        OutputInitializeInput: {
+            /** @enum {string} */
+            kind: "list" | "inventory" | "reminder";
+            enableLog?: boolean;
+        };
+        OutputJob: {
+            jobId: components["schemas"]["Id"];
+            channelId: components["schemas"]["Id"];
+            state: components["schemas"]["OutputTaskState"];
+            confirmedDeletedCount: components["schemas"]["NonnegativeInteger"];
+            firstAttemptFinished: boolean;
+            lastError: string | null;
+        };
+        OutputLogEvent: {
+            actorId: components["schemas"]["Id"];
+            channelId: components["schemas"]["Id"];
+            operationKind: components["schemas"]["OutputOperationKind"];
+            interactionId: components["schemas"]["Id"];
+            occurredAt: components["schemas"]["Timestamp"];
+            success: boolean;
+            message?: string;
+            cancelReason?: string;
+        };
+        /** @enum {string} */
+        OutputOperationKind: "InitListButtonHandler" | "AddListModalHandler" | "EditListModalHandler" | "RemindTaskAddModalHandler" | "RemindTaskUpdateModalHandler" | "RemindTaskUpdateOverrideModalHandler" | "RemindTaskInventoryModalHandler" | "RemindTaskCompleteModalHandler" | "RemindTaskDeleteModalHandler" | "AddListButtonHandler" | "EditListButtonHandler" | "ConfirmationModalHandler" | "RemindTaskUpdateButtonHandler" | "RemindTaskUpdateCancelButtonHandler" | "RemindTaskCompleteButtonHandler" | "RemindTaskDeleteButtonHandler" | "RemindTaskDetailButtonHandler" | "RemindTaskAddButtonHandler" | "InventoryAddButtonHandler" | "InventoryUpdateButtonHandler" | "InventoryDeleteButtonHandler" | "InventorySelectionCancelButtonHandler" | "InventoryAddModalHandler" | "InventoryUpdateModalHandler" | "InventoryDeleteModalHandler" | "InventoryDeleteSelectMenuHandler" | "RemindTaskUpdateSelectMenuHandler" | "InitListCommand" | "InitInventoryCommand" | "InitRemindListCommand" | "AddListCommand" | "AddInventoryCommand" | "UpdateInventoryCommand" | "DeleteInventoryCommand" | "AddRemindListCommand" | "LinkInventoryCommand" | "UnlinkInventoryCommand" | "DeleteAllMessageCommand" | "reaction";
+        OutputRedrawInput: {
+            /** @enum {string} */
+            kind: "list" | "inventory" | "reminder";
+        };
+        OutputStateCount: {
+            state: components["schemas"]["OutputTaskState"];
+            count: components["schemas"]["NonnegativeInteger"];
+        };
+        OutputStatus: {
+            /** @enum {string} */
+            contract: "go-discord-output-v1";
+            enabled: boolean;
+            workerRunning: boolean;
+            counts: components["schemas"]["OutputStateCount"][];
+            oldestPendingAt: (string & components["schemas"]["Timestamp"]) | null;
+            suspensions: components["schemas"]["OutputChannelStop"][];
+            holds: components["schemas"]["OutputHold"][];
+        };
+        /** @enum {string} */
+        OutputTargetKind: "task" | "inventory";
+        /** @enum {string} */
+        OutputTaskKind: "list_render" | "inventory_render" | "task_card" | "reminder_notice" | "list_deadline_notice" | "operation_log" | "delete_all" | "thread_ensure";
+        /** @enum {string} */
+        OutputTaskState: "pending" | "running" | "retry_wait" | "uncertain" | "blocked" | "succeeded" | "cancelled";
         PatchTaskInput: {
             expectedRevision: components["schemas"]["Revision"];
             patch: components["schemas"]["TaskPatch"];
         };
         /** @description Path representation of an ID. For '.', '..', an ID containing '/' or '%', or an ID starting with '~', use '~' followed by unpadded base64url of the UTF-8 ID. Otherwise use ordinary URI component encoding. JSON and query IDs retain their original values. */
         PathId: string;
-        ProgressUpdate: {
-            /** @enum {string} */
-            kind: "progress";
-            reminder: components["schemas"]["TaskDisplay"];
-            evaluatedAt: components["schemas"]["Timestamp"];
-        };
         /** @description Arbitrary precision, unsigned decimal. Never convert through a binary float. */
         Quantity: string;
         RemindChannel: {
@@ -779,12 +884,13 @@ export interface components {
             remindNoticeMessageId: (string & components["schemas"]["Id"]) | null;
             linkedInventoryChannelId: (string & components["schemas"]["Id"]) | null;
         };
+        RemindChannelInput: {
+            channelId: components["schemas"]["Id"];
+            listTitle: string;
+            linkedInventoryChannelId: (string & components["schemas"]["Id"]) | null;
+        };
         RemindChannelPatch: {
-            messageId?: (string & components["schemas"]["Id"]) | null;
             listTitle?: string;
-            operationLogThreadId?: (string & components["schemas"]["Id"]) | null;
-            remindNoticeThreadId?: (string & components["schemas"]["Id"]) | null;
-            remindNoticeMessageId?: (string & components["schemas"]["Id"]) | null;
         };
         RemindInventoryEdit: {
             name: string;
@@ -867,7 +973,6 @@ export interface components {
         };
         /** @description Setting lastDoneAt or nextDueAt resets lastRemindDueAt, overdueNotifyCount and lastOverdueNotifiedAt. lastDoneAt must not exceed nextDueAt; invalid overrides return 422 invalid_input. */
         TaskPatch: {
-            messageId?: (string & components["schemas"]["Id"]) | null;
             title?: string;
             description?: string | null;
             intervalDays?: components["schemas"]["IntervalDays"];
@@ -884,6 +989,9 @@ export interface components {
     };
     responses: never;
     parameters: {
+        "OutputActorHeaders.actorId": components["schemas"]["Id"];
+        "OutputActorHeaders.interactionId": components["schemas"]["Id"];
+        "OutputActorHeaders.operationKind": components["schemas"]["OutputOperationKind"];
         RequestOptions: number;
     };
     requestBodies: never;
@@ -917,91 +1025,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
-                };
-            };
-        };
-    };
-    getInitialization: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The request has succeeded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Initialization"];
-                };
-            };
-            /** @description The server could not understand the request due to invalid syntax. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Access is unauthorized. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description The server cannot find the requested resource. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description The request conflicts with the current state of the server. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Client error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Service unavailable. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
                 };
             };
         };
@@ -1181,8 +1204,11 @@ export interface operations {
     createInventoryChannel: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -1191,7 +1217,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["InventoryChannel"];
+                "application/json": components["schemas"]["InventoryChannelInput"];
             };
         };
         responses: {
@@ -1272,8 +1298,11 @@ export interface operations {
     deleteInventoryChannel: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -1357,8 +1386,11 @@ export interface operations {
     patchInventoryChannel: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -1448,8 +1480,11 @@ export interface operations {
     applyInventory: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -1539,8 +1574,11 @@ export interface operations {
     bulkUpdateInventory: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -1806,8 +1844,11 @@ export interface operations {
     appendInventoryItem: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -1827,6 +1868,100 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StoredInventoryItem"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Client error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Service unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    appendInventoryItems: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
+            };
+            path: {
+                channelId: components["schemas"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppendInventoryItemsInput"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppendInventoryItemsResult"];
                 };
             };
             /** @description The server could not understand the request due to invalid syntax. */
@@ -1985,8 +2120,11 @@ export interface operations {
     updateInventoryItem: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -2077,8 +2215,11 @@ export interface operations {
     deleteInventoryItem: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -2427,8 +2568,11 @@ export interface operations {
     reorderInventory: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -2518,8 +2662,11 @@ export interface operations {
     resolveInventory: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -2781,8 +2928,11 @@ export interface operations {
     createListChannel: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -2872,8 +3022,11 @@ export interface operations {
     deleteListChannel: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -2957,8 +3110,11 @@ export interface operations {
     patchListChannel: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -3135,8 +3291,11 @@ export interface operations {
     appendListItem: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -3226,8 +3385,11 @@ export interface operations {
     updateListItem: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -3318,8 +3480,11 @@ export interface operations {
     deleteListItem: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -3406,8 +3571,11 @@ export interface operations {
     reorderList: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -3497,8 +3665,11 @@ export interface operations {
     saveList: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -3672,18 +3843,25 @@ export interface operations {
             };
         };
     };
-    ackNotification: {
+    setOutputCardView: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
-            path?: never;
+            path: {
+                channelId: components["schemas"]["PathId"];
+                targetKind: components["schemas"]["OutputTargetKind"];
+                targetId: components["schemas"]["PathId"];
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["NotificationToken"];
+                "application/json": components["schemas"]["OutputCardViewInput"];
             };
         };
         responses: {
@@ -3693,7 +3871,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["NotificationAckResult"];
+                    "application/json": components["schemas"]["OutputCardView"];
                 };
             };
             /** @description The server could not understand the request due to invalid syntax. */
@@ -3761,7 +3939,464 @@ export interface operations {
             };
         };
     };
-    pollNotifications: {
+    requestDeleteAll: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
+            };
+            path: {
+                channelId: components["schemas"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputJob"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Client error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Service unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    initializeOutputs: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
+            };
+            path: {
+                channelId: components["schemas"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutputInitializeInput"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputAccepted"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Client error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Service unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getOutputJob: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+            };
+            path: {
+                jobId: components["schemas"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputJob"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Client error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Service unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    recordOutputEvent: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutputLogEvent"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputAccepted"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Client error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Service unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    redrawOutputs: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
+            };
+            path: {
+                channelId: components["schemas"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutputRedrawInput"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputAccepted"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Client error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Service unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getOutputStatus: {
         parameters: {
             query?: never;
             header?: {
@@ -3778,7 +4413,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["NotificationPlan"];
+                    "application/json": components["schemas"]["OutputStatus"];
                 };
             };
             /** @description The server could not understand the request due to invalid syntax. */
@@ -4021,8 +4656,11 @@ export interface operations {
     createRemindChannel: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -4031,7 +4669,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RemindChannel"];
+                "application/json": components["schemas"]["RemindChannelInput"];
             };
         };
         responses: {
@@ -4112,8 +4750,11 @@ export interface operations {
     deleteRemindChannel: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -4197,8 +4838,11 @@ export interface operations {
     patchRemindChannel: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -4377,8 +5021,11 @@ export interface operations {
     linkInventory: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -4468,8 +5115,11 @@ export interface operations {
     reorderTasks: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -4646,8 +5296,11 @@ export interface operations {
     createTask: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -4825,8 +5478,11 @@ export interface operations {
     deleteTask: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -4911,8 +5567,11 @@ export interface operations {
     patchTask: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -5003,8 +5662,11 @@ export interface operations {
     completeTask: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -5095,8 +5757,11 @@ export interface operations {
     editTaskInventory: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -5187,8 +5852,11 @@ export interface operations {
     pauseTask: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];
@@ -5279,8 +5947,11 @@ export interface operations {
     resumeTask: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 "X-Core-Timeout-Ms"?: components["parameters"]["RequestOptions"];
+                "X-Actor-Id": components["parameters"]["OutputActorHeaders.actorId"];
+                "X-Operation-Kind": components["parameters"]["OutputActorHeaders.operationKind"];
+                "X-Interaction-Id"?: components["parameters"]["OutputActorHeaders.interactionId"];
             };
             path: {
                 channelId: components["schemas"]["PathId"];

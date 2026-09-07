@@ -27,7 +27,11 @@ class BackupTests(unittest.TestCase):
         self.corrupt = False
         self.disk_full = False
         self.target_exists = True
+        self.fail_restore = False
+        self.api_env = self.root / '.env.api'
+        self.api_env.write_text('DATABASE_URL="postgres://bot:synthetic@db/source"\nDISCORD_OUTPUT_ENABLED="true"\n')
         self.env = patch.dict(os.environ, {'STORAGE_ROOT': str(self.root), 'RCLONE_REMOTE': 'bot-drive:',
+            'API_ENV_FILE': str(self.api_env),
             'BOT_IMAGE': 'ghcr.io/yone-k/yone-discord-bot@sha256:' + 'a' * 64})
         self.env.start()
         self.addCleanup(self.env.stop)
@@ -54,7 +58,11 @@ class BackupTests(unittest.TestCase):
             if self.disk_full:
                 raise OSError(28, 'No space left on device')
             kwargs['stdout'].write(b'PGDMP synthetic data')
+        elif 'pg_restore' in ' '.join(cmd) and self.fail_restore:
+            raise subprocess.CalledProcessError(1, cmd)
         elif 'psql' in ' '.join(cmd):
+            if 'max(version)' in kwargs.get('input', ''):
+                return subprocess.CompletedProcess(cmd, 0, stdout='3\n')
             result = '' if 'pg_database' in kwargs.get('input', '') and not self.target_exists else '1\n'
             return subprocess.CompletedProcess(cmd, 0, stdout=result)
         return subprocess.CompletedProcess(cmd, 0, stdout='')
@@ -180,6 +188,22 @@ class BackupTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             backup.restore_backup(next(self.remote.glob('*.json')).name, 'new_db')
         self.assertFalse(any('createdb' in ' '.join(c) for c in self.calls))
+
+    def test_restore_persists_output_disabled_and_preserves_credentials(self):
+        backup.create_backup()
+        self.target_exists = False
+        backup.restore_backup(next(self.remote.glob('*.json')).name, 'new_db')
+        self.assertEqual(self.api_env.read_text(), 'DATABASE_URL="postgres://bot:synthetic@db/source"\nDISCORD_OUTPUT_ENABLED=false\n')
+        self.assertEqual(self.api_env.stat().st_mode & 0o777, 0o600)
+        self.assertTrue(any('psql' in ' '.join(call) and call[-1] == 'new_db' for call in self.calls))
+
+    def test_failed_restore_does_not_reenable_output(self):
+        backup.create_backup()
+        self.target_exists = False
+        self.fail_restore = True
+        with self.assertRaises(subprocess.CalledProcessError):
+            backup.restore_backup(next(self.remote.glob('*.json')).name, 'new_db')
+        self.assertIn('DISCORD_OUTPUT_ENABLED=false', self.api_env.read_text())
 
 
 if __name__ == '__main__':

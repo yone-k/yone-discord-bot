@@ -16,7 +16,7 @@ func optionalInt(v *int32) application.Optional[int] {
 }
 func inputTaskPatch(v api.TaskPatch) (application.TaskPatch, error) {
 	p := application.TaskPatch{
-		MessageID: optionalNullable(v.MessageId), Title: optionalValue(v.Title), Description: optionalNullable(v.Description),
+		Title: optionalValue(v.Title), Description: optionalNullable(v.Description),
 		IntervalDays: optionalInt(v.IntervalDays), TimeOfDay: optionalValue(v.TimeOfDay), RemindBeforeMinutes: optionalInt(v.RemindBeforeMinutes),
 	}
 	if v.OverdueNotifyLimit.IsSpecified() {

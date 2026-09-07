@@ -60,7 +60,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return readinessDiagnostic(err)
 	}
 	service := application.New(repository.New(db), systemClock{}, uuidGenerator{})
-	routes, err := httptransport.NewBusinessRoutes(service, check, logger)
+	worker, runWorker := outputWorker(cfg, service, logger)
+	outputState := httptransport.OutputRuntimeState{Enabled: cfg.OutputEnabled}
+	if worker != nil {
+		outputState.Running = worker.Running
+	}
+	routes, err := httptransport.NewBusinessRoutes(service, check, logger, outputState)
 	if err != nil {
 		return err
 	}
@@ -74,7 +79,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return err
 	}
 	logger.Info("Core API listening", "address", server.Addr)
-	return serve(ctx, server, listener)
+	return serveWithWorker(ctx, func(ctx context.Context) error { return serve(ctx, server, listener) }, runWorker)
 }
 
 func readinessDiagnostic(err error) error {

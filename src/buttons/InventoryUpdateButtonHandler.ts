@@ -4,7 +4,7 @@ import { DEFAULT_CATEGORY } from '../models/CategoryType';
 import type { InventoryItem } from '../models/InventoryItem';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import type { MetadataProvider } from '../services/MetadataProvider';
-import type { OperationLogService } from '../services/OperationLogService';
+import type { UiOperationEvents } from '../services/UiOperationEvents';
 import { InventoryChannelStore } from '../services/InventoryChannelStore';
 import type { InventoryChannelMetadata } from '../services/InventoryChannelStore';
 import { InventoryRepository } from '../services/InventoryRepository';
@@ -29,7 +29,7 @@ export class InventoryUpdateButtonHandler extends BaseButtonHandler {
   constructor(
     logger: Logger,
     repository: InventoryRepositoryPort = new InventoryRepository(),
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider,
     inventoryMetadataReader?: InventoryMetadataReader
   ) {

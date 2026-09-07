@@ -9,7 +9,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     # Avoid the Pi host's unresponsive resolver delaying Discord replies.
-    dns:
+    dns: &discord-dns
       - 192.168.1.1
       - 1.1.1.1
     ports:
@@ -22,6 +22,8 @@ services:
 
   api:
     image: ${BOT_IMAGE:?Set BOT_IMAGE to the GHCR image digest}
+    stop_grace_period: 20s
+    dns: *discord-dns
     env_file: ${API_ENV_FILE:-.env.api}
     entrypoint: ["/app/bin/core-api"]
     depends_on:

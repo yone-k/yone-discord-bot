@@ -12,13 +12,10 @@ function setup(revision = '7', input = '米,0.3'): {
         findTaskByMessageId: ReturnType<typeof vi.fn>;
         complete: ReturnType<typeof vi.fn>;
     };
-    messages: {
-        updateTaskMessage: ReturnType<typeof vi.fn>;
-    };
     interaction: {
         customId: string;
         channelId: string;
-        client: object;
+        client: { channels: { fetch: ReturnType<typeof vi.fn> } };
         fields: {
             getTextInputValue: () => string;
         };
@@ -28,21 +25,18 @@ function setup(revision = '7', input = '米,0.3'): {
   const now = new Date('2026-01-01T00:00:00Z');
   const task = createRemindTask({ id: 'task', revision: '7', messageId: '456', title: '米', intervalDays: 1, timeOfDay: '09:00', remindBeforeMinutes: 0, startAt: now, nextDueAt: now, createdAt: now, updatedAt: now, inventoryItems: [{ inventoryId: 'rice', consume: '0' }] });
   const db = { findTaskByMessageId: vi.fn().mockResolvedValue({ ...task, channelId: '123', position: 0, description: null, overdueNotifyLimit: null }), complete: vi.fn().mockResolvedValue({ ...task, revision: '8', channelId: '123', position: 0, description: null, overdueNotifyLimit: null }) };
-  const messages = { updateTaskMessage: vi.fn().mockResolvedValue({ success: true }) };
   const metadata = { getChannelMetadata: vi.fn().mockResolvedValue({ success: true, metadata: { linkedInventoryChannelId: '789' } }) };
-  const handler = new ExposedHandler(new Logger(), undefined, metadata as any, new RemindTaskRepository(db as any), messages as any, { fetchAll: vi.fn().mockResolvedValue([{ id: 'rice', name: '米', stock: '1', category: '' }]) }, { createOrUpdateMessage: vi.fn().mockResolvedValue({ success: true }) }, { refreshTasksUsingInventory: vi.fn().mockResolvedValue(undefined) });
-  const interaction = { customId: `remind-task-complete-modal:456:${revision}`, channelId: '123', client: {}, fields: { getTextInputValue: (): string => input } };
-  return { handler, db, messages, interaction, task };
+  const handler = new ExposedHandler(new Logger(), undefined, metadata as any, new RemindTaskRepository(db as any));
+  const interaction = { customId: `remind-task-complete-modal:456:${revision}`, channelId: '123', client: { channels: { fetch: vi.fn().mockRejectedValue(new Error('Discord unavailable')) } }, fields: { getTextInputValue: (): string => input } };
+  return { handler, db, interaction, task };
 }
 describe('variable inventory completion through API', () => {
-  it('refreshes consumed inventory even when the completed task display rejects', async () => {
+  it('completes once without waiting for task or inventory rendering', async () => {
     const x = setup();
-    const inventoryDisplay = (x.handler as any).inventoryMessageManager.createOrUpdateMessage;
-    x.messages.updateTaskMessage.mockRejectedValue(new Error('Discord unavailable'));
     const result = await x.handler.execute({ interaction: x.interaction } as any);
     expect(x.db.complete).toHaveBeenCalledTimes(1);
-    expect(inventoryDisplay).toHaveBeenCalledTimes(1);
-    expect(result.message).toContain('完了は保存されました');
+    expect(x.interaction.client.channels.fetch).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
   });
   it.each(['米,0.123', '米,0.264', '米,0', '米,'])('passes exact name and quantity input %s to the server without changing saved settings', async input => {
     const x = setup('7', input);
@@ -50,19 +44,19 @@ describe('variable inventory completion through API', () => {
     expect((await x.handler.execute({ interaction: x.interaction } as any)).success).toBe(true);
     expect(x.db.complete).toHaveBeenCalledWith('123', 'task', '7', [{ name: '米', consume: input.split(',')[1] || null }]);
     expect(x.task.inventoryItems[0].consume).toBe(before);
-    expect(x.messages.updateTaskMessage.mock.calls[0][2].revision).toBe('8');
+    expect(x.interaction.client.channels.fetch).not.toHaveBeenCalled();
   });
   it('passes the modal revision unchanged so the API can reject concurrent changes', async () => {
     const x = setup('6');
     x.db.complete.mockRejectedValue(new Error('タスクが変更されました'));
     expect((await x.handler.execute({ interaction: x.interaction } as any)).success).toBe(false);
     expect(x.db.complete).toHaveBeenCalledWith('123', 'task', '6', [{ name: '米', consume: '0.3' }]);
-    expect(x.messages.updateTaskMessage).not.toHaveBeenCalled();
+    expect(x.interaction.client.channels.fetch).not.toHaveBeenCalled();
   });
   it.each(['誤字,0', ''])('propagates domain rejection for %s without rendering success', async input => {
     const x = setup('7', input);
     x.db.complete.mockRejectedValue(new Error('入力内容を確認してください'));
     expect((await x.handler.execute({ interaction: x.interaction } as any)).success).toBe(false);
-    expect(x.messages.updateTaskMessage).not.toHaveBeenCalled();
+    expect(x.interaction.client.channels.fetch).not.toHaveBeenCalled();
   });
 });

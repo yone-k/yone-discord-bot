@@ -2,13 +2,13 @@ import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import type { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import type { MetadataProvider } from '../services/MetadataProvider';
-import type { OperationLogService } from '../services/OperationLogService';
+import type { UiOperationEvents } from '../services/UiOperationEvents';
 import { Logger } from '../utils/logger';
 
 export class InventoryAddButtonHandler extends BaseButtonHandler {
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider
   ) {
     super('inventory_add', logger, operationLogService, metadataManager);

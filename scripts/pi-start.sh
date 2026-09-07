@@ -14,9 +14,10 @@ flock -n 9 || { echo 'start: updater is running' >&2; exit 1; }
 if [ -f .deploy-state/state ]; then
   grep -qx 'blocked=1' .deploy-state/state || { echo 'start: block updater first' >&2; exit 1; }
 fi
+docker compose config --format json 2>/dev/null | python3 -B deploy/verify-service-settings.py
 docker compose --profile ops run --rm --no-deps ops --check
 # The irreversible boundary is migration COMMIT, before this script. This
 # record is additional evidence; its absence never authorizes a v1 rollback.
-date -u +%FT%TZ > .deploy-state/schema-v2-confirmed
+date -u +%FT%TZ > .deploy-state/schema-v3-confirmed
 docker compose up -d --no-deps --no-build --pull never --wait --wait-timeout 300 api
 docker compose up -d --no-deps --no-build --pull never --wait --wait-timeout 300 bot

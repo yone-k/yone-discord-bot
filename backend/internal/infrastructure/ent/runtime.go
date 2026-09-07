@@ -3,9 +3,12 @@
 package ent
 
 import (
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/discordcardview"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/inventorychannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listchannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listitem"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputdispatch"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputtask"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/remindtask"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/schema"
 )
@@ -14,6 +17,16 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	discordcardviewFields := schema.DiscordCardView{}.Fields()
+	_ = discordcardviewFields
+	// discordcardviewDescPage is the schema descriptor for page field.
+	discordcardviewDescPage := discordcardviewFields[5].Descriptor()
+	// discordcardview.PageValidator is a validator for the "page" field. It is called by the builders before save.
+	discordcardview.PageValidator = discordcardviewDescPage.Validators[0].(func(int) error)
+	// discordcardviewDescViewVersion is the schema descriptor for view_version field.
+	discordcardviewDescViewVersion := discordcardviewFields[6].Descriptor()
+	// discordcardview.ViewVersionValidator is a validator for the "view_version" field. It is called by the builders before save.
+	discordcardview.ViewVersionValidator = discordcardviewDescViewVersion.Validators[0].(func(int64) error)
 	inventorychannelFields := schema.InventoryChannel{}.Fields()
 	_ = inventorychannelFields
 	// inventorychannelDescDefaultCategory is the schema descriptor for default_category field.
@@ -36,6 +49,36 @@ func init() {
 	listitemDescIsCompleted := listitemFields[5].Descriptor()
 	// listitem.DefaultIsCompleted holds the default value on creation for the is_completed field.
 	listitem.DefaultIsCompleted = listitemDescIsCompleted.Default.(bool)
+	outputdispatchFields := schema.OutputDispatch{}.Fields()
+	_ = outputdispatchFields
+	// outputdispatchDescAttempt is the schema descriptor for attempt field.
+	outputdispatchDescAttempt := outputdispatchFields[2].Descriptor()
+	// outputdispatch.AttemptValidator is a validator for the "attempt" field. It is called by the builders before save.
+	outputdispatch.AttemptValidator = outputdispatchDescAttempt.Validators[0].(func(int) error)
+	// outputdispatchDescNonce is the schema descriptor for nonce field.
+	outputdispatchDescNonce := outputdispatchFields[3].Descriptor()
+	// outputdispatch.DefaultNonce holds the default value on creation for the nonce field.
+	outputdispatch.DefaultNonce = outputdispatchDescNonce.Default.(string)
+	// outputdispatchDescDiscordMessageID is the schema descriptor for discord_message_id field.
+	outputdispatchDescDiscordMessageID := outputdispatchFields[7].Descriptor()
+	// outputdispatch.DefaultDiscordMessageID holds the default value on creation for the discord_message_id field.
+	outputdispatch.DefaultDiscordMessageID = outputdispatchDescDiscordMessageID.Default.(string)
+	outputtaskFields := schema.OutputTask{}.Fields()
+	_ = outputtaskFields
+	// outputtaskDescAttempts is the schema descriptor for attempts field.
+	outputtaskDescAttempts := outputtaskFields[10].Descriptor()
+	// outputtask.DefaultAttempts holds the default value on creation for the attempts field.
+	outputtask.DefaultAttempts = outputtaskDescAttempts.Default.(int)
+	// outputtask.AttemptsValidator is a validator for the "attempts" field. It is called by the builders before save.
+	outputtask.AttemptsValidator = outputtaskDescAttempts.Validators[0].(func(int) error)
+	// outputtaskDescExecutor is the schema descriptor for executor field.
+	outputtaskDescExecutor := outputtaskFields[12].Descriptor()
+	// outputtask.DefaultExecutor holds the default value on creation for the executor field.
+	outputtask.DefaultExecutor = outputtaskDescExecutor.Default.(string)
+	// outputtaskDescLastError is the schema descriptor for last_error field.
+	outputtaskDescLastError := outputtaskFields[13].Descriptor()
+	// outputtask.DefaultLastError holds the default value on creation for the last_error field.
+	outputtask.DefaultLastError = outputtaskDescLastError.Default.(string)
 	remindtaskFields := schema.RemindTask{}.Fields()
 	_ = remindtaskFields
 	// remindtaskDescOverdueNotifyCount is the schema descriptor for overdue_notify_count field.

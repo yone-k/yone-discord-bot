@@ -7,6 +7,10 @@ const toStored = (item: InventoryItem): Omit<StoredInventoryItem, 'channelId' | 
 
 export class InventoryRepository {
   constructor(private readonly repository: InventoryPort = new ApiInventoryRepository()) {}
+  /** Returns names skipped because an item with the same name already exists. */
+  appendMany(channelId: string, items: Omit<InventoryItem, 'id'>[]): Promise<string[]> {
+    return this.repository.appendMany(channelId, items.map(item => ({ name: item.name, stock: item.stock, category: item.category || null })));
+  }
   async resolveByName(channelId: string, name: string): Promise<InventoryItem> { return fromStored(await this.repository.resolveByName(channelId, name)); }
   async apply(channelId: string, expected: InventoryItem[], items: InventoryItem[]): Promise<void> {
     await this.repository.apply(channelId, expected.map(toStored), items.map(toStored));

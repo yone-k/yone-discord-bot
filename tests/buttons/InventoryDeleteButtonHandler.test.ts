@@ -1,144 +1,72 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ComponentType, MessageFlags } from 'discord.js';
+import { describe, expect, it, vi } from 'vitest';
 import { InventoryDeleteButtonHandler } from '../../src/buttons/InventoryDeleteButtonHandler';
-import type { InventoryItem } from '../../src/models/InventoryItem';
-import { InventoryFormatter } from '../../src/ui/InventoryFormatter';
+import { CoreApiError } from '../../src/api/CoreClient';
 import { Logger } from '../../src/utils/logger';
 
-const createInventoryItems = (count: number): InventoryItem[] =>
-  Array.from({ length: count }, (_, index) => ({
-    id: `inventory-${index + 1}`,
-    name: `在庫${index + 1}`,
-    stock: index + 1,
-    category: index % 2 === 0 ? '日用品' : '食品'
-  }));
+interface InventoryButton {
+  customId: string;
+  channelId: string;
+  user: { id: string; bot: boolean };
+  deferred: boolean;
+  reply: ReturnType<typeof vi.fn>;
+  update: ReturnType<typeof vi.fn>;
+  editReply: ReturnType<typeof vi.fn>;
+  followUp: ReturnType<typeof vi.fn>;
+  deferUpdate: ReturnType<typeof vi.fn>;
+}
 
-const selectionComponents = [
-  {
-    type: ComponentType.Container,
-    components: []
-  }
-];
+function interaction(customId = 'inventory_delete'): InventoryButton {
+  return {
+    customId, channelId: '100', user: { id: '200', bot: false }, deferred: false,
+    reply: vi.fn(), update: vi.fn(), editReply: vi.fn(), followUp: vi.fn(),
+    deferUpdate: vi.fn(async function (this: { deferred: boolean }) { this.deferred = true; })
+  };
+}
 
 describe('InventoryDeleteButtonHandler', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
+  it.each([
+    ['inventory_delete', 0], ['inventory_delete?page=2', 2],
+    ['inventory_delete?page=-1', 0], ['inventory_delete?page=abc', 0]
+  ])('acknowledges before fetching and reserves page for %s', async (customId, page) => {
+    const button = interaction(customId);
+    const repository = { fetchAll: vi.fn(async () => {
+      expect(button.deferUpdate).toHaveBeenCalledOnce();
+      return [{ id: 'item-1' }];
+    }) };
+    const outputs = { setCardView: vi.fn().mockResolvedValue({}) };
+    await new InventoryDeleteButtonHandler(new Logger(), repository as any, outputs as any).handle({ interaction: button } as any);
+    expect(outputs.setCardView).toHaveBeenCalledExactlyOnceWith('100', 'inventory', '100', { mode: 'delete_selection', page });
+    expect(button.update).not.toHaveBeenCalled();
+    expect(button.editReply).not.toHaveBeenCalled();
+    expect(button.followUp).not.toHaveBeenCalled();
   });
 
-  it('Given inventory items When handle is called Then it updates inventory message with delete selection components', async () => {
-    // Given
-    const items = createInventoryItems(2);
-    const repository = {
-      fetchAll: vi.fn().mockResolvedValue(items)
-    };
-    const metadataManager = {
-      getChannelMetadata: vi.fn().mockResolvedValue({
-        listTitle: '備品リスト',
-        defaultCategory: '日用品'
-      })
-    };
-    const formatDataContent = vi
-      .spyOn(InventoryFormatter, 'formatDataContent')
-      .mockResolvedValue('formatted inventory content');
-    const buildInventorySelectionComponents = vi
-      .spyOn(InventoryFormatter, 'buildInventorySelectionComponents')
-      .mockReturnValue(selectionComponents as any);
-    const handler = new InventoryDeleteButtonHandler(new Logger(), repository as any, metadataManager as any);
-    const interaction = {
-      customId: 'inventory_delete',
-      user: { id: 'user-1', bot: false },
-      channelId: 'inventory-channel-1',
-      reply: vi.fn().mockResolvedValue(undefined),
-      update: vi.fn().mockResolvedValue(undefined)
-    };
+  it('reports an empty inventory privately without reserving a view', async () => {
+    const button = interaction();
+    const outputs = { setCardView: vi.fn() };
+    await new InventoryDeleteButtonHandler(new Logger(), { fetchAll: vi.fn().mockResolvedValue([]) }, outputs as any).handle({ interaction: button } as any);
+    expect(button.followUp).toHaveBeenCalledExactlyOnceWith({ content: '在庫アイテムがありません。', flags: ['Ephemeral'] });
+    expect(outputs.setCardView).not.toHaveBeenCalled();
+    expect(button.update).not.toHaveBeenCalled();
+    expect(button.editReply).not.toHaveBeenCalled();
+  });
 
-    // When
-    await handler.handle({ interaction } as any);
+  it.each(['fetch', 'reserve'])('reports %s errors privately without editing the shared card', async stage => {
+    const button = interaction();
+    const error = new CoreApiError('unavailable', 503);
+    const repository = { fetchAll: stage === 'fetch' ? vi.fn().mockRejectedValue(error) : vi.fn().mockResolvedValue([{ id: 'item-1' }]) };
+    const outputs = { setCardView: vi.fn().mockRejectedValue(error) };
+    await new InventoryDeleteButtonHandler(new Logger(), repository as any, outputs as any).handle({ interaction: button } as any);
+    expect(button.followUp).toHaveBeenCalledExactlyOnceWith({ content: error.message, flags: ['Ephemeral'] });
+    expect(button.update).not.toHaveBeenCalled();
+    expect(button.editReply).not.toHaveBeenCalled();
+  });
 
-    // Then
+  it('retains custom IDs and ignores bots', () => {
+    const handler = new InventoryDeleteButtonHandler(new Logger());
     expect(handler.getCustomId()).toBe('inventory_delete');
-    expect(repository.fetchAll).toHaveBeenCalledWith('inventory-channel-1');
-    expect(metadataManager.getChannelMetadata).toHaveBeenCalledWith('inventory-channel-1');
-    expect(formatDataContent).toHaveBeenCalledWith(items, '備品リスト', 'inventory-channel-1', '日用品');
-    expect(buildInventorySelectionComponents).toHaveBeenCalledWith(
-      'formatted inventory content',
-      items,
-      'delete',
-      0
-    );
-    expect(interaction.reply).not.toHaveBeenCalled();
-    expect(interaction.update).toHaveBeenCalledWith({
-      flags: MessageFlags.IsComponentsV2,
-      components: selectionComponents
-    });
-  });
-
-  it('Given no inventory items When handle is called Then it replies item empty error', async () => {
-    // Given
-    const repository = {
-      fetchAll: vi.fn().mockResolvedValue([])
-    };
-    const formatDataContent = vi.spyOn(InventoryFormatter, 'formatDataContent');
-    const buildInventorySelectionComponents = vi.spyOn(InventoryFormatter, 'buildInventorySelectionComponents');
-    const handler = new InventoryDeleteButtonHandler(new Logger(), repository as any);
-    const interaction = {
-      customId: 'inventory_delete',
-      user: { id: 'user-1', bot: false },
-      channelId: 'inventory-channel-1',
-      reply: vi.fn().mockResolvedValue(undefined),
-      update: vi.fn().mockResolvedValue(undefined)
-    };
-
-    // When
-    await handler.handle({ interaction } as any);
-
-    // Then
-    expect(repository.fetchAll).toHaveBeenCalledWith('inventory-channel-1');
-    expect(interaction.reply).toHaveBeenCalledWith({
-      content: expect.stringContaining('アイテムがありません'),
-      flags: ['Ephemeral']
-    });
-    expect(interaction.update).not.toHaveBeenCalled();
-    expect(formatDataContent).not.toHaveBeenCalled();
-    expect(buildInventorySelectionComponents).not.toHaveBeenCalled();
-  });
-
-  it('Given page customId When handle is called Then it updates inventory message with requested page', async () => {
-    // Given
-    const items = createInventoryItems(30);
-    const repository = {
-      fetchAll: vi.fn().mockResolvedValue(items)
-    };
-    const metadataManager = {
-      getChannelMetadata: vi.fn().mockResolvedValue(null)
-    };
-    vi.spyOn(InventoryFormatter, 'formatDataContent').mockResolvedValue('formatted inventory content');
-    const buildInventorySelectionComponents = vi
-      .spyOn(InventoryFormatter, 'buildInventorySelectionComponents')
-      .mockReturnValue(selectionComponents as any);
-    const handler = new InventoryDeleteButtonHandler(new Logger(), repository as any, metadataManager as any);
-    const interaction = {
-      customId: 'inventory_delete?page=1',
-      user: { id: 'user-1', bot: false },
-      channelId: 'inventory-channel-1',
-      reply: vi.fn().mockResolvedValue(undefined),
-      update: vi.fn().mockResolvedValue(undefined)
-    };
-
-    // When
-    await handler.handle({ interaction } as any);
-
-    // Then
-    expect(buildInventorySelectionComponents).toHaveBeenCalledWith(
-      'formatted inventory content',
-      items,
-      'delete',
-      1
-    );
-    expect(interaction.reply).not.toHaveBeenCalled();
-    expect(interaction.update).toHaveBeenCalledWith({
-      flags: MessageFlags.IsComponentsV2,
-      components: selectionComponents
-    });
+    expect(handler.shouldHandle({ interaction: interaction('inventory_delete?page=1') } as any)).toBe(true);
+    expect(handler.shouldHandle({ interaction: { ...interaction(), user: { bot: true } } } as any)).toBe(false);
+    expect(handler.shouldHandle({ interaction: interaction('other') } as any)).toBe(false);
   });
 });

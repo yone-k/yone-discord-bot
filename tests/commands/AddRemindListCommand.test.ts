@@ -81,8 +81,7 @@ describe('AddRemindListCommand', () => {
       'channel-1',
       expect.objectContaining({
         inventoryItems: [{ inventoryId: 'inventory-1', consume: '1' }]
-      }),
-      expect.anything()
+      })
     );
     expect(mockContext.interaction?.deferReply).toHaveBeenCalledWith({ flags: ['Ephemeral'] });
     expect(mockContext.interaction?.deleteReply).toHaveBeenCalled();

@@ -1,7 +1,7 @@
-import { withInteractionDeadline, CoreApiError } from '../api/CoreClient';
+import { withInteractionDeadline, withInteractionOutput, CoreApiError } from '../api/CoreClient';
 import { StringSelectMenuInteraction } from 'discord.js';
 import { Logger } from '../utils/logger';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 
@@ -14,13 +14,13 @@ export abstract class BaseSelectMenuHandler {
   protected readonly logger: Logger;
   protected ephemeral: boolean = true;
   protected deleteOnSuccess: boolean = false;
-  protected operationLogService?: OperationLogService;
+  protected operationLogService?: UiOperationEvents;
   protected metadataManager?: MetadataProvider;
 
   constructor(
     customId: string,
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider
   ) {
     this.customId = customId;
@@ -29,7 +29,11 @@ export abstract class BaseSelectMenuHandler {
     this.metadataManager = metadataManager;
   }
 
-  public async handle(context: SelectMenuHandlerContext): Promise<void> {
+  public handle(context: SelectMenuHandlerContext): Promise<void> {
+    return withInteractionOutput(context.interaction, this.constructor.name, () => this.handleInteraction(context));
+  }
+
+  private async handleInteraction(context: SelectMenuHandlerContext): Promise<void> {
     try {
       if (!this.shouldHandle(context)) {
         return;
@@ -108,45 +112,12 @@ export abstract class BaseSelectMenuHandler {
     return this.customId;
   }
 
-  private async tryLogOperation(
-    context: SelectMenuHandlerContext,
-    result: OperationResult
-  ): Promise<void> {
+  private async tryLogOperation(context: SelectMenuHandlerContext, result: OperationResult): Promise<void> {
+    if (!this.operationLogService || this.shouldSkipLogging()) return;
     try {
-      if (!this.operationLogService || !this.metadataManager) {
-        return;
-      }
-
-      if (this.shouldSkipLogging()) {
-        return;
-      }
-
-      if (!context.interaction.guild || !context.interaction.channel) {
-        return;
-      }
-
-      const channelId = context.interaction.channel.id;
-      const metadataResult = await this.metadataManager.getChannelMetadata(channelId);
-
-      if (!metadataResult.success || !metadataResult.metadata?.operationLogThreadId) {
-        return;
-      }
-
-      const operationInfo = this.getOperationInfo(context);
-
-      await this.operationLogService.logOperation(
-        channelId,
-        operationInfo,
-        result,
-        context.interaction.user.id,
-        context.interaction.client
-      );
-    } catch (error) {
-      this.logger.warn('Failed to log operation', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        customId: this.customId,
-        userId: context.interaction.user.id
-      });
+      await this.operationLogService.record(context.interaction, this.constructor.name, result);
+    } catch {
+      this.logger.warn('Failed to record UI operation', { customId: this.customId });
     }
   }
 

@@ -1,33 +1,12 @@
 package httptransport
 
 import (
-	"context"
 	"errors"
 	"github.com/oapi-codegen/nullable"
 	"github.com/yone-k/yone-discord-bot/backend/internal/domain"
 	api "github.com/yone-k/yone-discord-bot/backend/internal/transport/http/generated"
 	"testing"
 )
-
-func TestReminderAckRejectsDateOnlyDeadlineBeforeApplication(t *testing.T) {
-	h := Handler{}
-	_, err := h.AckNotification(context.Background(), api.AckNotificationRequestObject{Body: &api.NotificationToken{Kind: api.NotificationTokenKindBefore, EvaluatedAt: "2026-09-06T00:00:00.000Z", TargetDueAt: "2026-09-06", ExpectedRevision: nullable.NewNullableWithValue("1")}})
-	if err == nil {
-		t.Fatal("reminder ack accepted a date-only deadline")
-	}
-}
-
-func TestListAckRejectsTimestampAndInvalidCalendarDateBeforeApplication(t *testing.T) {
-	for _, deadline := range []string{"2026-09-06T00:00:00.000Z", "2026-02-30", "invalid"} {
-		t.Run(deadline, func(t *testing.T) {
-			h := Handler{}
-			_, err := h.AckNotification(context.Background(), api.AckNotificationRequestObject{Body: &api.NotificationToken{Kind: api.NotificationTokenKindList, EvaluatedAt: "2026-09-06T00:00:00.000Z", TargetDueAt: deadline, ExpectedRevision: nullable.NewNullNullable[string]()}})
-			if err == nil {
-				t.Fatal("invalid list deadline accepted")
-			}
-		})
-	}
-}
 
 func TestCompletionInputPreservesOmittedQuantityWithoutResolvingIt(t *testing.T) {
 	values := []api.ConsumptionOverride{{Name: "soap", Consume: nullable.NewNullNullable[string]()}, {Name: "rice", Consume: nullable.NewNullableWithValue("0.123456789012345678901")}}

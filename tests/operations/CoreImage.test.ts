@@ -16,6 +16,8 @@ case "$*" in
   *'--entrypoint /app/bin/db-migrate'*) exit "$MIGRATION_FAIL" ;;
   *'pg_dump'*) printf 'synthetic dump' ;;
   *'SELECT checksum'*) printf '%064d\\n' 0 ;;
+  *'SELECT count(*) FROM output_dispatches'*) echo 1 ;;
+  *'SELECT message_id FROM list_channels'*) echo 300 ;;
 esac
 `, { mode: 0o755 });
 });
@@ -35,6 +37,10 @@ it.each(['0', '1'])('checks a disposable API and restores its database, then cle
   expect(calls).not.toContain('publish');
   if (failure === '0') {
     expect(calls).toContain('--entrypoint /app/bin/core-api');
+    expect(calls).toContain('--network-alias discord.com');
+    expect(calls).toContain('DISCORD_OUTPUT_ENABLED=true');
+    expect(calls).toContain('/app/bin/outputctl list');
+    expect(calls).toContain('NODE_EXTRA_CA_CERTS=/test/cert.pem');
     expect(calls).toContain('pg_restore');
     expect(calls).toContain('401 /v1/notifications/poll');
     expect(calls).toContain('503 /health');

@@ -5,60 +5,31 @@ import type { InventoryItem } from '../models/InventoryItem';
 import { type RemindTask } from '../models/RemindTask';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
-import { RemindMessageManager } from '../services/RemindMessageManager';
 import { compareDecimal } from '../utils/Decimal';
 import { InventoryRepository } from '../services/InventoryRepository';
-import { InventoryMessageManager } from '../services/InventoryMessageManager';
-import { RemindTaskRefreshService } from '../services/RemindTaskRefreshService';
 
 interface InventoryRepositoryPort {
   fetchAll(channelId: string): Promise<InventoryItem[]>;
 }
 
-interface InventoryMessageManagerPort {
-  createOrUpdateMessage(
-    channelId: string,
-    items: InventoryItem[],
-    listTitle: string,
-    client: ButtonHandlerContext['interaction']['client']
-  ): Promise<{ success: boolean; errorMessage?: string }>;
-}
-
-interface RefreshServicePort {
-  refreshTasksUsingInventory(
-    linkedInventoryChannelId: string,
-    client: ButtonHandlerContext['interaction']['client'],
-    options: { excludeMessageId?: string }
-  ): Promise<void>;
-}
-
 export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
-  private messageManager: RemindMessageManager;
   private inventoryRepository?: InventoryRepositoryPort;
-  private inventoryMessageManager?: InventoryMessageManagerPort;
-  private refreshService?: RefreshServicePort;
 
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
-    messageManager?: RemindMessageManager,
-    inventoryRepository?: InventoryRepositoryPort,
-    inventoryMessageManager?: InventoryMessageManagerPort,
-    refreshService?: RefreshServicePort
+    inventoryRepository?: InventoryRepositoryPort
   ) {
     super('remind-task-complete', logger, operationLogService, metadataManager);
     this.ephemeral = true;
     this.repository = repository || new RemindTaskRepository();
-    this.messageManager = messageManager || new RemindMessageManager();
     this.inventoryRepository = inventoryRepository;
-    this.inventoryMessageManager = inventoryMessageManager;
-    this.refreshService = refreshService;
   }
 
   protected shouldSkipLogging(): boolean {
@@ -75,7 +46,6 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
   protected async executeAction(context: ButtonHandlerContext): Promise<OperationResult> {
     const interaction = context.interaction;
     let hasDeferredReply = Boolean(interaction.deferred);
-    let completionSaved = false;
 
     const replyError = async (message: string): Promise<OperationResult> => {
       try {
@@ -111,16 +81,7 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
         hasDeferredReply = true;
       }
 
-      const now = new Date();
-      const latest = await this.repository.complete(channelId, task);
-      completionSaved = true;
-      try {
-        const rendered = await this.messageManager.updateTaskMessage(channelId, messageId, latest, interaction.client, now);
-        if (!rendered.success) throw new Error('表示更新に失敗しました');
-      } finally {
-        const metadata = await this.metadataManager?.getChannelMetadata(channelId);
-        await this.refreshInventoryMessage({ linkedInventoryChannelId: metadata?.metadata?.linkedInventoryChannelId }, interaction.client, messageId);
-      }
+      await this.repository.complete(channelId, task);
 
       try {
         await interaction.deleteReply();
@@ -130,7 +91,7 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
 
       return { success: true };
     } catch (error) {
-      return await replyError(completionSaved ? '完了は保存されましたが、タスクまたは在庫の表示更新に失敗しました。完了操作を繰り返さず、初期化で再表示してください。' : error instanceof Error ? error.message : '処理中にエラーが発生しました');
+      return await replyError(error instanceof Error ? error.message : '処理中にエラーが発生しました');
     }
   }
 
@@ -193,50 +154,6 @@ export class RemindTaskCompleteButtonHandler extends BaseButtonHandler {
       return `${quoteCsvCell(name)},${consume}`;
     }
     return `${quoteCsvCell(name)},`;
-  }
-
-  private async refreshInventoryMessage(
-    inventoryResult: { linkedInventoryChannelId?: string },
-    client: ButtonHandlerContext['interaction']['client'],
-    messageId: string
-  ): Promise<void> {
-    if (!inventoryResult.linkedInventoryChannelId) {
-      return;
-    }
-
-    const channelId = inventoryResult.linkedInventoryChannelId;
-    try {
-      const inventoryRepository = this.inventoryRepository ?? new InventoryRepository();
-      const inventoryMessageManager = this.inventoryMessageManager ?? InventoryMessageManager.getInstance();
-      const items = await inventoryRepository.fetchAll(channelId);
-      const result = await inventoryMessageManager.createOrUpdateMessage(channelId, items, '在庫リスト', client);
-      if (!result.success) {
-        this.logger.warn('Failed to refresh inventory message after task completion', {
-          channelId,
-          error: result.errorMessage
-        });
-      }
-      try {
-        await this.getRefreshService().refreshTasksUsingInventory(channelId, client, { excludeMessageId: messageId });
-      } catch (error) {
-        this.logger.warn('Failed to refresh task messages after inventory consumption', {
-          channelId,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    } catch (error) {
-      this.logger.warn('Failed to refresh inventory message after task completion', {
-        channelId,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  }
-
-  private getRefreshService(): RefreshServicePort {
-    if (!this.refreshService) {
-      this.refreshService = new RemindTaskRefreshService();
-    }
-    return this.refreshService;
   }
 
 }

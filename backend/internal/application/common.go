@@ -65,22 +65,13 @@ func validateID(v *string) error {
 }
 
 type ChannelPatch struct {
-	MessageID                                   Optional[*string]
-	ListTitle                                   Optional[string]
-	OperationLogThreadID                        Optional[*string]
-	DefaultCategory                             Optional[string]
-	RemindNoticeThreadID, RemindNoticeMessageID Optional[*string]
+	ListTitle       Optional[string]
+	DefaultCategory Optional[string]
 }
 
 func patchChannel(c *domain.ChannelSettings, p ChannelPatch) {
-	if p.MessageID.Present {
-		c.MessageID = p.MessageID.Value
-	}
 	if p.ListTitle.Present {
 		c.ListTitle = p.ListTitle.Value
-	}
-	if p.OperationLogThreadID.Present {
-		c.OperationLogThreadID = p.OperationLogThreadID.Value
 	}
 }
 func (s *Service) GetList(ctx context.Context, id string) (*domain.List, error) {

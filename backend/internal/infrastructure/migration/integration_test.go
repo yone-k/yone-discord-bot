@@ -116,7 +116,7 @@ func TestFailedMigrationRollsBackDDLHistoryAndData(t *testing.T) {
 		t.Fatal(err)
 	}
 	d := t.TempDir()
-	for i, name := range []string{"001_initial.sql", "002_ent_uuidv7.sql"} {
+	for i, name := range []string{"001_initial.sql", "002_ent_uuidv7.sql", "003_output_tasks.sql"} {
 		s := m[i].SQL
 		if i == 1 {
 			s += "\nSELECT 1/0;"
@@ -167,6 +167,16 @@ func TestReadinessChecksumAndRestrictedRole(t *testing.T) {
 	if _, err := conn.ExecContext(t.Context(), "INSERT INTO list_channels(channel_id,list_title) VALUES('999','test')"); err != nil {
 		t.Fatal(err)
 	}
+	for _, table := range []string{"operation_records", "output_tasks", "output_dispatches", "channel_output_suspensions", "discord_card_views"} {
+		var allowed bool
+		if err := conn.QueryRowContext(t.Context(), "SELECT has_table_privilege(current_user,$1,'SELECT,INSERT,UPDATE,DELETE')", table).Scan(&allowed); err != nil || !allowed {
+			t.Fatal("missing output runtime permissions", table, err)
+		}
+	}
+	if _, err := conn.ExecContext(t.Context(), `INSERT INTO output_tasks(channel_id,kind,target_id,payload,destination_key,state,available_at,created_at,updated_at)
+	 VALUES('999','list_render','999','{}','999:list','pending',now(),now(),now())`); err != nil {
+		t.Fatal("runtime cannot reserve output", err)
+	}
 	for _, s := range []string{"CREATE TABLE forbidden(id int)", "CREATE TEMP TABLE forbidden(id int)", "TRUNCATE list_channels", "DELETE FROM schema_migrations", "DELETE FROM data_imports"} {
 		if _, err := conn.ExecContext(t.Context(), s); err == nil {
 			t.Fatalf("privilege granted: %s", s)
@@ -181,6 +191,29 @@ func TestReadinessChecksumAndRestrictedRole(t *testing.T) {
 	}
 	if err := r.Apply(t.Context(), db, ""); err == nil {
 		t.Fatal("corruption applied")
+	}
+}
+
+func TestVersionTwoOutputMigrationPreservesIDs(t *testing.T) {
+	db := dbtest.Open(t)
+	dbtest.Reset(t, db)
+	seedV1(t, db)
+	m, err := Load(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, db, m[1].SQL)
+	mustExec(t, db, "INSERT INTO schema_migrations(version,checksum) VALUES(2,$1)", m[1].Checksum)
+	before := snapshot(t, db)
+	if err := (Runner{directory}).Apply(t.Context(), db, ""); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(before, snapshot(t, db)) {
+		t.Fatal("version 3 changed existing data or Discord IDs")
+	}
+	var version int
+	if err := db.QueryRow("SELECT max(version) FROM schema_migrations").Scan(&version); err != nil || version != 3 {
+		t.Fatal("missing version 3", version, err)
 	}
 }
 

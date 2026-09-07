@@ -2,15 +2,13 @@ import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler'
 import { Logger } from '../utils/logger';
 import { ListRepository, RepositoryError } from '../api/contracts';
 import { ApiListRepository } from '../api/Repositories';
-import { MessageManager } from '../services/MessageManager';
 import { ListChannelStore } from '../services/ListChannelStore';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { parseListCsv } from '../utils/ListInput';
-import { redrawList } from '../utils/ListDisplay';
 import { listChanges, listLogItems } from '../utils/ListChanges';
 export class EditListModalHandler extends BaseModalHandler {
-  constructor(logger: Logger, private repository: ListRepository = new ApiListRepository(), private messageManager: MessageManager = new MessageManager(), metadataManager: ListChannelStore = ListChannelStore.getInstance(), operationLogService?: OperationLogService) {
+  constructor(logger: Logger, private repository: ListRepository = new ApiListRepository(), metadataManager: ListChannelStore = ListChannelStore.getInstance(), operationLogService?: UiOperationEvents) {
     super('edit-list-modal', logger, operationLogService, metadataManager);
   }
   public shouldHandle(context: ModalHandlerContext): boolean {
@@ -26,13 +24,6 @@ export class EditListModalHandler extends BaseModalHandler {
       const items = parseListCsv(interaction.fields.getTextInputValue('list-data'));
       const before = await this.repository.fetchAll(match[1]);
       await this.repository.save(match[1], match[3], items);
-      try {
-        await redrawList(match[1], interaction.client, this.repository, this.messageManager, this.metadataManager!);
-      }
-      catch (error) {
-        this.logger.warn('List saved but redraw failed', { error: String(error) });
-        return { success: false, message: '保存は完了しましたが表示更新に失敗しました。再描画ボタンを押してください。' };
-      }
       return { success: true, affectedItems: items.length, message: 'リストを更新しました', details: { items: listLogItems(items), changes: listChanges(before, items) } };
     }
     catch (error) {

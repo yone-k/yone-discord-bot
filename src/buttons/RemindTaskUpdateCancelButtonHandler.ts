@@ -1,25 +1,26 @@
 import { Logger } from '../utils/logger';
 import { BaseButtonHandler, ButtonHandlerContext } from '../base/BaseButtonHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { MetadataProvider } from '../services/MetadataProvider';
-import { RemindMessageManager } from '../services/RemindMessageManager';
+import { OutputApi } from '../api/OutputApi';
+import { CoreApiError } from '../api/CoreClient';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
 
 export class RemindTaskUpdateCancelButtonHandler extends BaseButtonHandler {
   private repository: RemindTaskRepository;
-  private messageManager: RemindMessageManager;
+  private outputs: Pick<OutputApi, 'setCardView'>;
 
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider,
     repository?: RemindTaskRepository,
-    messageManager?: RemindMessageManager
+    outputs?: Pick<OutputApi, 'setCardView'>
   ) {
     super('remind-task-update-cancel', logger, operationLogService, metadataManager);
     this.repository = repository || new RemindTaskRepository();
-    this.messageManager = messageManager || new RemindMessageManager();
+    this.outputs = outputs ?? new OutputApi();
     this.ephemeral = true;
   }
 
@@ -49,15 +50,20 @@ export class RemindTaskUpdateCancelButtonHandler extends BaseButtonHandler {
       return { success: false, message: 'チャンネル情報が取得できません' };
     }
 
-    const task = await this.repository.findTaskByMessageId(channelId, messageId);
-    if (!task) {
-      return { success: false, message: 'タスクが見つかりません' };
+    await context.interaction.deferUpdate();
+    try {
+      const task = await this.repository.findTaskByMessageId(channelId, messageId);
+      if (!task) {
+        await context.interaction.followUp({ content: 'タスクが見つかりません', flags: ['Ephemeral'] as const });
+        return { success: false, message: 'タスクが見つかりません' };
+      }
+      await this.outputs.setCardView(channelId, 'task', task.id, { mode: 'normal' });
+      return { success: true, message: '更新選択を取り消しました' };
+    } catch (error) {
+      const message = error instanceof CoreApiError ? error.message : '更新選択を取り消せませんでした。画面を開き直してください。';
+      await context.interaction.followUp({ content: message, flags: ['Ephemeral'] as const });
+      return { success: false, message };
     }
-
-    const components = await this.messageManager.buildTaskMessageComponents(task, new Date(), channelId);
-    await context.interaction.update({ components });
-
-    return { success: true, message: '更新選択を取り消しました' };
   }
 
   private parseMessageId(customId: string): string | null {

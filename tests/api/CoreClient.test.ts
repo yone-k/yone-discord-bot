@@ -1,7 +1,28 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CoreClient, CoreApiError, withInteractionDeadline, coreClient } from '../../src/api/CoreClient';
+import { CoreClient, CoreApiError, withInteractionDeadline, coreClient, withOutputOperation } from '../../src/api/CoreClient';
 
 describe('Core HTTP boundary', () => {
+  it('isolates output actors across concurrent operations and leaves background calls unassigned', async () => {
+    const fetcher = vi.fn().mockImplementation(async () => new Response('{}'));
+    const client = new CoreClient('http://api:8080', 'synthetic', fetcher);
+    let release!: () => void;
+    const ready = new Promise<void>(resolve => { release = resolve; });
+    const first = withOutputOperation({ actorId: '100', operationKind: 'AddListModalHandler', interactionId: '1000' }, async () => {
+      await ready;
+      await client.request('POST', '/v1/first');
+    });
+    await withOutputOperation({ actorId: '200', operationKind: 'reaction' }, () => client.request('POST', '/v1/second'));
+    release();
+    await first;
+    await client.request('POST', '/v1/background');
+    const headers = fetcher.mock.calls.map(call => call[1].headers);
+    expect(headers[0]['X-Actor-Id']).toBe('200');
+    expect(headers[0]['X-Interaction-Id']).toBeUndefined();
+    expect(headers[1]['X-Actor-Id']).toBe('100');
+    expect(headers[1]['X-Operation-Kind']).toBe('AddListModalHandler');
+    expect(headers[1]['X-Interaction-Id']).toBe('1000');
+    expect(headers[2]['X-Actor-Id']).toBeUndefined();
+  });
   it.each([
     ['quantity', '数量は0以上の数値で入力してください。'],
     ['lastDoneAt', '前回完了日時を確認してください。'],
@@ -71,6 +92,14 @@ describe('Core HTTP boundary', () => {
   it('does not treat an HTTP 200 response with ready=false as ready', async () => {
     const client = new CoreClient('http://api:8080', 'synthetic', vi.fn().mockResolvedValue(new Response('{"ready":false}')));
     await expect(client.assertReady()).rejects.toMatchObject({ code: 'unavailable', status: 503 });
+  });
+  it.each(['go-discord-output-v1', 'legacy', undefined])('checks output contract %s before declaring readiness', async contract => {
+    const fetcher = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ ready: true })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ contract, enabled: false, workerRunning: false })));
+    const client = new CoreClient('http://api:8080', 'synthetic', fetcher);
+    if (contract === 'go-discord-output-v1') await expect(client.assertReady()).resolves.toBeUndefined();
+    else await expect(client.assertReady()).rejects.toMatchObject({ code: 'unavailable' });
+    expect(String(fetcher.mock.calls[1][0])).toBe('http://api:8080/v1/outputs/status');
   });
   it('preserves shortage quantities and referenced task names for Japanese error display', async () => {
     const details = { code: 'referenced', target: 'inventory', references: [{ channelId: 'channel', title: '米の補充' }] };

@@ -1,29 +1,25 @@
 import { Logger } from '../utils/logger';
 import { BaseModalHandler, ModalHandlerContext } from '../base/BaseModalHandler';
 import { OperationInfo, OperationResult } from '../models/types/OperationLog';
-import { OperationLogService } from '../services/OperationLogService';
+import { UiOperationEvents } from '../services/UiOperationEvents';
 import { MetadataProvider } from '../services/MetadataProvider';
 import { RemindTaskRepository } from '../services/RemindTaskRepository';
-import { RemindMessageManager } from '../services/RemindMessageManager';
 import { parseRemindBeforeInput } from '../utils/RemindDuration';
 import { normalizeTimeOfDay } from '../utils/RemindSchedule';
 
 export class RemindTaskUpdateModalHandler extends BaseModalHandler {
   private repository: RemindTaskRepository;
-  private messageManager: RemindMessageManager;
 
   constructor(
     logger: Logger,
-    operationLogService?: OperationLogService,
+    operationLogService?: UiOperationEvents,
     metadataManager?: MetadataProvider,
-    repository?: RemindTaskRepository,
-    messageManager?: RemindMessageManager
+    repository?: RemindTaskRepository
   ) {
     super('remind-task-update-modal', logger, operationLogService, metadataManager);
     this.deleteOnSuccess = true;
     this.silentOnSuccess = true;
     this.repository = repository || new RemindTaskRepository();
-    this.messageManager = messageManager || new RemindMessageManager();
   }
 
   public shouldHandle(context: ModalHandlerContext): boolean {
@@ -82,8 +78,7 @@ export class RemindTaskUpdateModalHandler extends BaseModalHandler {
       return { success: false, message: error instanceof Error ? error.message : '時刻の形式が無効です' };
     }
 
-    const updateResult = await this.repository.patchTask(channelId, task, { title, description: description || null, intervalDays, timeOfDay, remindBeforeMinutes });
-    await this.messageManager.updateTaskMessage(channelId, messageId, updateResult.task, context.interaction.client, new Date());
+    await this.repository.patchTask(channelId, task, { title, description: description || null, intervalDays, timeOfDay, remindBeforeMinutes });
 
     return { success: true };
   }

@@ -37,11 +37,12 @@ it('ボタンで開いたCSVを保存し、TSでは共有カードを再描画�
   await new EditListButtonHandler(new Logger(), undefined, undefined, repo as any).handle({ interaction: { customId: 'edit-list-button', channelId: '123', user: { id: '456' }, showModal } } as any);
   const customId = showModal.mock.calls[0][0].toJSON().custom_id;
   const metadata = { getChannelMetadata: vi.fn().mockResolvedValue({ success: true, metadata: { listTitle: '買物', defaultCategory: '食品' } }) };
-  const interaction = { customId, channelId: '123', user: { id: '456' }, fields: { getTextInputValue: (): string => '牛乳,,2026-01-01,1' }, client: { channels: { fetch: vi.fn() } }, deferReply: vi.fn(), editReply: vi.fn() };
+  const interaction = { customId, channelId: '123', user: { id: '456' }, fields: { getTextInputValue: (): string => '牛乳,,2026-01-01,1' }, client: { channels: { fetch: vi.fn() } }, deferReply: vi.fn(), editReply: vi.fn(), deleteReply: vi.fn() };
   await new EditListModalHandler(new Logger(), repo as any, metadata as any).handle({ interaction } as any);
   expect(repo.save).toHaveBeenCalledWith('123', '9007199254740993', [{ name: '牛乳', category: null, until: '2026-01-01', isCompleted: true }]);
   expect(interaction.client.channels.fetch).not.toHaveBeenCalled();
-  expect(interaction.editReply).toHaveBeenCalledWith({ content: '✅ リストを更新しました' });
+  expect(interaction.editReply).toHaveBeenCalledWith({ content: '処理が完了しました。' });
+  expect(interaction.deleteReply).toHaveBeenCalledOnce();
 });
 it('追加・削除・完了変更の操作ログ詳細を返す', async () => {
   const { repo, handler, context } = setup(undefined, '牛乳,,,1\nパン,,,');

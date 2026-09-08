@@ -12,6 +12,7 @@ export class InitListButtonHandler extends BaseButtonHandler {
   constructor(logger: Logger, operationLogService?: UiOperationEvents, metadataManager: ListChannelStore = ListChannelStore.getInstance(), private listInitializationService = new ListInitializationService(new ApiListRepository(), new OutputApi(), metadataManager)) {
     super('init-list-button', logger, operationLogService, metadataManager);
     this.ephemeral = true;
+    this.deleteOnSuccess = true;
   }
   protected getOperationInfo(): OperationInfo { return { operationType: 'init', actionName: 'リスト再描画' }; }
   protected async executeAction(context: ButtonHandlerContext): Promise<OperationResult> {

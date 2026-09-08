@@ -143,8 +143,12 @@ func TestListMutationReservesCardAndOnlyRegisteredOperationLogAtomically(t *test
 				if op == nil || !op.Success || op.ActorID != "123" || op.Kind != kind {
 					t.Fatal("incorrect operation", op)
 				}
-				if len(op.Facts.Added) != 0 {
-					t.Fatal("add-list modal must not gain extra change details")
+				if kind == "AddListModalHandler" {
+					if len(op.Facts.Added) != 1 || op.Facts.Added[0].Name != "牛乳" {
+						t.Fatal("added item missing from persisted operation", op.Facts)
+					}
+				} else if len(op.Facts.Added) != 0 {
+					t.Fatal("unrelated command gained log details", op.Facts)
 				}
 				return nil
 			})

@@ -8,7 +8,10 @@ import { OperationInfo, OperationResult } from '../models/types/OperationLog';
 import { parseListAdd } from '../utils/ListInput';
 import { listLogItems } from '../utils/ListChanges';
 export class AddListModalHandler extends BaseModalHandler {
-  constructor(logger: Logger, private repository: ListRepository = new ApiListRepository(), metadataManager: ListChannelStore = ListChannelStore.getInstance(), operationLogService?: UiOperationEvents) { super('add-list-modal', logger, operationLogService, metadataManager); }
+  constructor(logger: Logger, private repository: ListRepository = new ApiListRepository(), metadataManager: ListChannelStore = ListChannelStore.getInstance(), operationLogService?: UiOperationEvents) {
+    super('add-list-modal', logger, operationLogService, metadataManager);
+    this.deleteOnSuccess = true;
+  }
   protected async executeAction(context: ModalHandlerContext): Promise<OperationResult> {
     try {
       const { interaction } = context;

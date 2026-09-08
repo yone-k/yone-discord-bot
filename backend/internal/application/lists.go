@@ -92,7 +92,7 @@ func (s *Service) mutateList(ctx context.Context, id string, fn func(*domain.Lis
 			return nil, e
 		}
 		facts := OperationFacts{}
-		if actor, ok := OutputOperationFromContext(ctx); ok && actor.Kind == "EditListModalHandler" {
+		if actor, ok := OutputOperationFromContext(ctx); ok && (actor.Kind == "EditListModalHandler" || actor.Kind == "AddListModalHandler") {
 			facts, e = listOperationFacts(before, l.Items)
 			if e != nil {
 				return nil, e

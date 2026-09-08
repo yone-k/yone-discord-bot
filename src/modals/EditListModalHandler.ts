@@ -10,6 +10,7 @@ import { listChanges, listLogItems } from '../utils/ListChanges';
 export class EditListModalHandler extends BaseModalHandler {
   constructor(logger: Logger, private repository: ListRepository = new ApiListRepository(), metadataManager: ListChannelStore = ListChannelStore.getInstance(), operationLogService?: UiOperationEvents) {
     super('edit-list-modal', logger, operationLogService, metadataManager);
+    this.deleteOnSuccess = true;
   }
   public shouldHandle(context: ModalHandlerContext): boolean {
     return context.interaction.customId === this.customId || context.interaction.customId.startsWith(`${this.customId}:`);

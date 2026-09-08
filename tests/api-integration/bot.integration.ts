@@ -43,6 +43,24 @@ function discord(channelId: string): { client: Client; channel: Record<string, u
 
 describe('Discord adapters → real Go API → PostgreSQL 18', () => {
   beforeAll(async () => { fixture('SELECT 1'); await coreClient().assertReady(); });
+  it('keeps added item details through the real modal, API and operation record, then deletes its reply', async () => {
+    fixture('INSERT INTO list_channels(channel_id,list_title,default_category,operation_log_thread_id) VALUES(\'831\',\'買物\',\'食品\',\'832\'); INSERT INTO list_items(channel_id,id,name,position) VALUES(\'831\',\'01990000-0000-7000-8000-000000000831\',\'既存の品\',0)');
+    const interaction = {
+      id: '831001', customId: 'add-list-modal', channelId: '831', user: { id: '42' },
+      fields: { getTextInputValue: (key: string): string => key === 'items' ? '牛乳,2026-09-09\nパン' : '食品' },
+      deferReply: vi.fn(), editReply: vi.fn(), deleteReply: vi.fn()
+    };
+    await new AddListModalHandler(new Logger(), undefined, undefined, new UiOperationEvents(new Logger())).handle({ interaction: interaction as unknown as ModalSubmitInteraction });
+    expect(interaction.deleteReply).toHaveBeenCalledOnce();
+    expect(fixture('SELECT count(*) FROM operation_records WHERE interaction_id=\'831001\' AND success')).toBe('1');
+    const facts = JSON.parse(fixture('SELECT facts FROM operation_records WHERE interaction_id=\'831001\''));
+    expect(facts.Added).toEqual([
+      { Name: '牛乳', Category: '食品', Check: false, Until: expect.any(String) },
+      { Name: 'パン', Category: '食品', Check: false, Until: null }
+    ]);
+    expect(new Date(facts.Added[0].Until).toISOString()).toBe('2026-09-08T15:00:00.000Z');
+    expect(fixture('SELECT count(*) FROM output_tasks WHERE channel_id=\'831\' AND kind=\'operation_log\'')).toBe('1');
+  });
   it('records one successful inventory modal outcome after skipping the first duplicate', async () => {
     fixture('INSERT INTO inventory_channels(channel_id,list_title,default_category,operation_log_thread_id) VALUES(\'822\',\'在庫\',\'食品\',\'823\'); INSERT INTO inventory_items(channel_id,id,name,stock,position) VALUES(\'822\',\'old\',\'既存\',9,0)');
     const interaction = { id: '822001', customId: 'inventory_add_modal', channelId: '822', user: { id: '42' },

@@ -46,18 +46,11 @@ export abstract class BaseButtonHandler {
       await this.tryLogOperation(context, result);
 
       // 成功時にメッセージを削除
-      if (this.deleteOnSuccess) {
+      if (this.deleteOnSuccess && result.success) {
         try {
-          // 既にreplyしている場合は削除
-          if (context.interaction.replied) {
-            const reply = await context.interaction.fetchReply();
-            await reply.delete();
-          }
-          // deferReplyしている場合はeditReplyして削除
-          else if (context.interaction.deferred) {
-            await context.interaction.editReply({ content: '処理が完了しました。', components: [] });
-            const reply = await context.interaction.fetchReply();
-            await reply.delete();
+          if (context.interaction.replied || context.interaction.deferred) {
+            // ephemeral返信も削除できるinteractionのWebhookを使う。
+            await context.interaction.deleteReply();
           }
         } catch (deleteError) {
           this.logger.warn('Failed to delete success message', {

@@ -9,7 +9,10 @@ interface InventoryRepositoryPort {
     apply(channelId: string, expected: InventoryItem[], items: InventoryItem[]): Promise<void>;
 }
 export class InventoryUpdateModalHandler extends BaseModalHandler {
-  constructor(logger: Logger, private readonly repository: InventoryRepositoryPort = new InventoryRepository(), private readonly sessions: InventoryEditSession = InventoryEditSession.shared) { super('inventory_update_modal', logger); }
+  constructor(logger: Logger, private readonly repository: InventoryRepositoryPort = new InventoryRepository(), private readonly sessions: InventoryEditSession = InventoryEditSession.shared) {
+    super('inventory_update_modal', logger);
+    this.deleteOnSuccess = true;
+  }
   public shouldHandle(context: ModalHandlerContext): boolean { return context.interaction.customId === this.customId || context.interaction.customId.startsWith(`${this.customId}:`); }
   protected async executeAction(context: ModalHandlerContext): Promise<OperationResult> {
     const { interaction } = context;

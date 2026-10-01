@@ -98,9 +98,16 @@ model LinkInventoryInput { inventoryChannelId: Id | null; }
 model Shortage { inventoryId: Id; name: string; required: Quantity; available: Quantity; }
 model ShortageResult { shortages: Shortage[]; }
 model TaskDisplay { channel: RemindChannel; task: StoredRemindTask; shortages: Shortage[]; }
+@doc("Blank entries are omitted. At least one entry is required after trimming; each entry is at most 1000 code points.")
+model NurseryMenuInput { lunch?: string; snack?: string; }
+model DatedNurseryMenuInput { date: BusinessDate; ...NurseryMenuInput; }
+@doc("Creates or replaces only the listed dates, atomically. Dates must be unique.")
+model NurseryMenusBatchInput { @minItems(1) @maxItems(62) items: DatedNurseryMenuInput[]; }
+model NurseryMenu { date: BusinessDate; lunch: string | null; snack: string | null; createdAt: Timestamp; updatedAt: Timestamp; }
+model NurseryMenuChannel { channelId: Id; }
 // Output contracts are connected to routes together with their implementations.
 union OutputTaskState { "pending", "running", "retry_wait", "uncertain", "blocked", "succeeded", "cancelled" }
-union OutputTaskKind { "list_render", "inventory_render", "task_card", "reminder_notice", "list_deadline_notice", "operation_log", "delete_all", "thread_ensure" }
+union OutputTaskKind { "list_render", "inventory_render", "task_card", "reminder_notice", "list_deadline_notice", "operation_log", "delete_all", "thread_ensure", "nursery_menu_notice" }
 union OutputTargetKind { "task", "inventory" }
 union OutputCardMode { "normal", "update_selection", "delete_selection" }
 union OutputOperationKind {
@@ -215,6 +222,15 @@ model HealthUnavailable { @statusCode status: 503; @body body: Health; }
 @route("/v1/reminders/{channelId}/tasks/{id}/complete") @post op completeTask(...RequestOptions, ...OutputActorHeaders, @path channelId: PathId, @path id: PathId, @body body: CompleteTaskInput): StoredRemindTask | Failure;
 @route("/v1/reminders/{channelId}/tasks/{id}/shortage-check") @get op checkTaskShortage(...RequestOptions, @path channelId: PathId, @path id: PathId): ShortageResult | Failure;
 
+@doc("Inclusive range of at most 62 days, ordered by date.")
+@route("/v1/nursery-menus") @get op listNurseryMenus(...RequestOptions, @query from: BusinessDate, @query to: BusinessDate): NurseryMenu[] | Failure;
+@route("/v1/nursery-menus/batch") @post op putNurseryMenusBatch(...RequestOptions, @body body: NurseryMenusBatchInput): NurseryMenu[] | Failure;
+@doc("The path holds a BusinessDate (YYYY-MM-DD); other values are rejected as invalid_input.")
+@route("/v1/nursery-menus/{date}") @get op getNurseryMenu(...RequestOptions, @path date: PathId): NurseryMenu | Failure;
+@route("/v1/nursery-menus/{date}") @put op putNurseryMenu(...RequestOptions, @path date: PathId, @body body: NurseryMenuInput): NurseryMenu | Failure;
+@route("/v1/nursery-menus/{date}") @delete op deleteNurseryMenu(...RequestOptions, @path date: PathId): void | Failure;
+@route("/v1/nursery-menu-channel") @get op getNurseryMenuChannel(...RequestOptions): NurseryMenuChannel | Failure;
+@route("/v1/nursery-menu-channel") @put op setNurseryMenuChannel(...RequestOptions, @body body: NurseryMenuChannel): NurseryMenuChannel | Failure;
 
 @route("/v1/outputs/operation-log-events") @post op recordOutputEvent(...RequestOptions, ...OutputActorHeaders, @body body: OutputLogEvent): OutputAccepted | Failure;
 @route("/v1/outputs/delete-all/{channelId}") @post op requestDeleteAll(...RequestOptions, ...OutputActorHeaders, @path channelId: PathId): OutputJob | Failure;

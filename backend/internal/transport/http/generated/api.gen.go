@@ -125,6 +125,7 @@ const (
 	OutputTaskKindInventoryRender    OutputTaskKind = "inventory_render"
 	OutputTaskKindListDeadlineNotice OutputTaskKind = "list_deadline_notice"
 	OutputTaskKindListRender         OutputTaskKind = "list_render"
+	OutputTaskKindNurseryMenuNotice  OutputTaskKind = "nursery_menu_notice"
 	OutputTaskKindOperationLog       OutputTaskKind = "operation_log"
 	OutputTaskKindReminderNotice     OutputTaskKind = "reminder_notice"
 	OutputTaskKindTaskCard           OutputTaskKind = "task_card"
@@ -223,6 +224,13 @@ type CreateTaskInput struct {
 	RemindBeforeMinutes ReminderMinutes           `json:"remindBeforeMinutes"`
 	TimeOfDay           BusinessTime              `json:"timeOfDay"`
 	Title               string                    `json:"title"`
+}
+
+// DatedNurseryMenuInput defines model for DatedNurseryMenuInput.
+type DatedNurseryMenuInput struct {
+	Date  BusinessDate `json:"date"`
+	Lunch *string      `json:"lunch,omitempty"`
+	Snack *string      `json:"snack,omitempty"`
 }
 
 // EditTaskInventoryInput defines model for EditTaskInventoryInput.
@@ -347,6 +355,35 @@ type ListSnapshot struct {
 
 // NonnegativeInteger defines model for NonnegativeInteger.
 type NonnegativeInteger = int32
+
+// NurseryMenu defines model for NurseryMenu.
+type NurseryMenu struct {
+	// CreatedAt RFC3339 timestamp with exactly millisecond precision; business timezone is Asia/Tokyo.
+	CreatedAt Timestamp                 `json:"createdAt"`
+	Date      BusinessDate              `json:"date"`
+	Lunch     nullable.Nullable[string] `json:"lunch"`
+	Snack     nullable.Nullable[string] `json:"snack"`
+
+	// UpdatedAt RFC3339 timestamp with exactly millisecond precision; business timezone is Asia/Tokyo.
+	UpdatedAt Timestamp `json:"updatedAt"`
+}
+
+// NurseryMenuChannel defines model for NurseryMenuChannel.
+type NurseryMenuChannel struct {
+	// ChannelId Opaque legacy business ID or Discord ID; never assume globally unique or UUID.
+	ChannelId Id `json:"channelId"`
+}
+
+// NurseryMenuInput Blank entries are omitted. At least one entry is required after trimming; each entry is at most 1000 code points.
+type NurseryMenuInput struct {
+	Lunch *string `json:"lunch,omitempty"`
+	Snack *string `json:"snack,omitempty"`
+}
+
+// NurseryMenusBatchInput Creates or replaces only the listed dates, atomically. Dates must be unique.
+type NurseryMenusBatchInput struct {
+	Items []DatedNurseryMenuInput `json:"items"`
+}
 
 // OutputAccepted defines model for OutputAccepted.
 type OutputAccepted struct {
@@ -896,6 +933,43 @@ type GetListSnapshotParams struct {
 	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
 }
 
+// GetNurseryMenuChannelParams defines parameters for GetNurseryMenuChannel.
+type GetNurseryMenuChannelParams struct {
+	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+}
+
+// SetNurseryMenuChannelParams defines parameters for SetNurseryMenuChannel.
+type SetNurseryMenuChannelParams struct {
+	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+}
+
+// ListNurseryMenusParams defines parameters for ListNurseryMenus.
+type ListNurseryMenusParams struct {
+	From           BusinessDate    `form:"from" json:"from"`
+	To             BusinessDate    `form:"to" json:"to"`
+	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+}
+
+// PutNurseryMenusBatchParams defines parameters for PutNurseryMenusBatch.
+type PutNurseryMenusBatchParams struct {
+	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+}
+
+// DeleteNurseryMenuParams defines parameters for DeleteNurseryMenu.
+type DeleteNurseryMenuParams struct {
+	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+}
+
+// GetNurseryMenuParams defines parameters for GetNurseryMenu.
+type GetNurseryMenuParams struct {
+	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+}
+
+// PutNurseryMenuParams defines parameters for PutNurseryMenu.
+type PutNurseryMenuParams struct {
+	XCoreTimeoutMs *RequestOptions `json:"X-Core-Timeout-Ms,omitempty"`
+}
+
 // SetOutputCardViewParams defines parameters for SetOutputCardView.
 type SetOutputCardViewParams struct {
 	XCoreTimeoutMs *RequestOptions                  `json:"X-Core-Timeout-Ms,omitempty"`
@@ -1118,6 +1192,15 @@ type ReorderListJSONRequestBody = ReorderInput
 // SaveListJSONRequestBody defines body for SaveList for application/json ContentType.
 type SaveListJSONRequestBody = SaveListInput
 
+// SetNurseryMenuChannelJSONRequestBody defines body for SetNurseryMenuChannel for application/json ContentType.
+type SetNurseryMenuChannelJSONRequestBody = NurseryMenuChannel
+
+// PutNurseryMenusBatchJSONRequestBody defines body for PutNurseryMenusBatch for application/json ContentType.
+type PutNurseryMenusBatchJSONRequestBody = NurseryMenusBatchInput
+
+// PutNurseryMenuJSONRequestBody defines body for PutNurseryMenu for application/json ContentType.
+type PutNurseryMenuJSONRequestBody = NurseryMenuInput
+
 // SetOutputCardViewJSONRequestBody defines body for SetOutputCardView for application/json ContentType.
 type SetOutputCardViewJSONRequestBody = OutputCardViewInput
 
@@ -1258,6 +1341,27 @@ type ServerInterface interface {
 
 	// (GET /v1/lists/{channelId}/snapshot)
 	GetListSnapshot(w http.ResponseWriter, r *http.Request, channelId PathId, params GetListSnapshotParams)
+
+	// (GET /v1/nursery-menu-channel)
+	GetNurseryMenuChannel(w http.ResponseWriter, r *http.Request, params GetNurseryMenuChannelParams)
+
+	// (PUT /v1/nursery-menu-channel)
+	SetNurseryMenuChannel(w http.ResponseWriter, r *http.Request, params SetNurseryMenuChannelParams)
+
+	// (GET /v1/nursery-menus)
+	ListNurseryMenus(w http.ResponseWriter, r *http.Request, params ListNurseryMenusParams)
+
+	// (POST /v1/nursery-menus/batch)
+	PutNurseryMenusBatch(w http.ResponseWriter, r *http.Request, params PutNurseryMenusBatchParams)
+
+	// (DELETE /v1/nursery-menus/{date})
+	DeleteNurseryMenu(w http.ResponseWriter, r *http.Request, date PathId, params DeleteNurseryMenuParams)
+
+	// (GET /v1/nursery-menus/{date})
+	GetNurseryMenu(w http.ResponseWriter, r *http.Request, date PathId, params GetNurseryMenuParams)
+
+	// (PUT /v1/nursery-menus/{date})
+	PutNurseryMenu(w http.ResponseWriter, r *http.Request, date PathId, params PutNurseryMenuParams)
 
 	// (POST /v1/outputs/card-view/{channelId}/{targetKind}/{targetId})
 	SetOutputCardView(w http.ResponseWriter, r *http.Request, channelId PathId, targetKind OutputTargetKind, targetId PathId, params SetOutputCardViewParams)
@@ -4349,6 +4453,385 @@ func (siw *ServerInterfaceWrapper) GetListSnapshot(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// GetNurseryMenuChannel operation middleware
+func (siw *ServerInterfaceWrapper) GetNurseryMenuChannel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetNurseryMenuChannelParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetNurseryMenuChannel(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetNurseryMenuChannel operation middleware
+func (siw *ServerInterfaceWrapper) SetNurseryMenuChannel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetNurseryMenuChannelParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetNurseryMenuChannel(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListNurseryMenus operation middleware
+func (siw *ServerInterfaceWrapper) ListNurseryMenus(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListNurseryMenusParams
+
+	// ------------- Required query parameter "from" -------------
+
+	if paramValue := r.URL.Query().Get("from"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", false, true, "from", r.URL.Query(), &params.From)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	if paramValue := r.URL.Query().Get("to"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", false, true, "to", r.URL.Query(), &params.To)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListNurseryMenus(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutNurseryMenusBatch operation middleware
+func (siw *ServerInterfaceWrapper) PutNurseryMenusBatch(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutNurseryMenusBatchParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutNurseryMenusBatch(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteNurseryMenu operation middleware
+func (siw *ServerInterfaceWrapper) DeleteNurseryMenu(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "date" -------------
+	var date PathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "date", r.PathValue("date"), &date, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteNurseryMenuParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteNurseryMenu(w, r, date, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetNurseryMenu operation middleware
+func (siw *ServerInterfaceWrapper) GetNurseryMenu(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "date" -------------
+	var date PathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "date", r.PathValue("date"), &date, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetNurseryMenuParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetNurseryMenu(w, r, date, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutNurseryMenu operation middleware
+func (siw *ServerInterfaceWrapper) PutNurseryMenu(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "date" -------------
+	var date PathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "date", r.PathValue("date"), &date, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutNurseryMenuParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Core-Timeout-Ms" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Core-Timeout-Ms")]; found {
+		var XCoreTimeoutMs RequestOptions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Core-Timeout-Ms", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Core-Timeout-Ms", valueList[0], &XCoreTimeoutMs, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Core-Timeout-Ms", Err: err})
+			return
+		}
+
+		params.XCoreTimeoutMs = &XCoreTimeoutMs
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutNurseryMenu(w, r, date, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetOutputCardView operation middleware
 func (siw *ServerInterfaceWrapper) SetOutputCardView(w http.ResponseWriter, r *http.Request) {
 
@@ -7059,6 +7542,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/v1/lists/{channelId}/reorder", wrapper.ReorderList)
 	m.HandleFunc("POST "+options.BaseURL+"/v1/lists/{channelId}/save", wrapper.SaveList)
 	m.HandleFunc("GET "+options.BaseURL+"/v1/lists/{channelId}/snapshot", wrapper.GetListSnapshot)
+	m.HandleFunc("GET "+options.BaseURL+"/v1/nursery-menu-channel", wrapper.GetNurseryMenuChannel)
+	m.HandleFunc("PUT "+options.BaseURL+"/v1/nursery-menu-channel", wrapper.SetNurseryMenuChannel)
+	m.HandleFunc("GET "+options.BaseURL+"/v1/nursery-menus", wrapper.ListNurseryMenus)
+	m.HandleFunc("POST "+options.BaseURL+"/v1/nursery-menus/batch", wrapper.PutNurseryMenusBatch)
+	m.HandleFunc("DELETE "+options.BaseURL+"/v1/nursery-menus/{date}", wrapper.DeleteNurseryMenu)
+	m.HandleFunc("GET "+options.BaseURL+"/v1/nursery-menus/{date}", wrapper.GetNurseryMenu)
+	m.HandleFunc("PUT "+options.BaseURL+"/v1/nursery-menus/{date}", wrapper.PutNurseryMenu)
 	m.HandleFunc("POST "+options.BaseURL+"/v1/outputs/card-view/{channelId}/{targetKind}/{targetId}", wrapper.SetOutputCardView)
 	m.HandleFunc("POST "+options.BaseURL+"/v1/outputs/delete-all/{channelId}", wrapper.RequestDeleteAll)
 	m.HandleFunc("POST "+options.BaseURL+"/v1/outputs/initialize/{channelId}", wrapper.InitializeOutputs)
@@ -9641,6 +10131,571 @@ func (response GetListSnapshot503JSONResponse) VisitGetListSnapshotResponse(w ht
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetNurseryMenuChannelRequestObject struct {
+	Params GetNurseryMenuChannelParams
+}
+
+type GetNurseryMenuChannelResponseObject interface {
+	VisitGetNurseryMenuChannelResponse(w http.ResponseWriter) error
+}
+
+type GetNurseryMenuChannel200JSONResponse NurseryMenuChannel
+
+func (response GetNurseryMenuChannel200JSONResponse) VisitGetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenuChannel400JSONResponse ApiError
+
+func (response GetNurseryMenuChannel400JSONResponse) VisitGetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenuChannel401JSONResponse ApiError
+
+func (response GetNurseryMenuChannel401JSONResponse) VisitGetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenuChannel404JSONResponse ApiError
+
+func (response GetNurseryMenuChannel404JSONResponse) VisitGetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenuChannel409JSONResponse ApiError
+
+func (response GetNurseryMenuChannel409JSONResponse) VisitGetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenuChannel422JSONResponse ApiError
+
+func (response GetNurseryMenuChannel422JSONResponse) VisitGetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenuChannel500JSONResponse ApiError
+
+func (response GetNurseryMenuChannel500JSONResponse) VisitGetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenuChannel503JSONResponse ApiError
+
+func (response GetNurseryMenuChannel503JSONResponse) VisitGetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetNurseryMenuChannelRequestObject struct {
+	Params SetNurseryMenuChannelParams
+	Body   *SetNurseryMenuChannelJSONRequestBody
+}
+
+type SetNurseryMenuChannelResponseObject interface {
+	VisitSetNurseryMenuChannelResponse(w http.ResponseWriter) error
+}
+
+type SetNurseryMenuChannel200JSONResponse NurseryMenuChannel
+
+func (response SetNurseryMenuChannel200JSONResponse) VisitSetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetNurseryMenuChannel400JSONResponse ApiError
+
+func (response SetNurseryMenuChannel400JSONResponse) VisitSetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetNurseryMenuChannel401JSONResponse ApiError
+
+func (response SetNurseryMenuChannel401JSONResponse) VisitSetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetNurseryMenuChannel404JSONResponse ApiError
+
+func (response SetNurseryMenuChannel404JSONResponse) VisitSetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetNurseryMenuChannel409JSONResponse ApiError
+
+func (response SetNurseryMenuChannel409JSONResponse) VisitSetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetNurseryMenuChannel422JSONResponse ApiError
+
+func (response SetNurseryMenuChannel422JSONResponse) VisitSetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetNurseryMenuChannel500JSONResponse ApiError
+
+func (response SetNurseryMenuChannel500JSONResponse) VisitSetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetNurseryMenuChannel503JSONResponse ApiError
+
+func (response SetNurseryMenuChannel503JSONResponse) VisitSetNurseryMenuChannelResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListNurseryMenusRequestObject struct {
+	Params ListNurseryMenusParams
+}
+
+type ListNurseryMenusResponseObject interface {
+	VisitListNurseryMenusResponse(w http.ResponseWriter) error
+}
+
+type ListNurseryMenus200JSONResponse []NurseryMenu
+
+func (response ListNurseryMenus200JSONResponse) VisitListNurseryMenusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListNurseryMenus400JSONResponse ApiError
+
+func (response ListNurseryMenus400JSONResponse) VisitListNurseryMenusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListNurseryMenus401JSONResponse ApiError
+
+func (response ListNurseryMenus401JSONResponse) VisitListNurseryMenusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListNurseryMenus404JSONResponse ApiError
+
+func (response ListNurseryMenus404JSONResponse) VisitListNurseryMenusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListNurseryMenus409JSONResponse ApiError
+
+func (response ListNurseryMenus409JSONResponse) VisitListNurseryMenusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListNurseryMenus422JSONResponse ApiError
+
+func (response ListNurseryMenus422JSONResponse) VisitListNurseryMenusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListNurseryMenus500JSONResponse ApiError
+
+func (response ListNurseryMenus500JSONResponse) VisitListNurseryMenusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListNurseryMenus503JSONResponse ApiError
+
+func (response ListNurseryMenus503JSONResponse) VisitListNurseryMenusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenusBatchRequestObject struct {
+	Params PutNurseryMenusBatchParams
+	Body   *PutNurseryMenusBatchJSONRequestBody
+}
+
+type PutNurseryMenusBatchResponseObject interface {
+	VisitPutNurseryMenusBatchResponse(w http.ResponseWriter) error
+}
+
+type PutNurseryMenusBatch200JSONResponse []NurseryMenu
+
+func (response PutNurseryMenusBatch200JSONResponse) VisitPutNurseryMenusBatchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenusBatch400JSONResponse ApiError
+
+func (response PutNurseryMenusBatch400JSONResponse) VisitPutNurseryMenusBatchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenusBatch401JSONResponse ApiError
+
+func (response PutNurseryMenusBatch401JSONResponse) VisitPutNurseryMenusBatchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenusBatch404JSONResponse ApiError
+
+func (response PutNurseryMenusBatch404JSONResponse) VisitPutNurseryMenusBatchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenusBatch409JSONResponse ApiError
+
+func (response PutNurseryMenusBatch409JSONResponse) VisitPutNurseryMenusBatchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenusBatch422JSONResponse ApiError
+
+func (response PutNurseryMenusBatch422JSONResponse) VisitPutNurseryMenusBatchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenusBatch500JSONResponse ApiError
+
+func (response PutNurseryMenusBatch500JSONResponse) VisitPutNurseryMenusBatchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenusBatch503JSONResponse ApiError
+
+func (response PutNurseryMenusBatch503JSONResponse) VisitPutNurseryMenusBatchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteNurseryMenuRequestObject struct {
+	Date   PathId `json:"date"`
+	Params DeleteNurseryMenuParams
+}
+
+type DeleteNurseryMenuResponseObject interface {
+	VisitDeleteNurseryMenuResponse(w http.ResponseWriter) error
+}
+
+type DeleteNurseryMenu204Response struct {
+}
+
+func (response DeleteNurseryMenu204Response) VisitDeleteNurseryMenuResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteNurseryMenu400JSONResponse ApiError
+
+func (response DeleteNurseryMenu400JSONResponse) VisitDeleteNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteNurseryMenu401JSONResponse ApiError
+
+func (response DeleteNurseryMenu401JSONResponse) VisitDeleteNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteNurseryMenu404JSONResponse ApiError
+
+func (response DeleteNurseryMenu404JSONResponse) VisitDeleteNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteNurseryMenu409JSONResponse ApiError
+
+func (response DeleteNurseryMenu409JSONResponse) VisitDeleteNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteNurseryMenu422JSONResponse ApiError
+
+func (response DeleteNurseryMenu422JSONResponse) VisitDeleteNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteNurseryMenu500JSONResponse ApiError
+
+func (response DeleteNurseryMenu500JSONResponse) VisitDeleteNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteNurseryMenu503JSONResponse ApiError
+
+func (response DeleteNurseryMenu503JSONResponse) VisitDeleteNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenuRequestObject struct {
+	Date   PathId `json:"date"`
+	Params GetNurseryMenuParams
+}
+
+type GetNurseryMenuResponseObject interface {
+	VisitGetNurseryMenuResponse(w http.ResponseWriter) error
+}
+
+type GetNurseryMenu200JSONResponse NurseryMenu
+
+func (response GetNurseryMenu200JSONResponse) VisitGetNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenu400JSONResponse ApiError
+
+func (response GetNurseryMenu400JSONResponse) VisitGetNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenu401JSONResponse ApiError
+
+func (response GetNurseryMenu401JSONResponse) VisitGetNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenu404JSONResponse ApiError
+
+func (response GetNurseryMenu404JSONResponse) VisitGetNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenu409JSONResponse ApiError
+
+func (response GetNurseryMenu409JSONResponse) VisitGetNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenu422JSONResponse ApiError
+
+func (response GetNurseryMenu422JSONResponse) VisitGetNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenu500JSONResponse ApiError
+
+func (response GetNurseryMenu500JSONResponse) VisitGetNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNurseryMenu503JSONResponse ApiError
+
+func (response GetNurseryMenu503JSONResponse) VisitGetNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenuRequestObject struct {
+	Date   PathId `json:"date"`
+	Params PutNurseryMenuParams
+	Body   *PutNurseryMenuJSONRequestBody
+}
+
+type PutNurseryMenuResponseObject interface {
+	VisitPutNurseryMenuResponse(w http.ResponseWriter) error
+}
+
+type PutNurseryMenu200JSONResponse NurseryMenu
+
+func (response PutNurseryMenu200JSONResponse) VisitPutNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenu400JSONResponse ApiError
+
+func (response PutNurseryMenu400JSONResponse) VisitPutNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenu401JSONResponse ApiError
+
+func (response PutNurseryMenu401JSONResponse) VisitPutNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenu404JSONResponse ApiError
+
+func (response PutNurseryMenu404JSONResponse) VisitPutNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenu409JSONResponse ApiError
+
+func (response PutNurseryMenu409JSONResponse) VisitPutNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenu422JSONResponse ApiError
+
+func (response PutNurseryMenu422JSONResponse) VisitPutNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenu500JSONResponse ApiError
+
+func (response PutNurseryMenu500JSONResponse) VisitPutNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutNurseryMenu503JSONResponse ApiError
+
+func (response PutNurseryMenu503JSONResponse) VisitPutNurseryMenuResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type SetOutputCardViewRequestObject struct {
 	ChannelId  PathId           `json:"channelId"`
 	TargetKind OutputTargetKind `json:"targetKind"`
@@ -11784,6 +12839,27 @@ type StrictServerInterface interface {
 	// (GET /v1/lists/{channelId}/snapshot)
 	GetListSnapshot(ctx context.Context, request GetListSnapshotRequestObject) (GetListSnapshotResponseObject, error)
 
+	// (GET /v1/nursery-menu-channel)
+	GetNurseryMenuChannel(ctx context.Context, request GetNurseryMenuChannelRequestObject) (GetNurseryMenuChannelResponseObject, error)
+
+	// (PUT /v1/nursery-menu-channel)
+	SetNurseryMenuChannel(ctx context.Context, request SetNurseryMenuChannelRequestObject) (SetNurseryMenuChannelResponseObject, error)
+
+	// (GET /v1/nursery-menus)
+	ListNurseryMenus(ctx context.Context, request ListNurseryMenusRequestObject) (ListNurseryMenusResponseObject, error)
+
+	// (POST /v1/nursery-menus/batch)
+	PutNurseryMenusBatch(ctx context.Context, request PutNurseryMenusBatchRequestObject) (PutNurseryMenusBatchResponseObject, error)
+
+	// (DELETE /v1/nursery-menus/{date})
+	DeleteNurseryMenu(ctx context.Context, request DeleteNurseryMenuRequestObject) (DeleteNurseryMenuResponseObject, error)
+
+	// (GET /v1/nursery-menus/{date})
+	GetNurseryMenu(ctx context.Context, request GetNurseryMenuRequestObject) (GetNurseryMenuResponseObject, error)
+
+	// (PUT /v1/nursery-menus/{date})
+	PutNurseryMenu(ctx context.Context, request PutNurseryMenuRequestObject) (PutNurseryMenuResponseObject, error)
+
 	// (POST /v1/outputs/card-view/{channelId}/{targetKind}/{targetId})
 	SetOutputCardView(ctx context.Context, request SetOutputCardViewRequestObject) (SetOutputCardViewResponseObject, error)
 
@@ -12859,6 +13935,212 @@ func (sh *strictHandler) GetListSnapshot(w http.ResponseWriter, r *http.Request,
 	}
 }
 
+// GetNurseryMenuChannel operation middleware
+func (sh *strictHandler) GetNurseryMenuChannel(w http.ResponseWriter, r *http.Request, params GetNurseryMenuChannelParams) {
+	var request GetNurseryMenuChannelRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetNurseryMenuChannel(ctx, request.(GetNurseryMenuChannelRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetNurseryMenuChannel")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetNurseryMenuChannelResponseObject); ok {
+		if err := validResponse.VisitGetNurseryMenuChannelResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetNurseryMenuChannel operation middleware
+func (sh *strictHandler) SetNurseryMenuChannel(w http.ResponseWriter, r *http.Request, params SetNurseryMenuChannelParams) {
+	var request SetNurseryMenuChannelRequestObject
+
+	request.Params = params
+
+	var body SetNurseryMenuChannelJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetNurseryMenuChannel(ctx, request.(SetNurseryMenuChannelRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetNurseryMenuChannel")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetNurseryMenuChannelResponseObject); ok {
+		if err := validResponse.VisitSetNurseryMenuChannelResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListNurseryMenus operation middleware
+func (sh *strictHandler) ListNurseryMenus(w http.ResponseWriter, r *http.Request, params ListNurseryMenusParams) {
+	var request ListNurseryMenusRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListNurseryMenus(ctx, request.(ListNurseryMenusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListNurseryMenus")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListNurseryMenusResponseObject); ok {
+		if err := validResponse.VisitListNurseryMenusResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutNurseryMenusBatch operation middleware
+func (sh *strictHandler) PutNurseryMenusBatch(w http.ResponseWriter, r *http.Request, params PutNurseryMenusBatchParams) {
+	var request PutNurseryMenusBatchRequestObject
+
+	request.Params = params
+
+	var body PutNurseryMenusBatchJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutNurseryMenusBatch(ctx, request.(PutNurseryMenusBatchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutNurseryMenusBatch")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutNurseryMenusBatchResponseObject); ok {
+		if err := validResponse.VisitPutNurseryMenusBatchResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteNurseryMenu operation middleware
+func (sh *strictHandler) DeleteNurseryMenu(w http.ResponseWriter, r *http.Request, date PathId, params DeleteNurseryMenuParams) {
+	var request DeleteNurseryMenuRequestObject
+
+	request.Date = date
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteNurseryMenu(ctx, request.(DeleteNurseryMenuRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteNurseryMenu")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteNurseryMenuResponseObject); ok {
+		if err := validResponse.VisitDeleteNurseryMenuResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetNurseryMenu operation middleware
+func (sh *strictHandler) GetNurseryMenu(w http.ResponseWriter, r *http.Request, date PathId, params GetNurseryMenuParams) {
+	var request GetNurseryMenuRequestObject
+
+	request.Date = date
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetNurseryMenu(ctx, request.(GetNurseryMenuRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetNurseryMenu")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetNurseryMenuResponseObject); ok {
+		if err := validResponse.VisitGetNurseryMenuResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutNurseryMenu operation middleware
+func (sh *strictHandler) PutNurseryMenu(w http.ResponseWriter, r *http.Request, date PathId, params PutNurseryMenuParams) {
+	var request PutNurseryMenuRequestObject
+
+	request.Date = date
+	request.Params = params
+
+	var body PutNurseryMenuJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutNurseryMenu(ctx, request.(PutNurseryMenuRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutNurseryMenu")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutNurseryMenuResponseObject); ok {
+		if err := validResponse.VisitPutNurseryMenuResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // SetOutputCardView operation middleware
 func (sh *strictHandler) SetOutputCardView(w http.ResponseWriter, r *http.Request, channelId PathId, targetKind OutputTargetKind, targetId PathId, params SetOutputCardViewParams) {
 	var request SetOutputCardViewRequestObject
@@ -13642,100 +14924,110 @@ func (sh *strictHandler) CheckTaskShortage(w http.ResponseWriter, r *http.Reques
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"JDbj4Pjj9fx6/v8DAO+2hrJprgEA",
+	"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",
+	"fPy0+LT4vwEAeV9utATaAQA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

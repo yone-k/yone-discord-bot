@@ -18,7 +18,8 @@ func TestEveryGeneratedWriteHasAnOperationPolicy(t *testing.T) {
 			if method == "GET" || method == "HEAD" || operation.OperationID == "RecordOutputEvent" {
 				continue
 			}
-			if _, ok := businessCallKinds[operation.OperationID]; !ok {
+			_, kinds := businessCallKinds[operation.OperationID]
+			if _, headerless := headerlessBusinessCalls[operation.OperationID]; kinds == headerless {
 				t.Errorf("missing policy: %s %s %s", method, path, operation.OperationID)
 			}
 		}

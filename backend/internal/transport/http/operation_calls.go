@@ -45,11 +45,23 @@ var businessCallKinds = map[string][]string{
 	"SetOutputCardView":      {"InventoryDeleteButtonHandler", "InventorySelectionCancelButtonHandler", "RemindTaskUpdateButtonHandler", "RemindTaskUpdateCancelButtonHandler", "RemindTaskUpdateSelectMenuHandler"},
 }
 
+// Nursery menu writes come from API clients outside Discord. They carry no
+// actor and are never operation-logged, so an operation kind is rejected.
+var headerlessBusinessCalls = map[string]struct{}{
+	"PutNurseryMenusBatch":  {},
+	"PutNurseryMenu":        {},
+	"DeleteNurseryMenu":     {},
+	"SetNurseryMenuChannel": {},
+}
+
 func matchesBusinessCall(operationID, kind string, params map[string]string, body []byte) bool {
 	// The event handler separately checks the body/header identity, including
 	// the interaction ID. Every registered input path may report a UI outcome.
 	if operationID == "RecordOutputEvent" {
 		return true
+	}
+	if _, ok := headerlessBusinessCalls[operationID]; ok {
+		return kind == ""
 	}
 	if !slices.Contains(businessCallKinds[operationID], kind) {
 		return false

@@ -42,14 +42,17 @@ func TestLoadRequiresContiguousVersionsAndExactBytes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(d, "003_third.sql"), []byte("SELECT 3;\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(d, "004_fourth.sql"), []byte("SELECT 4;\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	m, err := Load(d)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(m) != 3 || m[0].SQL != "SELECT 1;\n" || len(m[0].Checksum) != 64 {
+	if len(m) != ExpectedSchemaVersion || m[0].SQL != "SELECT 1;\n" || len(m[0].Checksum) != 64 {
 		t.Fatal(m)
 	}
-	if err := os.WriteFile(filepath.Join(d, "004_extra.sql"), []byte("SELECT 4;"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(d, "005_extra.sql"), []byte("SELECT 5;"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Load(d); err == nil || !strings.Contains(err.Error(), "version") {

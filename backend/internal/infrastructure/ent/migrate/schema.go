@@ -106,6 +106,33 @@ var (
 		Columns:    ListItemsColumns,
 		PrimaryKey: []*schema.Column{ListItemsColumns[0]},
 	}
+	// NurseryMenusColumns holds the columns for the "nursery_menus" table.
+	NurseryMenusColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "menu_date", Type: field.TypeTime, Unique: true, SchemaType: map[string]string{"postgres": "date"}},
+		{Name: "lunch", Type: field.TypeString, Default: ""},
+		{Name: "snack", Type: field.TypeString, Default: ""},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// NurseryMenusTable holds the schema information for the "nursery_menus" table.
+	NurseryMenusTable = &schema.Table{
+		Name:       "nursery_menus",
+		Columns:    NurseryMenusColumns,
+		PrimaryKey: []*schema.Column{NurseryMenusColumns[0]},
+	}
+	// NurseryMenuSettingsColumns holds the columns for the "nursery_menu_settings" table.
+	NurseryMenuSettingsColumns = []*schema.Column{
+		{Name: "key", Type: field.TypeString},
+		{Name: "channel_id", Type: field.TypeString},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// NurseryMenuSettingsTable holds the schema information for the "nursery_menu_settings" table.
+	NurseryMenuSettingsTable = &schema.Table{
+		Name:       "nursery_menu_settings",
+		Columns:    NurseryMenuSettingsColumns,
+		PrimaryKey: []*schema.Column{NurseryMenuSettingsColumns[0]},
+	}
 	// OperationRecordsColumns holds the columns for the "operation_records" table.
 	OperationRecordsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID, Default: schema.Expr("uuidv7()")},
@@ -242,6 +269,8 @@ var (
 		InventoryItemsTable,
 		ListChannelsTable,
 		ListItemsTable,
+		NurseryMenusTable,
+		NurseryMenuSettingsTable,
 		OperationRecordsTable,
 		OutputDispatchesTable,
 		OutputTasksTable,
@@ -269,6 +298,12 @@ func init() {
 	}
 	ListItemsTable.Annotation = &entsql.Annotation{
 		Table: "list_items",
+	}
+	NurseryMenusTable.Annotation = &entsql.Annotation{
+		Table: "nursery_menus",
+	}
+	NurseryMenuSettingsTable.Annotation = &entsql.Annotation{
+		Table: "nursery_menu_settings",
 	}
 	OperationRecordsTable.Annotation = &entsql.Annotation{
 		Table: "operation_records",

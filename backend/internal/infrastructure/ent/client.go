@@ -21,6 +21,8 @@ import (
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/inventoryitem"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listchannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listitem"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/nurserymenu"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/nurserymenusetting"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/operationrecord"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputdispatch"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputtask"
@@ -48,6 +50,10 @@ type Client struct {
 	ListChannel *ListChannelClient
 	// ListItem is the client for interacting with the ListItem builders.
 	ListItem *ListItemClient
+	// NurseryMenu is the client for interacting with the NurseryMenu builders.
+	NurseryMenu *NurseryMenuClient
+	// NurseryMenuSetting is the client for interacting with the NurseryMenuSetting builders.
+	NurseryMenuSetting *NurseryMenuSettingClient
 	// OperationRecord is the client for interacting with the OperationRecord builders.
 	OperationRecord *OperationRecordClient
 	// OutputDispatch is the client for interacting with the OutputDispatch builders.
@@ -77,6 +83,8 @@ func (c *Client) init() {
 	c.InventoryItem = NewInventoryItemClient(c.config)
 	c.ListChannel = NewListChannelClient(c.config)
 	c.ListItem = NewListItemClient(c.config)
+	c.NurseryMenu = NewNurseryMenuClient(c.config)
+	c.NurseryMenuSetting = NewNurseryMenuSettingClient(c.config)
 	c.OperationRecord = NewOperationRecordClient(c.config)
 	c.OutputDispatch = NewOutputDispatchClient(c.config)
 	c.OutputTask = NewOutputTaskClient(c.config)
@@ -181,6 +189,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		InventoryItem:           NewInventoryItemClient(cfg),
 		ListChannel:             NewListChannelClient(cfg),
 		ListItem:                NewListItemClient(cfg),
+		NurseryMenu:             NewNurseryMenuClient(cfg),
+		NurseryMenuSetting:      NewNurseryMenuSettingClient(cfg),
 		OperationRecord:         NewOperationRecordClient(cfg),
 		OutputDispatch:          NewOutputDispatchClient(cfg),
 		OutputTask:              NewOutputTaskClient(cfg),
@@ -212,6 +222,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		InventoryItem:           NewInventoryItemClient(cfg),
 		ListChannel:             NewListChannelClient(cfg),
 		ListItem:                NewListItemClient(cfg),
+		NurseryMenu:             NewNurseryMenuClient(cfg),
+		NurseryMenuSetting:      NewNurseryMenuSettingClient(cfg),
 		OperationRecord:         NewOperationRecordClient(cfg),
 		OutputDispatch:          NewOutputDispatchClient(cfg),
 		OutputTask:              NewOutputTaskClient(cfg),
@@ -248,9 +260,9 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.ChannelOutputSuspension, c.DiscordCardView, c.InventoryChannel,
-		c.InventoryItem, c.ListChannel, c.ListItem, c.OperationRecord,
-		c.OutputDispatch, c.OutputTask, c.RemindChannel, c.RemindTask,
-		c.RemindTaskInventoryItem,
+		c.InventoryItem, c.ListChannel, c.ListItem, c.NurseryMenu,
+		c.NurseryMenuSetting, c.OperationRecord, c.OutputDispatch, c.OutputTask,
+		c.RemindChannel, c.RemindTask, c.RemindTaskInventoryItem,
 	} {
 		n.Use(hooks...)
 	}
@@ -261,9 +273,9 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.ChannelOutputSuspension, c.DiscordCardView, c.InventoryChannel,
-		c.InventoryItem, c.ListChannel, c.ListItem, c.OperationRecord,
-		c.OutputDispatch, c.OutputTask, c.RemindChannel, c.RemindTask,
-		c.RemindTaskInventoryItem,
+		c.InventoryItem, c.ListChannel, c.ListItem, c.NurseryMenu,
+		c.NurseryMenuSetting, c.OperationRecord, c.OutputDispatch, c.OutputTask,
+		c.RemindChannel, c.RemindTask, c.RemindTaskInventoryItem,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -284,6 +296,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ListChannel.mutate(ctx, m)
 	case *ListItemMutation:
 		return c.ListItem.mutate(ctx, m)
+	case *NurseryMenuMutation:
+		return c.NurseryMenu.mutate(ctx, m)
+	case *NurseryMenuSettingMutation:
+		return c.NurseryMenuSetting.mutate(ctx, m)
 	case *OperationRecordMutation:
 		return c.OperationRecord.mutate(ctx, m)
 	case *OutputDispatchMutation:
@@ -1099,6 +1115,272 @@ func (c *ListItemClient) mutate(ctx context.Context, m *ListItemMutation) (Value
 	}
 }
 
+// NurseryMenuClient is a client for the NurseryMenu schema.
+type NurseryMenuClient struct {
+	config
+}
+
+// NewNurseryMenuClient returns a client for the NurseryMenu from the given config.
+func NewNurseryMenuClient(c config) *NurseryMenuClient {
+	return &NurseryMenuClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `nurserymenu.Hooks(f(g(h())))`.
+func (c *NurseryMenuClient) Use(hooks ...Hook) {
+	c.hooks.NurseryMenu = append(c.hooks.NurseryMenu, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `nurserymenu.Intercept(f(g(h())))`.
+func (c *NurseryMenuClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NurseryMenu = append(c.inters.NurseryMenu, interceptors...)
+}
+
+// Create returns a builder for creating a NurseryMenu entity.
+func (c *NurseryMenuClient) Create() *NurseryMenuCreate {
+	mutation := newNurseryMenuMutation(c.config, OpCreate)
+	return &NurseryMenuCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NurseryMenu entities.
+func (c *NurseryMenuClient) CreateBulk(builders ...*NurseryMenuCreate) *NurseryMenuCreateBulk {
+	return &NurseryMenuCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NurseryMenuClient) MapCreateBulk(slice any, setFunc func(*NurseryMenuCreate, int)) *NurseryMenuCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NurseryMenuCreateBulk{err: fmt.Errorf("calling to NurseryMenuClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NurseryMenuCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NurseryMenuCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NurseryMenu.
+func (c *NurseryMenuClient) Update() *NurseryMenuUpdate {
+	mutation := newNurseryMenuMutation(c.config, OpUpdate)
+	return &NurseryMenuUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NurseryMenuClient) UpdateOne(_m *NurseryMenu) *NurseryMenuUpdateOne {
+	mutation := newNurseryMenuMutation(c.config, OpUpdateOne, withNurseryMenu(_m))
+	return &NurseryMenuUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NurseryMenuClient) UpdateOneID(id uuid.UUID) *NurseryMenuUpdateOne {
+	mutation := newNurseryMenuMutation(c.config, OpUpdateOne, withNurseryMenuID(id))
+	return &NurseryMenuUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NurseryMenu.
+func (c *NurseryMenuClient) Delete() *NurseryMenuDelete {
+	mutation := newNurseryMenuMutation(c.config, OpDelete)
+	return &NurseryMenuDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NurseryMenuClient) DeleteOne(_m *NurseryMenu) *NurseryMenuDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NurseryMenuClient) DeleteOneID(id uuid.UUID) *NurseryMenuDeleteOne {
+	builder := c.Delete().Where(nurserymenu.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NurseryMenuDeleteOne{builder}
+}
+
+// Query returns a query builder for NurseryMenu.
+func (c *NurseryMenuClient) Query() *NurseryMenuQuery {
+	return &NurseryMenuQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNurseryMenu},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NurseryMenu entity by its id.
+func (c *NurseryMenuClient) Get(ctx context.Context, id uuid.UUID) (*NurseryMenu, error) {
+	return c.Query().Where(nurserymenu.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NurseryMenuClient) GetX(ctx context.Context, id uuid.UUID) *NurseryMenu {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *NurseryMenuClient) Hooks() []Hook {
+	return c.hooks.NurseryMenu
+}
+
+// Interceptors returns the client interceptors.
+func (c *NurseryMenuClient) Interceptors() []Interceptor {
+	return c.inters.NurseryMenu
+}
+
+func (c *NurseryMenuClient) mutate(ctx context.Context, m *NurseryMenuMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NurseryMenuCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NurseryMenuUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NurseryMenuUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NurseryMenuDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NurseryMenu mutation op: %q", m.Op())
+	}
+}
+
+// NurseryMenuSettingClient is a client for the NurseryMenuSetting schema.
+type NurseryMenuSettingClient struct {
+	config
+}
+
+// NewNurseryMenuSettingClient returns a client for the NurseryMenuSetting from the given config.
+func NewNurseryMenuSettingClient(c config) *NurseryMenuSettingClient {
+	return &NurseryMenuSettingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `nurserymenusetting.Hooks(f(g(h())))`.
+func (c *NurseryMenuSettingClient) Use(hooks ...Hook) {
+	c.hooks.NurseryMenuSetting = append(c.hooks.NurseryMenuSetting, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `nurserymenusetting.Intercept(f(g(h())))`.
+func (c *NurseryMenuSettingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NurseryMenuSetting = append(c.inters.NurseryMenuSetting, interceptors...)
+}
+
+// Create returns a builder for creating a NurseryMenuSetting entity.
+func (c *NurseryMenuSettingClient) Create() *NurseryMenuSettingCreate {
+	mutation := newNurseryMenuSettingMutation(c.config, OpCreate)
+	return &NurseryMenuSettingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NurseryMenuSetting entities.
+func (c *NurseryMenuSettingClient) CreateBulk(builders ...*NurseryMenuSettingCreate) *NurseryMenuSettingCreateBulk {
+	return &NurseryMenuSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NurseryMenuSettingClient) MapCreateBulk(slice any, setFunc func(*NurseryMenuSettingCreate, int)) *NurseryMenuSettingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NurseryMenuSettingCreateBulk{err: fmt.Errorf("calling to NurseryMenuSettingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NurseryMenuSettingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NurseryMenuSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NurseryMenuSetting.
+func (c *NurseryMenuSettingClient) Update() *NurseryMenuSettingUpdate {
+	mutation := newNurseryMenuSettingMutation(c.config, OpUpdate)
+	return &NurseryMenuSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NurseryMenuSettingClient) UpdateOne(_m *NurseryMenuSetting) *NurseryMenuSettingUpdateOne {
+	mutation := newNurseryMenuSettingMutation(c.config, OpUpdateOne, withNurseryMenuSetting(_m))
+	return &NurseryMenuSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NurseryMenuSettingClient) UpdateOneID(id string) *NurseryMenuSettingUpdateOne {
+	mutation := newNurseryMenuSettingMutation(c.config, OpUpdateOne, withNurseryMenuSettingID(id))
+	return &NurseryMenuSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NurseryMenuSetting.
+func (c *NurseryMenuSettingClient) Delete() *NurseryMenuSettingDelete {
+	mutation := newNurseryMenuSettingMutation(c.config, OpDelete)
+	return &NurseryMenuSettingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NurseryMenuSettingClient) DeleteOne(_m *NurseryMenuSetting) *NurseryMenuSettingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NurseryMenuSettingClient) DeleteOneID(id string) *NurseryMenuSettingDeleteOne {
+	builder := c.Delete().Where(nurserymenusetting.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NurseryMenuSettingDeleteOne{builder}
+}
+
+// Query returns a query builder for NurseryMenuSetting.
+func (c *NurseryMenuSettingClient) Query() *NurseryMenuSettingQuery {
+	return &NurseryMenuSettingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNurseryMenuSetting},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NurseryMenuSetting entity by its id.
+func (c *NurseryMenuSettingClient) Get(ctx context.Context, id string) (*NurseryMenuSetting, error) {
+	return c.Query().Where(nurserymenusetting.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NurseryMenuSettingClient) GetX(ctx context.Context, id string) *NurseryMenuSetting {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *NurseryMenuSettingClient) Hooks() []Hook {
+	return c.hooks.NurseryMenuSetting
+}
+
+// Interceptors returns the client interceptors.
+func (c *NurseryMenuSettingClient) Interceptors() []Interceptor {
+	return c.inters.NurseryMenuSetting
+}
+
+func (c *NurseryMenuSettingClient) mutate(ctx context.Context, m *NurseryMenuSettingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NurseryMenuSettingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NurseryMenuSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NurseryMenuSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NurseryMenuSettingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NurseryMenuSetting mutation op: %q", m.Op())
+	}
+}
+
 // OperationRecordClient is a client for the OperationRecord schema.
 type OperationRecordClient struct {
 	config
@@ -1901,13 +2183,15 @@ func (c *RemindTaskInventoryItemClient) mutate(ctx context.Context, m *RemindTas
 type (
 	hooks struct {
 		ChannelOutputSuspension, DiscordCardView, InventoryChannel, InventoryItem,
-		ListChannel, ListItem, OperationRecord, OutputDispatch, OutputTask,
-		RemindChannel, RemindTask, RemindTaskInventoryItem []ent.Hook
+		ListChannel, ListItem, NurseryMenu, NurseryMenuSetting, OperationRecord,
+		OutputDispatch, OutputTask, RemindChannel, RemindTask,
+		RemindTaskInventoryItem []ent.Hook
 	}
 	inters struct {
 		ChannelOutputSuspension, DiscordCardView, InventoryChannel, InventoryItem,
-		ListChannel, ListItem, OperationRecord, OutputDispatch, OutputTask,
-		RemindChannel, RemindTask, RemindTaskInventoryItem []ent.Interceptor
+		ListChannel, ListItem, NurseryMenu, NurseryMenuSetting, OperationRecord,
+		OutputDispatch, OutputTask, RemindChannel, RemindTask,
+		RemindTaskInventoryItem []ent.Interceptor
 	}
 )
 

@@ -167,7 +167,7 @@ func (s *Service) storeCreatedOutputID(ctx context.Context, r Repository, job Ou
 		}
 	case OutputReminderNotice, OutputListDeadlineNotice:
 		return s.acknowledgeOutputNotification(ctx, r, job)
-	case OutputOperationLog:
+	case OutputOperationLog, OutputNurseryMenuNotice:
 		return nil
 	default:
 		return domain.Fail(domain.CodeInvalidInput, string(job.Kind), "Output kind does not create messages")

@@ -21,6 +21,7 @@ const (
 	OutputOperationLog       OutputKind = "operation_log"
 	OutputDeleteAll          OutputKind = "delete_all"
 	OutputThreadEnsure       OutputKind = "thread_ensure"
+	OutputNurseryMenuNotice  OutputKind = "nursery_menu_notice"
 )
 
 type OutputState string

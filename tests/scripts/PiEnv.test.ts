@@ -81,7 +81,9 @@ it('preserves dummy values through real Compose parsing without admin credential
     expect(env.CORE_API_URL).toBe(input.CORE_API_URL);
     expect(config.services.api.environment.DISCORD_BOT_TOKEN).toBe(env.DISCORD_BOT_TOKEN);
     expect(config.services.api.environment.DISCORD_OUTPUT_ENABLED).toBe('false');
-    expect(config.services.api.ports).toBeUndefined();
+    // Loopback only; tailscale serve publishes it to the tailnet, never the LAN.
+    expect(config.services.api.ports).toHaveLength(1);
+    expect(config.services.api.ports[0]).toMatchObject({ host_ip: '127.0.0.1', published: '8080', target: 8080 });
     expect(config.services.api.image).toBe(config.services.bot.image);
     expect(config.services.api.stop_grace_period).toBe('20s');
     expect(config.services.api.dns).toEqual(config.services.bot.dns);

@@ -19,6 +19,8 @@ import (
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/inventoryitem"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listchannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listitem"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/nurserymenu"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/nurserymenusetting"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/operationrecord"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputdispatch"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputtask"
@@ -43,6 +45,8 @@ const (
 	TypeInventoryItem           = "InventoryItem"
 	TypeListChannel             = "ListChannel"
 	TypeListItem                = "ListItem"
+	TypeNurseryMenu             = "NurseryMenu"
+	TypeNurseryMenuSetting      = "NurseryMenuSetting"
 	TypeOperationRecord         = "OperationRecord"
 	TypeOutputDispatch          = "OutputDispatch"
 	TypeOutputTask              = "OutputTask"
@@ -3678,6 +3682,940 @@ func (m *ListItemMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *ListItemMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown ListItem edge %s", name)
+}
+
+// NurseryMenuMutation represents an operation that mutates the NurseryMenu nodes in the graph.
+type NurseryMenuMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	menu_date     *time.Time
+	lunch         *string
+	snack         *string
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*NurseryMenu, error)
+	predicates    []predicate.NurseryMenu
+}
+
+var _ ent.Mutation = (*NurseryMenuMutation)(nil)
+
+// nurserymenuOption allows management of the mutation configuration using functional options.
+type nurserymenuOption func(*NurseryMenuMutation)
+
+// newNurseryMenuMutation creates new mutation for the NurseryMenu entity.
+func newNurseryMenuMutation(c config, op Op, opts ...nurserymenuOption) *NurseryMenuMutation {
+	m := &NurseryMenuMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeNurseryMenu,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withNurseryMenuID sets the ID field of the mutation.
+func withNurseryMenuID(id uuid.UUID) nurserymenuOption {
+	return func(m *NurseryMenuMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *NurseryMenu
+		)
+		m.oldValue = func(ctx context.Context) (*NurseryMenu, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().NurseryMenu.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withNurseryMenu sets the old NurseryMenu of the mutation.
+func withNurseryMenu(node *NurseryMenu) nurserymenuOption {
+	return func(m *NurseryMenuMutation) {
+		m.oldValue = func(context.Context) (*NurseryMenu, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m NurseryMenuMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m NurseryMenuMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of NurseryMenu entities.
+func (m *NurseryMenuMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *NurseryMenuMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *NurseryMenuMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().NurseryMenu.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetMenuDate sets the "menu_date" field.
+func (m *NurseryMenuMutation) SetMenuDate(t time.Time) {
+	m.menu_date = &t
+}
+
+// MenuDate returns the value of the "menu_date" field in the mutation.
+func (m *NurseryMenuMutation) MenuDate() (r time.Time, exists bool) {
+	v := m.menu_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMenuDate returns the old "menu_date" field's value of the NurseryMenu entity.
+// If the NurseryMenu object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurseryMenuMutation) OldMenuDate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMenuDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMenuDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMenuDate: %w", err)
+	}
+	return oldValue.MenuDate, nil
+}
+
+// ResetMenuDate resets all changes to the "menu_date" field.
+func (m *NurseryMenuMutation) ResetMenuDate() {
+	m.menu_date = nil
+}
+
+// SetLunch sets the "lunch" field.
+func (m *NurseryMenuMutation) SetLunch(s string) {
+	m.lunch = &s
+}
+
+// Lunch returns the value of the "lunch" field in the mutation.
+func (m *NurseryMenuMutation) Lunch() (r string, exists bool) {
+	v := m.lunch
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLunch returns the old "lunch" field's value of the NurseryMenu entity.
+// If the NurseryMenu object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurseryMenuMutation) OldLunch(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLunch is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLunch requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLunch: %w", err)
+	}
+	return oldValue.Lunch, nil
+}
+
+// ResetLunch resets all changes to the "lunch" field.
+func (m *NurseryMenuMutation) ResetLunch() {
+	m.lunch = nil
+}
+
+// SetSnack sets the "snack" field.
+func (m *NurseryMenuMutation) SetSnack(s string) {
+	m.snack = &s
+}
+
+// Snack returns the value of the "snack" field in the mutation.
+func (m *NurseryMenuMutation) Snack() (r string, exists bool) {
+	v := m.snack
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSnack returns the old "snack" field's value of the NurseryMenu entity.
+// If the NurseryMenu object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurseryMenuMutation) OldSnack(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSnack is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSnack requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSnack: %w", err)
+	}
+	return oldValue.Snack, nil
+}
+
+// ResetSnack resets all changes to the "snack" field.
+func (m *NurseryMenuMutation) ResetSnack() {
+	m.snack = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *NurseryMenuMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *NurseryMenuMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the NurseryMenu entity.
+// If the NurseryMenu object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurseryMenuMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *NurseryMenuMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *NurseryMenuMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *NurseryMenuMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the NurseryMenu entity.
+// If the NurseryMenu object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurseryMenuMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *NurseryMenuMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the NurseryMenuMutation builder.
+func (m *NurseryMenuMutation) Where(ps ...predicate.NurseryMenu) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the NurseryMenuMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *NurseryMenuMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.NurseryMenu, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *NurseryMenuMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *NurseryMenuMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (NurseryMenu).
+func (m *NurseryMenuMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *NurseryMenuMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.menu_date != nil {
+		fields = append(fields, nurserymenu.FieldMenuDate)
+	}
+	if m.lunch != nil {
+		fields = append(fields, nurserymenu.FieldLunch)
+	}
+	if m.snack != nil {
+		fields = append(fields, nurserymenu.FieldSnack)
+	}
+	if m.created_at != nil {
+		fields = append(fields, nurserymenu.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, nurserymenu.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *NurseryMenuMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case nurserymenu.FieldMenuDate:
+		return m.MenuDate()
+	case nurserymenu.FieldLunch:
+		return m.Lunch()
+	case nurserymenu.FieldSnack:
+		return m.Snack()
+	case nurserymenu.FieldCreatedAt:
+		return m.CreatedAt()
+	case nurserymenu.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *NurseryMenuMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case nurserymenu.FieldMenuDate:
+		return m.OldMenuDate(ctx)
+	case nurserymenu.FieldLunch:
+		return m.OldLunch(ctx)
+	case nurserymenu.FieldSnack:
+		return m.OldSnack(ctx)
+	case nurserymenu.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case nurserymenu.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown NurseryMenu field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *NurseryMenuMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case nurserymenu.FieldMenuDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMenuDate(v)
+		return nil
+	case nurserymenu.FieldLunch:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLunch(v)
+		return nil
+	case nurserymenu.FieldSnack:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSnack(v)
+		return nil
+	case nurserymenu.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case nurserymenu.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown NurseryMenu field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *NurseryMenuMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *NurseryMenuMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *NurseryMenuMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown NurseryMenu numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *NurseryMenuMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *NurseryMenuMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *NurseryMenuMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown NurseryMenu nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *NurseryMenuMutation) ResetField(name string) error {
+	switch name {
+	case nurserymenu.FieldMenuDate:
+		m.ResetMenuDate()
+		return nil
+	case nurserymenu.FieldLunch:
+		m.ResetLunch()
+		return nil
+	case nurserymenu.FieldSnack:
+		m.ResetSnack()
+		return nil
+	case nurserymenu.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case nurserymenu.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown NurseryMenu field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *NurseryMenuMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *NurseryMenuMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *NurseryMenuMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *NurseryMenuMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *NurseryMenuMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *NurseryMenuMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *NurseryMenuMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown NurseryMenu unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *NurseryMenuMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown NurseryMenu edge %s", name)
+}
+
+// NurseryMenuSettingMutation represents an operation that mutates the NurseryMenuSetting nodes in the graph.
+type NurseryMenuSettingMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *string
+	channel_id    *string
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*NurseryMenuSetting, error)
+	predicates    []predicate.NurseryMenuSetting
+}
+
+var _ ent.Mutation = (*NurseryMenuSettingMutation)(nil)
+
+// nurserymenusettingOption allows management of the mutation configuration using functional options.
+type nurserymenusettingOption func(*NurseryMenuSettingMutation)
+
+// newNurseryMenuSettingMutation creates new mutation for the NurseryMenuSetting entity.
+func newNurseryMenuSettingMutation(c config, op Op, opts ...nurserymenusettingOption) *NurseryMenuSettingMutation {
+	m := &NurseryMenuSettingMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeNurseryMenuSetting,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withNurseryMenuSettingID sets the ID field of the mutation.
+func withNurseryMenuSettingID(id string) nurserymenusettingOption {
+	return func(m *NurseryMenuSettingMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *NurseryMenuSetting
+		)
+		m.oldValue = func(ctx context.Context) (*NurseryMenuSetting, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().NurseryMenuSetting.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withNurseryMenuSetting sets the old NurseryMenuSetting of the mutation.
+func withNurseryMenuSetting(node *NurseryMenuSetting) nurserymenusettingOption {
+	return func(m *NurseryMenuSettingMutation) {
+		m.oldValue = func(context.Context) (*NurseryMenuSetting, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m NurseryMenuSettingMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m NurseryMenuSettingMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of NurseryMenuSetting entities.
+func (m *NurseryMenuSettingMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *NurseryMenuSettingMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *NurseryMenuSettingMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().NurseryMenuSetting.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetChannelID sets the "channel_id" field.
+func (m *NurseryMenuSettingMutation) SetChannelID(s string) {
+	m.channel_id = &s
+}
+
+// ChannelID returns the value of the "channel_id" field in the mutation.
+func (m *NurseryMenuSettingMutation) ChannelID() (r string, exists bool) {
+	v := m.channel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelID returns the old "channel_id" field's value of the NurseryMenuSetting entity.
+// If the NurseryMenuSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurseryMenuSettingMutation) OldChannelID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelID: %w", err)
+	}
+	return oldValue.ChannelID, nil
+}
+
+// ResetChannelID resets all changes to the "channel_id" field.
+func (m *NurseryMenuSettingMutation) ResetChannelID() {
+	m.channel_id = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *NurseryMenuSettingMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *NurseryMenuSettingMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the NurseryMenuSetting entity.
+// If the NurseryMenuSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurseryMenuSettingMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *NurseryMenuSettingMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the NurseryMenuSettingMutation builder.
+func (m *NurseryMenuSettingMutation) Where(ps ...predicate.NurseryMenuSetting) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the NurseryMenuSettingMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *NurseryMenuSettingMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.NurseryMenuSetting, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *NurseryMenuSettingMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *NurseryMenuSettingMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (NurseryMenuSetting).
+func (m *NurseryMenuSettingMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *NurseryMenuSettingMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.channel_id != nil {
+		fields = append(fields, nurserymenusetting.FieldChannelID)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, nurserymenusetting.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *NurseryMenuSettingMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case nurserymenusetting.FieldChannelID:
+		return m.ChannelID()
+	case nurserymenusetting.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *NurseryMenuSettingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case nurserymenusetting.FieldChannelID:
+		return m.OldChannelID(ctx)
+	case nurserymenusetting.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown NurseryMenuSetting field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *NurseryMenuSettingMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case nurserymenusetting.FieldChannelID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelID(v)
+		return nil
+	case nurserymenusetting.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown NurseryMenuSetting field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *NurseryMenuSettingMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *NurseryMenuSettingMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *NurseryMenuSettingMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown NurseryMenuSetting numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *NurseryMenuSettingMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *NurseryMenuSettingMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *NurseryMenuSettingMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown NurseryMenuSetting nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *NurseryMenuSettingMutation) ResetField(name string) error {
+	switch name {
+	case nurserymenusetting.FieldChannelID:
+		m.ResetChannelID()
+		return nil
+	case nurserymenusetting.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown NurseryMenuSetting field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *NurseryMenuSettingMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *NurseryMenuSettingMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *NurseryMenuSettingMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *NurseryMenuSettingMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *NurseryMenuSettingMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *NurseryMenuSettingMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *NurseryMenuSettingMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown NurseryMenuSetting unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *NurseryMenuSettingMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown NurseryMenuSetting edge %s", name)
 }
 
 // OperationRecordMutation represents an operation that mutates the OperationRecord nodes in the graph.

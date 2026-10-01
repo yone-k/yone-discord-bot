@@ -41,6 +41,15 @@ type Repository interface {
 	GetTaskByMessage(ctx context.Context, channelID, messageID string) (*domain.RemindTask, error)
 	PutTask(ctx context.Context, task *domain.RemindTask, inventoryChannelID *string, replaceInventoryReferences bool) error
 	DeleteTask(ctx context.Context, channelID, taskID string) error
+	GetNurseryMenu(ctx context.Context, date string) (*domain.NurseryMenu, error)
+	NurseryMenus(ctx context.Context, from, to string) ([]domain.NurseryMenu, error)
+	PutNurseryMenu(context.Context, domain.NurseryMenu) error
+	DeleteNurseryMenu(ctx context.Context, date string) error
+	GetNurseryMenuChannel(context.Context) (*string, error)
+	PutNurseryMenuChannel(ctx context.Context, channelID string, updatedAt time.Time) error
+	// NurseryMenuNoticeExists reports a notice for the date in any channel that
+	// is unfinished, delivered, or cancelled with possible delivery evidence.
+	NurseryMenuNoticeExists(ctx context.Context, date string) (bool, error)
 }
 
 type Service struct {

@@ -30,6 +30,9 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
+    # Loopback only; scripts/pi-tailscale-serve.sh publishes it to the tailnet.
+    ports:
+      - "127.0.0.1:8080:8080"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:8080/health', {signal: AbortSignal.timeout(5000)}).then(r => {if (!r.ok) process.exit(1);}).catch(() => process.exit(1));"]
       interval: 30s

@@ -212,8 +212,63 @@ func TestVersionTwoOutputMigrationPreservesIDs(t *testing.T) {
 		t.Fatal("version 3 changed existing data or Discord IDs")
 	}
 	var version int
-	if err := db.QueryRow("SELECT max(version) FROM schema_migrations").Scan(&version); err != nil || version != 3 {
-		t.Fatal("missing version 3", version, err)
+	if err := db.QueryRow("SELECT max(version) FROM schema_migrations").Scan(&version); err != nil || version != ExpectedSchemaVersion {
+		t.Fatal("missing latest version", version, err)
+	}
+}
+
+func TestNurseryMenuTablesEnforceConstraintsAndAcceptNoticeKind(t *testing.T) {
+	db := dbtest.Open(t)
+	dbtest.Reset(t, db)
+	if err := (Runner{directory}).Apply(t.Context(), db, ""); err != nil {
+		t.Fatal(err)
+	}
+	now := "2026-10-02T00:00:00Z"
+	mustExec(t, db, "INSERT INTO nursery_menus(menu_date,lunch,snack,created_at,updated_at) VALUES('2026-10-02','ご飯','',$1,$1)", now)
+	for name, statement := range map[string]string{
+		"both empty":   "INSERT INTO nursery_menus(menu_date,lunch,snack,created_at,updated_at) VALUES('2026-10-03','','',$1,$1)",
+		"long lunch":   "INSERT INTO nursery_menus(menu_date,lunch,snack,created_at,updated_at) VALUES('2026-10-04',repeat('a',1001),'',$1,$1)",
+		"long snack":   "INSERT INTO nursery_menus(menu_date,lunch,snack,created_at,updated_at) VALUES('2026-10-05','',repeat('a',1001),$1,$1)",
+		"other key":    "INSERT INTO nursery_menu_settings(key,channel_id,updated_at) VALUES('other','1',$1)",
+		"unknown kind": "INSERT INTO output_tasks(channel_id,kind,target_id,payload,destination_key,state,available_at,created_at,updated_at) VALUES('1','nursery_menu',' ','{}','k','pending',$1,$1,$1)",
+	} {
+		if _, err := db.ExecContext(t.Context(), statement, now); err == nil {
+			t.Fatalf("%s accepted", name)
+		}
+	}
+	var primaryKey, idType string
+	if err := db.QueryRow(`SELECT a.attname, format_type(a.atttypid, a.atttypmod) FROM pg_index i JOIN pg_attribute a ON a.attrelid=i.indrelid AND a.attnum=ANY(i.indkey)
+		WHERE i.indrelid='nursery_menus'::regclass AND i.indisprimary`).Scan(&primaryKey, &idType); err != nil || primaryKey != "id" || idType != "uuid" {
+		t.Fatal("nursery_menus must use a uuid id primary key", primaryKey, idType, err)
+	}
+	if _, err := db.ExecContext(t.Context(), "INSERT INTO nursery_menus(menu_date,lunch,snack,created_at,updated_at) VALUES('2026-10-02','パン','',$1,$1)", now); err == nil {
+		t.Fatal("duplicate menu date accepted")
+	}
+	mustExec(t, db, "INSERT INTO nursery_menu_settings(channel_id,updated_at) VALUES('1',$1)", now)
+	if _, err := db.ExecContext(t.Context(), "INSERT INTO nursery_menu_settings(channel_id,updated_at) VALUES('2',$1)", now); err == nil {
+		t.Fatal("a second posting destination accepted")
+	}
+	var key string
+	if err := db.QueryRow("SELECT key FROM nursery_menu_settings").Scan(&key); err != nil || key != "nursery_menu" {
+		t.Fatal(key, err)
+	}
+	mustExec(t, db, "INSERT INTO output_tasks(channel_id,kind,target_id,payload,destination_key,state,available_at,created_at,updated_at) VALUES('1','nursery_menu_notice','2026-10-02','{}','nursery_menu_notice:2026-10-02','pending',$1,$1,$1)", now)
+}
+
+func TestRuntimeRoleCanUseNurseryMenuTables(t *testing.T) {
+	db := dbtest.Open(t)
+	dbtest.Reset(t, db)
+	mustExec(t, db, "DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='nursery_runtime_test') THEN CREATE ROLE nursery_runtime_test NOLOGIN; END IF; END $$")
+	if err := (Runner{directory}).Apply(t.Context(), db, "nursery_runtime_test"); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"nursery_menus", "nursery_menu_settings"} {
+		for _, privilege := range []string{"SELECT", "INSERT", "UPDATE", "DELETE"} {
+			var allowed bool
+			if err := db.QueryRow("SELECT has_table_privilege('nursery_runtime_test',$1,$2)", table, privilege).Scan(&allowed); err != nil || !allowed {
+				t.Fatalf("%s %s: %v %v", table, privilege, allowed, err)
+			}
+		}
 	}
 }
 

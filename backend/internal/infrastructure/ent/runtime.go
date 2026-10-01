@@ -7,6 +7,7 @@ import (
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/inventorychannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listchannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listitem"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/nurserymenu"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputdispatch"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputtask"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/remindtask"
@@ -49,6 +50,16 @@ func init() {
 	listitemDescIsCompleted := listitemFields[5].Descriptor()
 	// listitem.DefaultIsCompleted holds the default value on creation for the is_completed field.
 	listitem.DefaultIsCompleted = listitemDescIsCompleted.Default.(bool)
+	nurserymenuFields := schema.NurseryMenu{}.Fields()
+	_ = nurserymenuFields
+	// nurserymenuDescLunch is the schema descriptor for lunch field.
+	nurserymenuDescLunch := nurserymenuFields[2].Descriptor()
+	// nurserymenu.DefaultLunch holds the default value on creation for the lunch field.
+	nurserymenu.DefaultLunch = nurserymenuDescLunch.Default.(string)
+	// nurserymenuDescSnack is the schema descriptor for snack field.
+	nurserymenuDescSnack := nurserymenuFields[3].Descriptor()
+	// nurserymenu.DefaultSnack holds the default value on creation for the snack field.
+	nurserymenu.DefaultSnack = nurserymenuDescSnack.Default.(string)
 	outputdispatchFields := schema.OutputDispatch{}.Fields()
 	_ = outputdispatchFields
 	// outputdispatchDescAttempt is the schema descriptor for attempt field.

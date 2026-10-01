@@ -19,7 +19,7 @@ type Fixture = {
   pullFail?: boolean; configFail?: boolean; stopFail?: boolean; busy?: boolean; missing?: boolean;
   starting?: string[]; platform?: string; upFail?: string[]; incompatible?: string[]; apiCurrent?: string; failedService?: string;
   stopFailImage?: string; stopFailService?: string; interruptOnStart?: boolean;
-  settingsMismatch?: boolean;
+  settingsMismatch?: boolean; tailscaleFail?: boolean;
 };
 let fixture: Fixture;
 
@@ -67,6 +67,8 @@ beforeEach(() => {
   mkdirSync(join(dir, 'deploy'));
   copyFileSync('deploy/verify-service-settings.py', join(dir, 'deploy/verify-service-settings.py'));
   if (existsSync('scripts/pi-update.sh')) copyFileSync('scripts/pi-update.sh', join(dir, 'scripts/pi-update.sh'));
+  if (existsSync('scripts/pi-tailscale-serve.sh')) copyFileSync('scripts/pi-tailscale-serve.sh', join(dir, 'scripts/pi-tailscale-serve.sh'));
+  writeFileSync(join(bin, 'tailscale'), `#!${process.execPath}\nconst fs=require('node:fs'),a=process.argv.slice(2);fs.appendFileSync(process.env.FIXTURE_DIR+'/calls',JSON.stringify(['tailscale',...a])+'\\n');if(a[1]==='status'){console.log('{}');process.exit(0);}process.exit(JSON.parse(fs.readFileSync(process.env.FIXTURE_DIR+'/docker.json','utf8')).tailscaleFail?1:0);\n`, { mode: 0o755 });
   writeFileSync(join(dir, 'scripts/pi-db-preflight.sh'), '#!/bin/sh\nexit 0\n');
   writeFileSync(join(dir, 'docker-compose.yml'), 'name: discord-bot\n');
   writeFileSync(join(dir, '.env'), 'DISCORD_BOT_TOKEN=not-a-real-token\n');
@@ -110,6 +112,14 @@ describe('Pi update lifecycle', { timeout: scenarioTimeoutMs }, () => {
     expect(calls().filter(c => c.includes('stop') || c.includes('up')).map(c => `${c.includes('stop') ? 'stop' : 'up'} ${c.at(-1)}`))
       .toEqual(['stop bot', 'stop api', 'up api', 'up bot']);
     expect(fixture.apiCurrent).toBe(next);
+    expect(fixture.current).toBe(next);
+  });
+  it.each([false, true])('publishes the API to the tailnet between API and Bot startup (serve fails: %s)', tailscaleFail => {
+    initialize(); clearCalls(); fixture.tailscaleFail = tailscaleFail;
+    expect(run().status).toBe(0);
+    const sequence = calls().filter(c => c.includes('up') || c[0] === 'tailscale' && c[2] === '--bg')
+      .map(c => c[0] === 'tailscale' ? 'serve' : `up ${c.at(-1)}`);
+    expect(sequence).toEqual(['up api', 'serve', 'up bot']);
     expect(fixture.current).toBe(next);
   });
   it.each(['api', 'bot'])('rolls both services back if %s is unhealthy', service => {

@@ -38,7 +38,7 @@ func (s *Service) ReserveNotifications(ctx context.Context) error {
 			return err
 		}
 	}
-	return nil
+	return s.reserveNurseryMenuNotice(ctx)
 }
 
 func (s *Service) reserveNotification(ctx context.Context, candidate NotificationToken) error {

@@ -11,6 +11,8 @@ import { DeleteInventoryCommand } from '../commands/DeleteInventoryCommand';
 import { LinkInventoryCommand } from '../commands/LinkInventoryCommand';
 import { UnlinkInventoryCommand } from '../commands/UnlinkInventoryCommand';
 import { UpdateInventoryCommand } from '../commands/UpdateInventoryCommand';
+import { InitNurseryMenuCommand } from '../commands/InitNurseryMenuCommand';
+import { NurseryMenuCommand } from '../commands/NurseryMenuCommand';
 import { Logger } from '../utils/logger';
 
 export function registerAllCommands(commandManager: CommandManager, logger: Logger): void {
@@ -53,6 +55,9 @@ export function registerAllCommands(commandManager: CommandManager, logger: Logg
 
   const updateInventoryCommand = new UpdateInventoryCommand(logger);
   commandManager.register(updateInventoryCommand);
-  
+
+  commandManager.register(new InitNurseryMenuCommand(logger));
+  commandManager.register(new NurseryMenuCommand(logger));
+
   logger.info('All commands registered successfully');
 }

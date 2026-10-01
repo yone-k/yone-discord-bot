@@ -38,7 +38,7 @@ func (s *Service) bindingSnapshot(ctx context.Context, id, stageName string) (*b
 		return nil, domain.Fail(domain.CodeConflict, id, "Output is not awaiting a binding")
 	}
 	valid := outputCard(job.Kind) && IsMessageOutputStage(stageName)
-	valid = valid || (job.Kind == OutputOperationLog || job.Kind == OutputReminderNotice || job.Kind == OutputListDeadlineNotice) && stageName == "message"
+	valid = valid || (job.Kind == OutputOperationLog || job.Kind == OutputReminderNotice || job.Kind == OutputListDeadlineNotice || job.Kind == OutputNurseryMenuNotice) && stageName == "message"
 	valid = valid || job.Kind == OutputThreadEnsure && (stageName == "thread" || stageName == "parent" && job.Payload.ThreadPurpose == "reminder_notice")
 	if !valid {
 		return nil, domain.Fail(domain.CodeInvalidInput, "stage", "Invalid output binding stage")
@@ -306,7 +306,7 @@ func (s *Service) commitOutputBinding(ctx context.Context, snapshot *bindingSnap
 		}
 		if job.State != OutputCancelled {
 			job.State, job.AvailableAt, job.LastError = OutputRetryWait, now, ""
-			if job.Kind == OutputOperationLog || job.Kind == OutputReminderNotice || job.Kind == OutputListDeadlineNotice {
+			if job.Kind == OutputOperationLog || job.Kind == OutputReminderNotice || job.Kind == OutputListDeadlineNotice || job.Kind == OutputNurseryMenuNotice {
 				job.State = OutputSucceeded
 			}
 		} else {

@@ -81,6 +81,30 @@ func (f ListItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ListItemMutation", m)
 }
 
+// The NurseryMenuFunc type is an adapter to allow the use of ordinary
+// function as NurseryMenu mutator.
+type NurseryMenuFunc func(context.Context, *ent.NurseryMenuMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NurseryMenuFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NurseryMenuMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NurseryMenuMutation", m)
+}
+
+// The NurseryMenuSettingFunc type is an adapter to allow the use of ordinary
+// function as NurseryMenuSetting mutator.
+type NurseryMenuSettingFunc func(context.Context, *ent.NurseryMenuSettingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NurseryMenuSettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NurseryMenuSettingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NurseryMenuSettingMutation", m)
+}
+
 // The OperationRecordFunc type is an adapter to allow the use of ordinary
 // function as OperationRecord mutator.
 type OperationRecordFunc func(context.Context, *ent.OperationRecordMutation) (ent.Value, error)

@@ -14,6 +14,8 @@ func (s *Service) ExecuteOutput(ctx context.Context, gateway DiscordGateway, bot
 		return s.ExecuteCard(ctx, gateway, botID, job.ID, executor)
 	case OutputReminderNotice, OutputListDeadlineNotice:
 		return s.ExecuteNotification(ctx, gateway, botID, job.ID, executor)
+	case OutputNurseryMenuNotice:
+		return s.ExecuteNurseryMenuNotice(ctx, gateway, botID, job.ID, executor)
 	case OutputOperationLog:
 		return s.ExecuteOperationLog(ctx, gateway, botID, job.ID, executor)
 	case OutputThreadEnsure:

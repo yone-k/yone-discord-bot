@@ -18,6 +18,8 @@ import (
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/inventoryitem"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listchannel"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/listitem"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/nurserymenu"
+	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/nurserymenusetting"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/operationrecord"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputdispatch"
 	"github.com/yone-k/yone-discord-bot/backend/internal/infrastructure/ent/outputtask"
@@ -90,6 +92,8 @@ func checkColumn(t, c string) error {
 			inventoryitem.Table:           inventoryitem.ValidColumn,
 			listchannel.Table:             listchannel.ValidColumn,
 			listitem.Table:                listitem.ValidColumn,
+			nurserymenu.Table:             nurserymenu.ValidColumn,
+			nurserymenusetting.Table:      nurserymenusetting.ValidColumn,
 			operationrecord.Table:         operationrecord.ValidColumn,
 			outputdispatch.Table:          outputdispatch.ValidColumn,
 			outputtask.Table:              outputtask.ValidColumn,

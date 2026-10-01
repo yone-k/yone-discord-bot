@@ -26,6 +26,10 @@ type Tx struct {
 	ListChannel *ListChannelClient
 	// ListItem is the client for interacting with the ListItem builders.
 	ListItem *ListItemClient
+	// NurseryMenu is the client for interacting with the NurseryMenu builders.
+	NurseryMenu *NurseryMenuClient
+	// NurseryMenuSetting is the client for interacting with the NurseryMenuSetting builders.
+	NurseryMenuSetting *NurseryMenuSettingClient
 	// OperationRecord is the client for interacting with the OperationRecord builders.
 	OperationRecord *OperationRecordClient
 	// OutputDispatch is the client for interacting with the OutputDispatch builders.
@@ -175,6 +179,8 @@ func (tx *Tx) init() {
 	tx.InventoryItem = NewInventoryItemClient(tx.config)
 	tx.ListChannel = NewListChannelClient(tx.config)
 	tx.ListItem = NewListItemClient(tx.config)
+	tx.NurseryMenu = NewNurseryMenuClient(tx.config)
+	tx.NurseryMenuSetting = NewNurseryMenuSettingClient(tx.config)
 	tx.OperationRecord = NewOperationRecordClient(tx.config)
 	tx.OutputDispatch = NewOutputDispatchClient(tx.config)
 	tx.OutputTask = NewOutputTaskClient(tx.config)

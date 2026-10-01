@@ -24,6 +24,12 @@ type ListChannel func(*sql.Selector)
 // ListItem is the predicate function for listitem builders.
 type ListItem func(*sql.Selector)
 
+// NurseryMenu is the predicate function for nurserymenu builders.
+type NurseryMenu func(*sql.Selector)
+
+// NurseryMenuSetting is the predicate function for nurserymenusetting builders.
+type NurseryMenuSetting func(*sql.Selector)
+
 // OperationRecord is the predicate function for operationrecord builders.
 type OperationRecord func(*sql.Selector)
 

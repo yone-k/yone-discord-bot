@@ -28,6 +28,7 @@ func TestGeneratedDTOFieldsMatchContract(t *testing.T) {
 		ApplyInventoryInput{}, BulkInventoryInput{}, InventoryConsumption{}, CreateTaskInput{}, StoredRemindTask{}, TaskPatch{}, PatchTaskInput{},
 		CompleteTaskInput{}, ConsumptionOverride{}, RemindInventoryEdit{}, EditTaskInventoryInput{}, RemindInventoryEditResult{},
 		TaskDisplay{},
+		NurseryMenuInput{}, DatedNurseryMenuInput{}, NurseryMenusBatchInput{}, NurseryMenu{}, NurseryMenuChannel{},
 		OutputAccepted{}, OutputCardView{}, OutputCardViewInput{}, OutputChannelStop{}, OutputHold{}, OutputInitializeInput{}, OutputJob{}, OutputLogEvent{}, OutputRedrawInput{}, OutputStateCount{}, OutputStatus{},
 	}
 	checked := map[string]bool{}

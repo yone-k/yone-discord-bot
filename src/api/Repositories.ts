@@ -1,4 +1,4 @@
-import { CoreClient, coreClient, CoreApiError } from './CoreClient';
+import { CoreClient, coreClient, CoreApiError, withOutputOperation } from './CoreClient';
 import type { Schema, StoredRemindTask, StoredListItem, ListSnapshot, ListEditItem, ListChannel, InventoryChannel, RemindChannel } from './contracts';
 
 import { encodePathId as part } from './PathId';
@@ -67,6 +67,13 @@ export class ApiInventoryRepository extends Adapter {
   async delete(channelId: string, id: string): Promise<void> { await this.client.request('DELETE', `${route('inventories', channelId)}/items/${part(id)}`); }
   async reorder(channelId: string, ids: string[]): Promise<void> { await this.client.request('POST', `${route('inventories', channelId)}/reorder`, { ids } satisfies Schema['ReorderInput']); }
   resolveByName(channelId: string, name: string): Promise<Schema['StoredInventoryItem']> { return this.client.request('POST', `${route('inventories', channelId)}/resolve`, { name } satisfies Schema['ResolveInventoryInput']); }
+}
+export class ApiNurseryMenuRepository extends Adapter {
+  get(date: string): Promise<Schema['NurseryMenu'] | null> { return nullable(() => this.client.request('GET', `/v1/nursery-menus/${part(date)}`)); }
+  // Nursery menu writes are not operation-logged; the API rejects actor headers on them.
+  async setChannel(channelId: string): Promise<void> {
+    await withOutputOperation(undefined, () => this.client.request('PUT', '/v1/nursery-menu-channel', { channelId } satisfies Schema['NurseryMenuChannel']));
+  }
 }
 export class ApiRemindTaskRepository extends Adapter {
   async fetchTasks(channelId: string): Promise<StoredRemindTask[]> { return (await this.client.request<Schema['StoredRemindTask'][]>('GET', `${route('reminders', channelId)}/tasks`)).map(hydrateTask); }

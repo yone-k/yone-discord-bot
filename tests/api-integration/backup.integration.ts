@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { expect, it } from 'vitest';
 
-const tables = ['list_channels', 'list_items', 'inventory_channels', 'inventory_items', 'remind_channels', 'remind_tasks', 'remind_task_inventory_items', 'schema_migrations', 'data_imports', 'operation_records', 'output_tasks', 'output_dispatches', 'channel_output_suspensions', 'discord_card_views'];
+const tables = ['list_channels', 'list_items', 'inventory_channels', 'inventory_items', 'remind_channels', 'remind_tasks', 'remind_task_inventory_items', 'schema_migrations', 'data_imports', 'operation_records', 'output_tasks', 'output_dispatches', 'channel_output_suspensions', 'discord_card_views', 'nursery_menus', 'nursery_menu_settings'];
 const shellQuote = (value: string): string => `'${value.replace(/'/g, '\'\\\'\'')}'`;
 
 it('backs up and restores all fields, constraints, indexes and limited-role grants with deployed scripts', () => {
@@ -91,7 +91,9 @@ else: raise SystemExit('Unexpected transfer')
       INSERT INTO output_dispatches(id,task_id,attempt,nonce,started_at,outcome)
       VALUES('01990000-0000-7000-8000-000000000005','01990000-0000-7000-8000-000000000003',1,'restore-nonce',now(),'unknown');
       INSERT INTO channel_output_suspensions(channel_id,suspended_at,suspended_by) VALUES('9901',now(),'999');
-      INSERT INTO discord_card_views(channel_id,target_kind,target_id,mode,page,view_version) VALUES('9902','inventory','9902','delete_selection',3,7);`);
+      INSERT INTO discord_card_views(channel_id,target_kind,target_id,mode,page,view_version) VALUES('9902','inventory','9902','delete_selection',3,7);
+      INSERT INTO nursery_menus(menu_date,lunch,snack,created_at,updated_at) VALUES('2099-12-31','ご飯\n味噌汁','',now(),now());
+      INSERT INTO nursery_menu_settings(channel_id,updated_at) VALUES('9904',now());`);
     // Compare every field; only quarantined jobs get a new updated_at below.
     const contents = (name: string): Record<string, string> => Object.fromEntries(tables.map(table => [table, sql(`SELECT to_jsonb(t)::text FROM ${table} t ORDER BY to_jsonb(t)::text`, name)]));
     const expected = contents(database);
@@ -102,7 +104,7 @@ else: raise SystemExit('Unexpected transfer')
     const dump = readFileSync(join(directory, 'drive', `${manifest.generation}.dump`));
     expect(dump.subarray(0, 5).toString()).toBe('PGDMP');
     expect(createHash('sha256').update(dump).digest('hex')).toBe(manifest.sha256);
-    expect(manifest.schema_version).toBe(3);
+    expect(manifest.schema_version).toBe(4);
     expect(manifest.bot_image).toBe(image);
     expect(readFileSync(join(directory, 'storage/backups', `${manifest.generation}.dump`))).toEqual(dump);
     const restoreOutput = run('pi-restore.sh', [manifests[0], target]);
@@ -161,7 +163,8 @@ else: raise SystemExit('Unexpected transfer')
         DELETE FROM channel_output_suspensions WHERE channel_id='9901'; DELETE FROM discord_card_views WHERE channel_id='9902';
         DELETE FROM remind_tasks WHERE channel_id='9903'; DELETE FROM remind_channels WHERE channel_id='9903';
         DELETE FROM inventory_items WHERE channel_id='9902'; DELETE FROM inventory_channels WHERE channel_id='9902';
-        DELETE FROM list_items WHERE channel_id='9901'; DELETE FROM list_channels WHERE channel_id='9901';`);
+        DELETE FROM list_items WHERE channel_id='9901'; DELETE FROM list_channels WHERE channel_id='9901';
+        DELETE FROM nursery_menus WHERE menu_date='2099-12-31'; DELETE FROM nursery_menu_settings WHERE channel_id='9904';`);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

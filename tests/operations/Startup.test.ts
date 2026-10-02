@@ -55,16 +55,10 @@ it('requires both services stopped before manual startup', () => {
   expect(existsSync(join(root, '.deploy-state/schema-v3-confirmed'))).toBe(false);
 });
 
-it.each(['0', '1'])('publishes the API to the tailnet after it starts and keeps going when serve exits %s', serveExit => {
-  writeFileSync(join(root, 'bin/tailscale'), `#!/bin/sh\necho "tailscale $*" >> "$CALLS"\n[ "$1 $2" = "serve status" ] && { echo '{}'; exit 0; }\nexit ${serveExit}\n`, { mode: 0o755 });
+it('keeps the Core API on the Pi and never publishes it with tailscale', () => {
+  writeFileSync(join(root, 'bin/tailscale'), '#!/bin/sh\necho "tailscale $*" >> "$CALLS"\n', { mode: 0o755 });
   expect(run('pi-start.sh').status).toBe(0);
-  const calls = readFileSync(join(root, 'calls'), 'utf8').split('\n');
-  const api = calls.findIndex(line => /up -d .* api$/.test(line));
-  const serve = calls.findIndex(line => line === 'tailscale serve --bg --https=443 http://127.0.0.1:8080');
-  const bot = calls.findIndex(line => /up -d .* bot$/.test(line));
-  expect(api).toBeGreaterThanOrEqual(0);
-  expect(serve).toBeGreaterThan(api);
-  expect(bot).toBeGreaterThan(serve);
+  expect(readFileSync(join(root, 'calls'), 'utf8')).not.toContain('tailscale');
 });
 
 it('starts and waits for API before starting and waiting for Bot', () => {

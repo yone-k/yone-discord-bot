@@ -30,7 +30,7 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
-    # Loopback only; scripts/pi-tailscale-serve.sh publishes it to the tailnet.
+    # Loopback only, for API clients running on the Pi host itself.
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:

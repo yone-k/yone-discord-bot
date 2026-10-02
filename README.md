@@ -61,7 +61,7 @@ Go APIはスキーマ版3と既存の移行完了マーカーを検査します�
 
 登録した献立は、当日の7:00（Asia/Tokyo）に `/init-nursery-menu` を実行したチャンネルへ `@everyone` 付きで投稿されます。Botが停止していても、当日の12:00より前に復旧すれば1回だけ投稿します。献立が未登録の日は投稿しません。投稿は日付ごとに1回で、投稿後に献立を修正しても再投稿しません。`/nursery-menu` では、今日・明日・指定日の献立を本人だけに表示します。
 
-献立はCore APIで登録・参照します。APIはPiのループバック（`127.0.0.1:8080`）にだけ公開し、起動・更新スクリプトが `tailscale serve` でtailnet内のHTTPS（`https://<PiのMagicDNS名>/`）へ中継します。インターネットには公開しません。前提として、tailnetのHTTPS証明書を有効にし、Piで `sudo tailscale set --operator=yone` を一度実行しておきます。中継の設定に失敗した場合は `warn: tailscale-serve:` を出力し、BotとAPIの起動は続けます。
+献立はCore APIで登録・参照します。APIはPiのループバック（`127.0.0.1:8080`）にだけ公開し、LANやtailnetには公開しません。Pi上で動くクライアント（Hermesなど）から `http://127.0.0.1:8080` を呼びます。
 
 認証にはBotと同じ `CORE_API_TOKEN` を使います。`lunch`（昼食）と `snack`（おやつ）は省略できますが、少なくとも一方が必要です。各項目は1000文字以内で、改行を保持します。
 
@@ -74,7 +74,7 @@ Go APIはスキーマ版3と既存の移行完了マーカーを検査します�
 | 1日分の削除 | `DELETE /v1/nursery-menus/2026-10-02` |
 
 ```bash
-curl -sS -X POST "https://<PiのMagicDNS名>/v1/nursery-menus/batch" \
+curl -sS -X POST "http://127.0.0.1:8080/v1/nursery-menus/batch" \
   -H "Authorization: Bearer $CORE_API_TOKEN" -H 'Content-Type: application/json' \
   -d '{"items":[{"date":"2026-10-02","lunch":"ご飯","snack":"牛乳"}]}'
 ```
@@ -89,7 +89,7 @@ curl -sS -X POST "https://<PiのMagicDNS名>/v1/nursery-menus/batch" \
 2. `bash scripts/pi-backup.sh` でDBを退避します。
 3. 新イメージのdigestを `BOT_IMAGE` に指定し、同じコミットの `scripts/`・`deploy/`・Compose定義を配置します。`docker compose --profile ops run --rm --no-deps ops` でスキーマ4へ移行し、`--check` を付けて確認します。
 4. `bash scripts/pi-update.sh --recover "$BOT_IMAGE"` でAPI、Botの順に起動し、`bash scripts/pi-update.sh --verify "$BOT_IMAGE"` で確認します。
-5. tailnet内の端末から `https://<PiのMagicDNS名>/health` に到達できることを確認し、`.deploy-state/ci-disabled` を除去します。
+5. Pi上で `curl http://127.0.0.1:8080/health` が200を返すことを確認し、`.deploy-state/ci-disabled` を除去します。
 
 ### 開発環境での実行
 

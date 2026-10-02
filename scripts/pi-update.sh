@@ -111,7 +111,6 @@ start_image() {
   bash "$root/scripts/pi-db-preflight.sh" || return 1
   compose "$1" up -d --no-deps --force-recreate --no-build --pull never api >/dev/null 2>&1 &&
     wait_healthy "$1" api &&
-    { bash "$root/scripts/pi-tailscale-serve.sh" || true; } &&
     compose "$1" up -d --no-deps --force-recreate --no-build --pull never bot >/dev/null 2>&1 &&
     wait_healthy "$1" bot && healthy "$1"
 }

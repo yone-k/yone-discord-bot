@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { Config } from '../../src/utils/config';
+import { Config, ConfigError, readCommandDeployConfig } from '../../src/utils/config';
 
 describe('Config', () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -35,6 +35,25 @@ describe('Config', () => {
       
       expect(config.getCoreApiUrl()).toBe('http://api:8080');
       expect(config.getCoreApiToken()).toBe('synthetic-token');
+    });
+  });
+
+  describe('スラッシュコマンド登録の設定', () => {
+    it('Core APIの設定なしでDiscordの登録設定だけを読む', () => {
+      delete process.env.CORE_API_URL;
+      delete process.env.CORE_API_TOKEN;
+      process.env.GUILD_ID = 'test-guild';
+      process.env.LOG_LEVEL = 'debug';
+
+      expect(readCommandDeployConfig()).toEqual({
+        discordToken: 'test-token', clientId: 'test-client-id', guildId: 'test-guild', logLevel: 'debug'
+      });
+    });
+
+    it.each(['DISCORD_BOT_TOKEN', 'CLIENT_ID'])('%s がなければ設定エラーにする', name => {
+      process.env[name] = ' ';
+      expect(() => readCommandDeployConfig()).toThrow(ConfigError);
+      expect(() => readCommandDeployConfig()).toThrow(name);
     });
   });
 });

@@ -30,6 +30,25 @@ export function readCoreApiConfig(): Pick<BotConfig, 'coreApiUrl' | 'coreApiToke
   return { coreApiUrl, coreApiToken };
 }
 
+export type CommandDeployConfig = Pick<BotConfig, 'discordToken' | 'clientId' | 'guildId' | 'logLevel'>;
+
+/**
+ * Registering slash commands only talks to Discord, so it requires the
+ * Discord credentials and never the Core API settings the running Bot needs.
+ */
+export function readCommandDeployConfig(): CommandDeployConfig {
+  const missingVars = ['DISCORD_BOT_TOKEN', 'CLIENT_ID'].filter(name => !process.env[name]?.trim());
+  if (missingVars.length > 0) {
+    throw new ConfigError(`Missing required environment variables: ${missingVars.join(', ')}.`);
+  }
+  return {
+    discordToken: process.env.DISCORD_BOT_TOKEN!,
+    clientId: process.env.CLIENT_ID!,
+    guildId: process.env.GUILD_ID,
+    logLevel: process.env.LOG_LEVEL || 'info'
+  };
+}
+
 export class Config {
   private static instance: Config;
   private config: BotConfig;

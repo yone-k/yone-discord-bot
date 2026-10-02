@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { CommandAutoDiscovery, CommandWithClass } from './CommandAutoDiscovery';
 import { Logger, LogLevel } from '../utils/logger';
-import { Config, ConfigError } from '../utils/config';
+import { CommandDeployConfig, ConfigError, readCommandDeployConfig } from '../utils/config';
 import { REST, Routes, SlashCommandBuilder, RESTPostAPIChatInputApplicationCommandsJSONBody } from 'discord.js';
 
 interface BuildCommandsOptions {
@@ -18,7 +18,7 @@ interface CommandWithOptions {
 
 class CommandBuilder {
   private rest?: REST;
-  private config?: Config;
+  private config?: CommandDeployConfig;
   private logger: Logger;
   private discovery: CommandAutoDiscovery;
 
@@ -29,12 +29,11 @@ class CommandBuilder {
         this.logger = new Logger(LogLevel.INFO);
         this.discovery = new CommandAutoDiscovery(this.logger);
       } else {
-        this.config = Config.getInstance();
-        this.logger = new Logger(this.getLogLevelFromString(this.config.getLogLevel()));
+        this.config = readCommandDeployConfig();
+        this.logger = new Logger(this.getLogLevelFromString(this.config.logLevel));
         this.discovery = new CommandAutoDiscovery(this.logger);
-        
-        const token = this.config.getDiscordToken();
-        this.rest = new REST({ version: '10' }).setToken(token);
+
+        this.rest = new REST({ version: '10' }).setToken(this.config.discordToken);
       }
     } catch (error) {
       const logger = new Logger(LogLevel.ERROR);
@@ -137,7 +136,7 @@ class CommandBuilder {
       throw new Error('Config and REST client are required for deployment');
     }
     
-    const clientId = this.config.getClientId();
+    const clientId = this.config.clientId;
     
     if (options.environment === 'production') {
       // グローバルデプロイメント
@@ -151,7 +150,7 @@ class CommandBuilder {
       this.logger.info(`Successfully deployed ${data.length} commands globally`);
     } else {
       // ギルドデプロイメント（開発環境）
-      const guildId = this.config.getGuildId();
+      const guildId = this.config.guildId;
       
       if (!guildId) {
         throw new Error('GUILD_ID is required for development deployment');

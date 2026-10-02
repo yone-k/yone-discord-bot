@@ -20,5 +20,4 @@ docker compose --profile ops run --rm --no-deps ops --check
 # record is additional evidence; its absence never authorizes a v1 rollback.
 date -u +%FT%TZ > .deploy-state/schema-v3-confirmed
 docker compose up -d --no-deps --no-build --pull never --wait --wait-timeout 300 api
-bash scripts/pi-tailscale-serve.sh || true
 docker compose up -d --no-deps --no-build --pull never --wait --wait-timeout 300 bot

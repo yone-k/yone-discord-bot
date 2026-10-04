@@ -4,6 +4,8 @@ export interface NurseryMenuView {
   date: string;
   lunch: string | null;
   snack: string | null;
+  lunchIngredients: string | null;
+  snackIngredients: string | null;
 }
 
 const TOKYO_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -33,9 +35,11 @@ export function buildNurseryMenuContainer(menu: NurseryMenuView): ContainerBuild
   const container = new ContainerBuilder().addTextDisplayComponents(
     new TextDisplayBuilder().setContent(`## 🍱 ${formatNurseryMenuDate(menu.date)} の献立`)
   );
-  for (const [label, text] of [['昼食', menu.lunch], ['おやつ', menu.snack]] as const) {
+  const sections = [['昼食', menu.lunch, menu.lunchIngredients], ['おやつ', menu.snack, menu.snackIngredients]] as const;
+  for (const [label, text, ingredients] of sections) {
     if (text) {
-      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**${label}**\n${text}`));
+      const content = ingredients ? `**${label}**\n${text}\n材料: ${ingredients}` : `**${label}**\n${text}`;
+      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
     }
   }
   return container;

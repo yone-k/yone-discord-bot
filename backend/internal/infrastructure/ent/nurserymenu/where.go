@@ -70,6 +70,16 @@ func Snack(v string) predicate.NurseryMenu {
 	return predicate.NurseryMenu(sql.FieldEQ(FieldSnack, v))
 }
 
+// LunchIngredients applies equality check predicate on the "lunch_ingredients" field. It's identical to LunchIngredientsEQ.
+func LunchIngredients(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldEQ(FieldLunchIngredients, v))
+}
+
+// SnackIngredients applies equality check predicate on the "snack_ingredients" field. It's identical to SnackIngredientsEQ.
+func SnackIngredients(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldEQ(FieldSnackIngredients, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.NurseryMenu {
 	return predicate.NurseryMenu(sql.FieldEQ(FieldCreatedAt, v))
@@ -248,6 +258,136 @@ func SnackEqualFold(v string) predicate.NurseryMenu {
 // SnackContainsFold applies the ContainsFold predicate on the "snack" field.
 func SnackContainsFold(v string) predicate.NurseryMenu {
 	return predicate.NurseryMenu(sql.FieldContainsFold(FieldSnack, v))
+}
+
+// LunchIngredientsEQ applies the EQ predicate on the "lunch_ingredients" field.
+func LunchIngredientsEQ(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldEQ(FieldLunchIngredients, v))
+}
+
+// LunchIngredientsNEQ applies the NEQ predicate on the "lunch_ingredients" field.
+func LunchIngredientsNEQ(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldNEQ(FieldLunchIngredients, v))
+}
+
+// LunchIngredientsIn applies the In predicate on the "lunch_ingredients" field.
+func LunchIngredientsIn(vs ...string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldIn(FieldLunchIngredients, vs...))
+}
+
+// LunchIngredientsNotIn applies the NotIn predicate on the "lunch_ingredients" field.
+func LunchIngredientsNotIn(vs ...string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldNotIn(FieldLunchIngredients, vs...))
+}
+
+// LunchIngredientsGT applies the GT predicate on the "lunch_ingredients" field.
+func LunchIngredientsGT(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldGT(FieldLunchIngredients, v))
+}
+
+// LunchIngredientsGTE applies the GTE predicate on the "lunch_ingredients" field.
+func LunchIngredientsGTE(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldGTE(FieldLunchIngredients, v))
+}
+
+// LunchIngredientsLT applies the LT predicate on the "lunch_ingredients" field.
+func LunchIngredientsLT(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldLT(FieldLunchIngredients, v))
+}
+
+// LunchIngredientsLTE applies the LTE predicate on the "lunch_ingredients" field.
+func LunchIngredientsLTE(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldLTE(FieldLunchIngredients, v))
+}
+
+// LunchIngredientsContains applies the Contains predicate on the "lunch_ingredients" field.
+func LunchIngredientsContains(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldContains(FieldLunchIngredients, v))
+}
+
+// LunchIngredientsHasPrefix applies the HasPrefix predicate on the "lunch_ingredients" field.
+func LunchIngredientsHasPrefix(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldHasPrefix(FieldLunchIngredients, v))
+}
+
+// LunchIngredientsHasSuffix applies the HasSuffix predicate on the "lunch_ingredients" field.
+func LunchIngredientsHasSuffix(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldHasSuffix(FieldLunchIngredients, v))
+}
+
+// LunchIngredientsEqualFold applies the EqualFold predicate on the "lunch_ingredients" field.
+func LunchIngredientsEqualFold(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldEqualFold(FieldLunchIngredients, v))
+}
+
+// LunchIngredientsContainsFold applies the ContainsFold predicate on the "lunch_ingredients" field.
+func LunchIngredientsContainsFold(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldContainsFold(FieldLunchIngredients, v))
+}
+
+// SnackIngredientsEQ applies the EQ predicate on the "snack_ingredients" field.
+func SnackIngredientsEQ(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldEQ(FieldSnackIngredients, v))
+}
+
+// SnackIngredientsNEQ applies the NEQ predicate on the "snack_ingredients" field.
+func SnackIngredientsNEQ(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldNEQ(FieldSnackIngredients, v))
+}
+
+// SnackIngredientsIn applies the In predicate on the "snack_ingredients" field.
+func SnackIngredientsIn(vs ...string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldIn(FieldSnackIngredients, vs...))
+}
+
+// SnackIngredientsNotIn applies the NotIn predicate on the "snack_ingredients" field.
+func SnackIngredientsNotIn(vs ...string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldNotIn(FieldSnackIngredients, vs...))
+}
+
+// SnackIngredientsGT applies the GT predicate on the "snack_ingredients" field.
+func SnackIngredientsGT(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldGT(FieldSnackIngredients, v))
+}
+
+// SnackIngredientsGTE applies the GTE predicate on the "snack_ingredients" field.
+func SnackIngredientsGTE(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldGTE(FieldSnackIngredients, v))
+}
+
+// SnackIngredientsLT applies the LT predicate on the "snack_ingredients" field.
+func SnackIngredientsLT(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldLT(FieldSnackIngredients, v))
+}
+
+// SnackIngredientsLTE applies the LTE predicate on the "snack_ingredients" field.
+func SnackIngredientsLTE(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldLTE(FieldSnackIngredients, v))
+}
+
+// SnackIngredientsContains applies the Contains predicate on the "snack_ingredients" field.
+func SnackIngredientsContains(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldContains(FieldSnackIngredients, v))
+}
+
+// SnackIngredientsHasPrefix applies the HasPrefix predicate on the "snack_ingredients" field.
+func SnackIngredientsHasPrefix(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldHasPrefix(FieldSnackIngredients, v))
+}
+
+// SnackIngredientsHasSuffix applies the HasSuffix predicate on the "snack_ingredients" field.
+func SnackIngredientsHasSuffix(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldHasSuffix(FieldSnackIngredients, v))
+}
+
+// SnackIngredientsEqualFold applies the EqualFold predicate on the "snack_ingredients" field.
+func SnackIngredientsEqualFold(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldEqualFold(FieldSnackIngredients, v))
+}
+
+// SnackIngredientsContainsFold applies the ContainsFold predicate on the "snack_ingredients" field.
+func SnackIngredientsContainsFold(v string) predicate.NurseryMenu {
+	return predicate.NurseryMenu(sql.FieldContainsFold(FieldSnackIngredients, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

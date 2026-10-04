@@ -70,6 +70,34 @@ func (_u *NurseryMenuUpdate) SetNillableSnack(v *string) *NurseryMenuUpdate {
 	return _u
 }
 
+// SetLunchIngredients sets the "lunch_ingredients" field.
+func (_u *NurseryMenuUpdate) SetLunchIngredients(v string) *NurseryMenuUpdate {
+	_u.mutation.SetLunchIngredients(v)
+	return _u
+}
+
+// SetNillableLunchIngredients sets the "lunch_ingredients" field if the given value is not nil.
+func (_u *NurseryMenuUpdate) SetNillableLunchIngredients(v *string) *NurseryMenuUpdate {
+	if v != nil {
+		_u.SetLunchIngredients(*v)
+	}
+	return _u
+}
+
+// SetSnackIngredients sets the "snack_ingredients" field.
+func (_u *NurseryMenuUpdate) SetSnackIngredients(v string) *NurseryMenuUpdate {
+	_u.mutation.SetSnackIngredients(v)
+	return _u
+}
+
+// SetNillableSnackIngredients sets the "snack_ingredients" field if the given value is not nil.
+func (_u *NurseryMenuUpdate) SetNillableSnackIngredients(v *string) *NurseryMenuUpdate {
+	if v != nil {
+		_u.SetSnackIngredients(*v)
+	}
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *NurseryMenuUpdate) SetCreatedAt(v time.Time) *NurseryMenuUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -148,6 +176,12 @@ func (_u *NurseryMenuUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.Snack(); ok {
 		_spec.SetField(nurserymenu.FieldSnack, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.LunchIngredients(); ok {
+		_spec.SetField(nurserymenu.FieldLunchIngredients, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SnackIngredients(); ok {
+		_spec.SetField(nurserymenu.FieldSnackIngredients, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(nurserymenu.FieldCreatedAt, field.TypeTime, value)
 	}
@@ -212,6 +246,34 @@ func (_u *NurseryMenuUpdateOne) SetSnack(v string) *NurseryMenuUpdateOne {
 func (_u *NurseryMenuUpdateOne) SetNillableSnack(v *string) *NurseryMenuUpdateOne {
 	if v != nil {
 		_u.SetSnack(*v)
+	}
+	return _u
+}
+
+// SetLunchIngredients sets the "lunch_ingredients" field.
+func (_u *NurseryMenuUpdateOne) SetLunchIngredients(v string) *NurseryMenuUpdateOne {
+	_u.mutation.SetLunchIngredients(v)
+	return _u
+}
+
+// SetNillableLunchIngredients sets the "lunch_ingredients" field if the given value is not nil.
+func (_u *NurseryMenuUpdateOne) SetNillableLunchIngredients(v *string) *NurseryMenuUpdateOne {
+	if v != nil {
+		_u.SetLunchIngredients(*v)
+	}
+	return _u
+}
+
+// SetSnackIngredients sets the "snack_ingredients" field.
+func (_u *NurseryMenuUpdateOne) SetSnackIngredients(v string) *NurseryMenuUpdateOne {
+	_u.mutation.SetSnackIngredients(v)
+	return _u
+}
+
+// SetNillableSnackIngredients sets the "snack_ingredients" field if the given value is not nil.
+func (_u *NurseryMenuUpdateOne) SetNillableSnackIngredients(v *string) *NurseryMenuUpdateOne {
+	if v != nil {
+		_u.SetSnackIngredients(*v)
 	}
 	return _u
 }
@@ -323,6 +385,12 @@ func (_u *NurseryMenuUpdateOne) sqlSave(ctx context.Context) (_node *NurseryMenu
 	}
 	if value, ok := _u.mutation.Snack(); ok {
 		_spec.SetField(nurserymenu.FieldSnack, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.LunchIngredients(); ok {
+		_spec.SetField(nurserymenu.FieldLunchIngredients, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SnackIngredients(); ok {
+		_spec.SetField(nurserymenu.FieldSnackIngredients, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(nurserymenu.FieldCreatedAt, field.TypeTime, value)

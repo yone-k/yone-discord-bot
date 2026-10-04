@@ -4315,6 +4315,10 @@ components:
           type: string
         snack:
           type: string
+        lunchIngredients:
+          type: string
+        snackIngredients:
+          type: string
     EditTaskInventoryInput:
       type: object
       required:
@@ -4537,6 +4541,8 @@ components:
         - date
         - lunch
         - snack
+        - lunchIngredients
+        - snackIngredients
         - createdAt
         - updatedAt
       properties:
@@ -4546,6 +4552,12 @@ components:
           type: string
           nullable: true
         snack:
+          type: string
+          nullable: true
+        lunchIngredients:
+          type: string
+          nullable: true
+        snackIngredients:
           type: string
           nullable: true
         createdAt:
@@ -4566,7 +4578,11 @@ components:
           type: string
         snack:
           type: string
-      description: Blank entries are omitted. At least one entry is required after trimming; each entry is at most 1000 code points.
+        lunchIngredients:
+          type: string
+        snackIngredients:
+          type: string
+      description: Blank entries are omitted. At least one of lunch and snack is required after trimming; each dish is at most 1000 code points. Ingredients describe a whole section, are at most 500 code points each, and require that section's dish. Replacing a day clears omitted ingredients.
     NurseryMenusBatchInput:
       type: object
       required:

@@ -70,6 +70,32 @@ func TestNurseryMenusRoundTripRangeAndDelete(t *testing.T) {
 	}
 }
 
+func TestNurseryMenuIngredientsRoundTripAndClearOnReplace(t *testing.T) {
+	_, store := rpSetup(t)
+	at := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	id := rpID()
+	read := func() *domain.NurseryMenu {
+		var menu *domain.NurseryMenu
+		rpRead(t, store, func(r application.Repository) (err error) {
+			menu, err = r.GetNurseryMenu(t.Context(), "2026-10-02")
+			return
+		})
+		return menu
+	}
+	nmWrite(t, store, func(r application.Repository) error {
+		return r.PutNurseryMenu(t.Context(), domain.NurseryMenu{ID: id, Date: "2026-10-02", Lunch: "ご飯", Snack: "牛乳", LunchIngredients: "米\n鮭", SnackIngredients: "牛乳", CreatedAt: at, UpdatedAt: at})
+	})
+	if menu := read(); menu == nil || menu.LunchIngredients != "米\n鮭" || menu.SnackIngredients != "牛乳" {
+		t.Fatalf("%+v", menu)
+	}
+	nmWrite(t, store, func(r application.Repository) error {
+		return r.PutNurseryMenu(t.Context(), domain.NurseryMenu{ID: id, Date: "2026-10-02", Lunch: "パン", Snack: "牛乳", CreatedAt: at, UpdatedAt: at})
+	})
+	if menu := read(); menu == nil || menu.LunchIngredients != "" || menu.SnackIngredients != "" {
+		t.Fatalf("replacing must clear ingredients: %+v", menu)
+	}
+}
+
 func TestNurseryMenuChannelIsReplaced(t *testing.T) {
 	_, store := rpSetup(t)
 	read := func() *string {

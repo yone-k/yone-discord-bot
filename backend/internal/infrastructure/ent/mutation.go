@@ -3687,18 +3687,20 @@ func (m *ListItemMutation) ResetEdge(name string) error {
 // NurseryMenuMutation represents an operation that mutates the NurseryMenu nodes in the graph.
 type NurseryMenuMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	menu_date     *time.Time
-	lunch         *string
-	snack         *string
-	created_at    *time.Time
-	updated_at    *time.Time
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*NurseryMenu, error)
-	predicates    []predicate.NurseryMenu
+	op                Op
+	typ               string
+	id                *uuid.UUID
+	menu_date         *time.Time
+	lunch             *string
+	snack             *string
+	lunch_ingredients *string
+	snack_ingredients *string
+	created_at        *time.Time
+	updated_at        *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*NurseryMenu, error)
+	predicates        []predicate.NurseryMenu
 }
 
 var _ ent.Mutation = (*NurseryMenuMutation)(nil)
@@ -3913,6 +3915,78 @@ func (m *NurseryMenuMutation) ResetSnack() {
 	m.snack = nil
 }
 
+// SetLunchIngredients sets the "lunch_ingredients" field.
+func (m *NurseryMenuMutation) SetLunchIngredients(s string) {
+	m.lunch_ingredients = &s
+}
+
+// LunchIngredients returns the value of the "lunch_ingredients" field in the mutation.
+func (m *NurseryMenuMutation) LunchIngredients() (r string, exists bool) {
+	v := m.lunch_ingredients
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLunchIngredients returns the old "lunch_ingredients" field's value of the NurseryMenu entity.
+// If the NurseryMenu object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurseryMenuMutation) OldLunchIngredients(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLunchIngredients is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLunchIngredients requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLunchIngredients: %w", err)
+	}
+	return oldValue.LunchIngredients, nil
+}
+
+// ResetLunchIngredients resets all changes to the "lunch_ingredients" field.
+func (m *NurseryMenuMutation) ResetLunchIngredients() {
+	m.lunch_ingredients = nil
+}
+
+// SetSnackIngredients sets the "snack_ingredients" field.
+func (m *NurseryMenuMutation) SetSnackIngredients(s string) {
+	m.snack_ingredients = &s
+}
+
+// SnackIngredients returns the value of the "snack_ingredients" field in the mutation.
+func (m *NurseryMenuMutation) SnackIngredients() (r string, exists bool) {
+	v := m.snack_ingredients
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSnackIngredients returns the old "snack_ingredients" field's value of the NurseryMenu entity.
+// If the NurseryMenu object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurseryMenuMutation) OldSnackIngredients(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSnackIngredients is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSnackIngredients requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSnackIngredients: %w", err)
+	}
+	return oldValue.SnackIngredients, nil
+}
+
+// ResetSnackIngredients resets all changes to the "snack_ingredients" field.
+func (m *NurseryMenuMutation) ResetSnackIngredients() {
+	m.snack_ingredients = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *NurseryMenuMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -4019,7 +4093,7 @@ func (m *NurseryMenuMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *NurseryMenuMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 7)
 	if m.menu_date != nil {
 		fields = append(fields, nurserymenu.FieldMenuDate)
 	}
@@ -4028,6 +4102,12 @@ func (m *NurseryMenuMutation) Fields() []string {
 	}
 	if m.snack != nil {
 		fields = append(fields, nurserymenu.FieldSnack)
+	}
+	if m.lunch_ingredients != nil {
+		fields = append(fields, nurserymenu.FieldLunchIngredients)
+	}
+	if m.snack_ingredients != nil {
+		fields = append(fields, nurserymenu.FieldSnackIngredients)
 	}
 	if m.created_at != nil {
 		fields = append(fields, nurserymenu.FieldCreatedAt)
@@ -4049,6 +4129,10 @@ func (m *NurseryMenuMutation) Field(name string) (ent.Value, bool) {
 		return m.Lunch()
 	case nurserymenu.FieldSnack:
 		return m.Snack()
+	case nurserymenu.FieldLunchIngredients:
+		return m.LunchIngredients()
+	case nurserymenu.FieldSnackIngredients:
+		return m.SnackIngredients()
 	case nurserymenu.FieldCreatedAt:
 		return m.CreatedAt()
 	case nurserymenu.FieldUpdatedAt:
@@ -4068,6 +4152,10 @@ func (m *NurseryMenuMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldLunch(ctx)
 	case nurserymenu.FieldSnack:
 		return m.OldSnack(ctx)
+	case nurserymenu.FieldLunchIngredients:
+		return m.OldLunchIngredients(ctx)
+	case nurserymenu.FieldSnackIngredients:
+		return m.OldSnackIngredients(ctx)
 	case nurserymenu.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case nurserymenu.FieldUpdatedAt:
@@ -4101,6 +4189,20 @@ func (m *NurseryMenuMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSnack(v)
+		return nil
+	case nurserymenu.FieldLunchIngredients:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLunchIngredients(v)
+		return nil
+	case nurserymenu.FieldSnackIngredients:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSnackIngredients(v)
 		return nil
 	case nurserymenu.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -4173,6 +4275,12 @@ func (m *NurseryMenuMutation) ResetField(name string) error {
 		return nil
 	case nurserymenu.FieldSnack:
 		m.ResetSnack()
+		return nil
+	case nurserymenu.FieldLunchIngredients:
+		m.ResetLunchIngredients()
+		return nil
+	case nurserymenu.FieldSnackIngredients:
+		m.ResetSnackIngredients()
 		return nil
 	case nurserymenu.FieldCreatedAt:
 		m.ResetCreatedAt()

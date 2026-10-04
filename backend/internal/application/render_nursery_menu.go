@@ -15,10 +15,15 @@ func RenderNurseryMenu(menu domain.NurseryMenu) DisplayMessage {
 	day, _ := time.ParseInLocation(time.DateOnly, menu.Date, domain.Tokyo)
 	heading := fmt.Sprintf("## 🍱 %d/%d(%s) の献立", int(day.Month()), day.Day(), japaneseWeekdays[day.Weekday()])
 	children := []DisplayComponent{{Kind: "text", Text: heading}}
-	for _, section := range []struct{ label, text string }{{"昼食", menu.Lunch}, {"おやつ", menu.Snack}} {
-		if section.text != "" {
-			children = append(children, DisplayComponent{Kind: "text", Text: "**" + section.label + "**\n" + section.text})
+	for _, section := range []struct{ label, text, ingredients string }{{"昼食", menu.Lunch, menu.LunchIngredients}, {"おやつ", menu.Snack, menu.SnackIngredients}} {
+		if section.text == "" {
+			continue
 		}
+		text := "**" + section.label + "**\n" + section.text
+		if section.ingredients != "" {
+			text += "\n材料: " + section.ingredients
+		}
+		children = append(children, DisplayComponent{Kind: "text", Text: text})
 	}
 	return DisplayMessage{Components: []DisplayComponent{{Kind: "text", Text: "@everyone"}, {Kind: "container", Children: children}}}
 }

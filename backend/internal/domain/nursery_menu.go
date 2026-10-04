@@ -8,28 +8,43 @@ import (
 
 const NotificationNurseryMenu = "nursery_menu"
 
-const nurseryMenuEntryLimit = 1000
+const (
+	nurseryMenuEntryLimit      = 1000
+	nurseryMenuIngredientLimit = 500
+)
 
 // NurseryMenu is one nursery's meals for a Tokyo calendar day. An empty entry
-// means the menu omits that section.
+// means the menu omits that section. Ingredients belong to a section, not to
+// an individual dish.
 type NurseryMenu struct {
-	ID, Date, Lunch, Snack string
-	CreatedAt, UpdatedAt   time.Time
+	ID, Date, Lunch, Snack             string
+	LunchIngredients, SnackIngredients string
+	CreatedAt, UpdatedAt               time.Time
 }
 
-func NewNurseryMenu(date, lunch, snack string) (NurseryMenu, error) {
-	if err := ValidateDate(date); err != nil {
+// NewNurseryMenu validates the business fields of a draft; ID and timestamps
+// are left to the caller.
+func NewNurseryMenu(draft NurseryMenu) (NurseryMenu, error) {
+	if err := ValidateDate(draft.Date); err != nil {
 		return NurseryMenu{}, Fail(CodeInvalidInput, "date", "Invalid calendar date")
 	}
-	menu := NurseryMenu{Date: date, Lunch: strings.TrimSpace(lunch), Snack: strings.TrimSpace(snack)}
+	menu := NurseryMenu{Date: draft.Date, Lunch: strings.TrimSpace(draft.Lunch), Snack: strings.TrimSpace(draft.Snack),
+		LunchIngredients: strings.TrimSpace(draft.LunchIngredients), SnackIngredients: strings.TrimSpace(draft.SnackIngredients)}
 	if menu.Lunch == "" && menu.Snack == "" {
 		return NurseryMenu{}, Fail(CodeInvalidInput, "menu", "Lunch or snack is required")
 	}
-	if utf8.RuneCountInString(menu.Lunch) > nurseryMenuEntryLimit {
-		return NurseryMenu{}, Fail(CodeInvalidInput, "lunch", "Lunch is too long")
-	}
-	if utf8.RuneCountInString(menu.Snack) > nurseryMenuEntryLimit {
-		return NurseryMenu{}, Fail(CodeInvalidInput, "snack", "Snack is too long")
+	for _, field := range []struct {
+		target, dish, ingredients string
+	}{{"lunch", menu.Lunch, menu.LunchIngredients}, {"snack", menu.Snack, menu.SnackIngredients}} {
+		if utf8.RuneCountInString(field.dish) > nurseryMenuEntryLimit {
+			return NurseryMenu{}, Fail(CodeInvalidInput, field.target, "Dish is too long")
+		}
+		if utf8.RuneCountInString(field.ingredients) > nurseryMenuIngredientLimit {
+			return NurseryMenu{}, Fail(CodeInvalidInput, field.target+"Ingredients", "Ingredients are too long")
+		}
+		if field.dish == "" && field.ingredients != "" {
+			return NurseryMenu{}, Fail(CodeInvalidInput, field.target+"Ingredients", "Ingredients require a dish")
+		}
 	}
 	return menu, nil
 }

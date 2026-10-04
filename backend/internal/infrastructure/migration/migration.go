@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-const ExpectedSchemaVersion = 4
+const ExpectedSchemaVersion = 5
 
 type Migration struct {
 	Version       int

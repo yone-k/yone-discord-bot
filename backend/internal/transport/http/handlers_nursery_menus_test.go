@@ -109,6 +109,34 @@ func TestNurseryMenuWritesSucceedWithoutOperationHeaders(t *testing.T) {
 	}
 }
 
+func TestNurseryMenuIngredientsRoundTripAndValidate(t *testing.T) {
+	repo := &nurseryHTTPRepository{menus: map[string]domain.NurseryMenu{}}
+	h := nurseryServer(t, repo)
+	response := nurseryCall(t, h, "POST", "/v1/nursery-menus/batch", `{"items":[{"date":"2026-10-02","lunch":"ご飯","snack":"牛乳","lunchIngredients":" 米、鮭 "}]}`, nil)
+	var menus []map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &menus); err != nil || response.Code != 200 {
+		t.Fatal(response.Code, response.Body.String())
+	}
+	if len(menus) != 1 || menus[0]["lunchIngredients"] != "米、鮭" || menus[0]["snackIngredients"] != nil {
+		t.Fatalf("%v", menus)
+	}
+	if _, present := menus[0]["snackIngredients"]; !present {
+		t.Fatal("omitted ingredients must be returned as null")
+	}
+	for _, body := range []string{
+		`{"lunch":"ご飯","lunchIngredients":"` + strings.Repeat("米", 501) + `"}`,
+		`{"lunch":"ご飯","snackIngredients":"米粉"}`,
+	} {
+		response := nurseryCall(t, h, "PUT", "/v1/nursery-menus/2026-10-03", body, nil)
+		if response.Code != 422 || !strings.Contains(response.Body.String(), `"code":"invalid_input"`) {
+			t.Errorf("%d %s", response.Code, response.Body.String())
+		}
+	}
+	if _, saved := repo.menus["2026-10-03"]; saved {
+		t.Fatal("invalid ingredients were saved")
+	}
+}
+
 func TestNurseryMenuWritesRejectOperationHeaders(t *testing.T) {
 	h := nurseryServer(t, &nurseryHTTPRepository{menus: map[string]domain.NurseryMenu{}})
 	headers := map[string]string{"X-Actor-Id": "999", "X-Operation-Kind": "InitListCommand"}

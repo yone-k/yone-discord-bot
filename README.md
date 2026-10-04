@@ -63,12 +63,12 @@ Go APIはスキーマ版3と既存の移行完了マーカーを検査します�
 
 献立はCore APIで登録・参照します。APIはPiのループバック（`127.0.0.1:8080`）にだけ公開し、LANやtailnetには公開しません。Pi上で動くクライアント（Hermesなど）から `http://127.0.0.1:8080` を呼びます。
 
-認証にはBotと同じ `CORE_API_TOKEN` を使います。`lunch`（昼食）と `snack`（おやつ）は省略できますが、少なくとも一方が必要です。各項目は1000文字以内で、改行を保持します。
+認証にはBotと同じ `CORE_API_TOKEN` を使います。`lunch`（昼食）と `snack`（おやつ）は省略できますが、少なくとも一方が必要です。各項目は1000文字以内で、改行を保持します。材料は区分ごとに `lunchIngredients`（昼食の材料）と `snackIngredients`（おやつの材料）へ自由テキストで登録します。各500文字以内で、料理名が空の区分には登録できません。1日分の登録・一括登録はその日の献立を丸ごと置き換えるため、省略した材料は空になります。材料は7:00の投稿と `/nursery-menu` で、各区分の料理名の下に `材料: …` として表示されます。
 
 | 操作 | リクエスト |
 |---|---|
-| 一括登録（1〜62日分。送った日付だけを作成・上書き） | `POST /v1/nursery-menus/batch` `{"items":[{"date":"2026-10-02","lunch":"ご飯\n鮭の塩焼き","snack":"牛乳"}]}` |
-| 1日分の登録・上書き | `PUT /v1/nursery-menus/2026-10-02` `{"lunch":"ご飯","snack":"せんべい"}` |
+| 一括登録（1〜62日分。送った日付だけを作成・上書き） | `POST /v1/nursery-menus/batch` `{"items":[{"date":"2026-10-02","lunch":"ご飯\n鮭の塩焼き","snack":"牛乳","lunchIngredients":"米、鮭"}]}` |
+| 1日分の登録・上書き | `PUT /v1/nursery-menus/2026-10-02` `{"lunch":"ご飯","snack":"せんべい","snackIngredients":"米"}` |
 | 1日分の取得 | `GET /v1/nursery-menus/2026-10-02` |
 | 期間の取得（両端を含む最大62日） | `GET /v1/nursery-menus?from=2026-10-01&to=2026-10-31` |
 | 1日分の削除 | `DELETE /v1/nursery-menus/2026-10-02` |
@@ -76,20 +76,21 @@ Go APIはスキーマ版3と既存の移行完了マーカーを検査します�
 ```bash
 curl -sS -X POST "http://127.0.0.1:8080/v1/nursery-menus/batch" \
   -H "Authorization: Bearer $CORE_API_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"items":[{"date":"2026-10-02","lunch":"ご飯","snack":"牛乳"}]}'
+  -d '{"items":[{"date":"2026-10-02","lunch":"ご飯","snack":"牛乳","lunchIngredients":"米","snackIngredients":"牛乳"}]}'
 ```
 
 献立の書き込みAPIは操作ログの対象外で、`X-Actor-Id`・`X-Operation-Kind` を付けると400になります。
 
-#### スキーマ4への移行
+#### スキーマ5への移行
 
-献立機能はスキーマ4を必要とします。通常の自動更新はDDLを実行せず、スキーマが合わないイメージへの更新を拒否するため、次の順序で手動移行します。
+献立の材料はスキーマ5を必要とします。通常の自動更新はDDLを実行せず、スキーマが合わないイメージへの更新を拒否するため、次の順序で手動移行します。移行後は旧イメージに戻せないため、戻す場合は手順2のバックアップから復元します。
 
-1. `.deploy-state/ci-disabled` を作成し、`bash scripts/pi-update.sh --block` で更新をブロックします。
+1. 変更をマージする前に、`.deploy-state/ci-disabled` を作成し、`bash scripts/pi-update.sh --block` で更新をブロックします。
 2. `bash scripts/pi-backup.sh` でDBを退避します。
-3. 新イメージのdigestを `BOT_IMAGE` に指定し、同じコミットの `scripts/`・`deploy/`・Compose定義を配置します。`docker compose --profile ops run --rm --no-deps ops` でスキーマ4へ移行し、`--check` を付けて確認します。
-4. `bash scripts/pi-update.sh --recover "$BOT_IMAGE"` でAPI、Botの順に起動し、`bash scripts/pi-update.sh --verify "$BOT_IMAGE"` で確認します。
-5. Pi上で `curl http://127.0.0.1:8080/health` が200を返すことを確認し、`.deploy-state/ci-disabled` を除去します。
+3. 新イメージのdigestを `BOT_IMAGE` に指定し、`.env.storage` を読み込んでから、同じコミットの `scripts/`・`deploy/`・Compose定義が配置済みであることを確認します。
+4. 旧イメージのBot、APIの順に `docker compose -p discord-bot stop` で停止し、`docker compose -p discord-bot --profile ops run --rm --no-deps ops` でスキーマ5へ移行します。同じコマンドに `--check` を付けて確認します。
+5. `bash scripts/pi-update.sh --recover "$BOT_IMAGE"` でAPI、Botの順に起動し、`bash scripts/pi-update.sh --verify "$BOT_IMAGE"` で確認します。
+6. Pi上で `curl http://127.0.0.1:8080/health` が200を返すことを確認し、`.deploy-state/ci-disabled` を除去します。
 
 ### 開発環境での実行
 

@@ -38,7 +38,8 @@ export function buildNurseryMenuContainer(menu: NurseryMenuView): ContainerBuild
   const sections = [['昼食', menu.lunch, menu.lunchIngredients], ['おやつ', menu.snack, menu.snackIngredients]] as const;
   for (const [label, text, ingredients] of sections) {
     if (text) {
-      const content = ingredients ? `**${label}**\n${text}\n材料: ${ingredients}` : `**${label}**\n${text}`;
+      const dish = `### ${label}\n**🍽️ 献立**\n${text}`;
+      const content = ingredients ? `${dish}\n**🥕 材料**\n${ingredients}` : dish;
       container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
     }
   }

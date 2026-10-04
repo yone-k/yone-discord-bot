@@ -19,9 +19,9 @@ func RenderNurseryMenu(menu domain.NurseryMenu) DisplayMessage {
 		if section.text == "" {
 			continue
 		}
-		text := "**" + section.label + "**\n" + section.text
+		text := "### " + section.label + "\n**🍽️ 献立**\n" + section.text
 		if section.ingredients != "" {
-			text += "\n材料: " + section.ingredients
+			text += "\n**🥕 材料**\n" + section.ingredients
 		}
 		children = append(children, DisplayComponent{Kind: "text", Text: text})
 	}

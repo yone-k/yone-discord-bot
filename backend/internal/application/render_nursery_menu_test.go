@@ -15,7 +15,7 @@ func TestRenderNurseryMenuMentionsEveryoneAndShowsACard(t *testing.T) {
 		t.Fatalf("%+v", mention)
 	}
 	card := message.Components[1]
-	want := []string{"## 🍱 10/2(金) の献立", "**昼食**\nご飯\n鮭", "**おやつ**\n牛乳"}
+	want := []string{"## 🍱 10/2(金) の献立", "### 昼食\n**🍽️ 献立**\nご飯\n鮭", "### おやつ\n**🍽️ 献立**\n牛乳"}
 	if card.Kind != "container" || len(card.Children) != len(want) {
 		t.Fatalf("%+v", card)
 	}
@@ -28,7 +28,7 @@ func TestRenderNurseryMenuMentionsEveryoneAndShowsACard(t *testing.T) {
 
 func TestRenderNurseryMenuAddsIngredientsUnderTheirSection(t *testing.T) {
 	card := RenderNurseryMenu(domain.NurseryMenu{Date: "2026-10-02", Lunch: "ご飯", Snack: "牛乳", LunchIngredients: "米、鮭"}).Components[1]
-	want := []string{"## 🍱 10/2(金) の献立", "**昼食**\nご飯\n材料: 米、鮭", "**おやつ**\n牛乳"}
+	want := []string{"## 🍱 10/2(金) の献立", "### 昼食\n**🍽️ 献立**\nご飯\n**🥕 材料**\n米、鮭", "### おやつ\n**🍽️ 献立**\n牛乳"}
 	if len(card.Children) != len(want) {
 		t.Fatalf("%+v", card.Children)
 	}
@@ -42,7 +42,7 @@ func TestRenderNurseryMenuAddsIngredientsUnderTheirSection(t *testing.T) {
 func TestRenderNurseryMenuOmitsEmptySectionsAndUsesTheTokyoWeekday(t *testing.T) {
 	for date, heading := range map[string]string{"2026-10-04": "## 🍱 10/4(日) の献立", "2026-12-26": "## 🍱 12/26(土) の献立"} {
 		card := RenderNurseryMenu(domain.NurseryMenu{Date: date, Snack: "せんべい"}).Components[1]
-		if len(card.Children) != 2 || card.Children[0].Text != heading || card.Children[1].Text != "**おやつ**\nせんべい" {
+		if len(card.Children) != 2 || card.Children[0].Text != heading || card.Children[1].Text != "### おやつ\n**🍽️ 献立**\nせんべい" {
 			t.Fatalf("%s: %+v", date, card.Children)
 		}
 	}

@@ -25,11 +25,11 @@ describe('NurseryMenuFormatter', () => {
 
   it('renders the same card as the morning post without a mention', () => {
     const card = buildNurseryMenuContainer({ date: '2026-10-02', lunch: 'ご飯\n鮭', snack: null, lunchIngredients: null, snackIngredients: null }).toJSON() as { components: { content: string }[] };
-    expect(card.components.map(component => component.content)).toEqual(['## 🍱 10/2(金) の献立', '**昼食**\nご飯\n鮭']);
+    expect(card.components.map(component => component.content)).toEqual(['## 🍱 10/2(金) の献立', '### 昼食\n**🍽️ 献立**\nご飯\n鮭']);
   });
 
   it('adds ingredients under their section only when present', () => {
     const card = buildNurseryMenuContainer({ date: '2026-10-02', lunch: 'ご飯', snack: '牛乳', lunchIngredients: '米、鮭', snackIngredients: '' }).toJSON() as { components: { content: string }[] };
-    expect(card.components.map(component => component.content)).toEqual(['## 🍱 10/2(金) の献立', '**昼食**\nご飯\n材料: 米、鮭', '**おやつ**\n牛乳']);
+    expect(card.components.map(component => component.content)).toEqual(['## 🍱 10/2(金) の献立', '### 昼食\n**🍽️ 献立**\nご飯\n**🥕 材料**\n米、鮭', '### おやつ\n**🍽️ 献立**\n牛乳']);
   });
 });

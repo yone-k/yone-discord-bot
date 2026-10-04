@@ -780,6 +780,8 @@ export interface components {
             date: components["schemas"]["BusinessDate"];
             lunch?: string;
             snack?: string;
+            lunchIngredients?: string;
+            snackIngredients?: string;
         };
         EditTaskInventoryInput: {
             expectedRevision: components["schemas"]["Revision"];
@@ -863,16 +865,20 @@ export interface components {
             date: components["schemas"]["BusinessDate"];
             lunch: string | null;
             snack: string | null;
+            lunchIngredients: string | null;
+            snackIngredients: string | null;
             createdAt: components["schemas"]["Timestamp"];
             updatedAt: components["schemas"]["Timestamp"];
         };
         NurseryMenuChannel: {
             channelId: components["schemas"]["Id"];
         };
-        /** @description Blank entries are omitted. At least one entry is required after trimming; each entry is at most 1000 code points. */
+        /** @description Blank entries are omitted. At least one of lunch and snack is required after trimming; each dish is at most 1000 code points. Ingredients describe a whole section, are at most 500 code points each, and require that section's dish. Replacing a day clears omitted ingredients. */
         NurseryMenuInput: {
             lunch?: string;
             snack?: string;
+            lunchIngredients?: string;
+            snackIngredients?: string;
         };
         /** @description Creates or replaces only the listed dates, atomically. Dates must be unique. */
         NurseryMenusBatchInput: {

@@ -24,6 +24,10 @@ type NurseryMenu struct {
 	Lunch string `json:"lunch,omitempty"`
 	// Snack holds the value of the "snack" field.
 	Snack string `json:"snack,omitempty"`
+	// LunchIngredients holds the value of the "lunch_ingredients" field.
+	LunchIngredients string `json:"lunch_ingredients,omitempty"`
+	// SnackIngredients holds the value of the "snack_ingredients" field.
+	SnackIngredients string `json:"snack_ingredients,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -36,7 +40,7 @@ func (*NurseryMenu) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case nurserymenu.FieldLunch, nurserymenu.FieldSnack:
+		case nurserymenu.FieldLunch, nurserymenu.FieldSnack, nurserymenu.FieldLunchIngredients, nurserymenu.FieldSnackIngredients:
 			values[i] = new(sql.NullString)
 		case nurserymenu.FieldMenuDate, nurserymenu.FieldCreatedAt, nurserymenu.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -80,6 +84,18 @@ func (_m *NurseryMenu) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field snack", values[i])
 			} else if value.Valid {
 				_m.Snack = value.String
+			}
+		case nurserymenu.FieldLunchIngredients:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field lunch_ingredients", values[i])
+			} else if value.Valid {
+				_m.LunchIngredients = value.String
+			}
+		case nurserymenu.FieldSnackIngredients:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field snack_ingredients", values[i])
+			} else if value.Valid {
+				_m.SnackIngredients = value.String
 			}
 		case nurserymenu.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -137,6 +153,12 @@ func (_m *NurseryMenu) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("snack=")
 	builder.WriteString(_m.Snack)
+	builder.WriteString(", ")
+	builder.WriteString("lunch_ingredients=")
+	builder.WriteString(_m.LunchIngredients)
+	builder.WriteString(", ")
+	builder.WriteString("snack_ingredients=")
+	builder.WriteString(_m.SnackIngredients)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

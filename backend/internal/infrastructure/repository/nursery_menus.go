@@ -12,7 +12,8 @@ import (
 )
 
 func mapNurseryMenu(v *ent.NurseryMenu) domain.NurseryMenu {
-	return domain.NurseryMenu{ID: v.ID.String(), Date: v.MenuDate.Format(time.DateOnly), Lunch: v.Lunch, Snack: v.Snack, CreatedAt: v.CreatedAt.UTC(), UpdatedAt: v.UpdatedAt.UTC()}
+	return domain.NurseryMenu{ID: v.ID.String(), Date: v.MenuDate.Format(time.DateOnly), Lunch: v.Lunch, Snack: v.Snack,
+		LunchIngredients: v.LunchIngredients, SnackIngredients: v.SnackIngredients, CreatedAt: v.CreatedAt.UTC(), UpdatedAt: v.UpdatedAt.UTC()}
 }
 
 func menuDate(date string) (time.Time, error) { return time.Parse(time.DateOnly, date) }
@@ -68,9 +69,11 @@ func (r *repository) PutNurseryMenu(ctx context.Context, menu domain.NurseryMenu
 		return err
 	}
 	if exists {
-		return r.client.NurseryMenu.UpdateOneID(id).SetMenuDate(day).SetLunch(menu.Lunch).SetSnack(menu.Snack).SetCreatedAt(menu.CreatedAt).SetUpdatedAt(menu.UpdatedAt).Exec(ctx)
+		return r.client.NurseryMenu.UpdateOneID(id).SetMenuDate(day).SetLunch(menu.Lunch).SetSnack(menu.Snack).
+			SetLunchIngredients(menu.LunchIngredients).SetSnackIngredients(menu.SnackIngredients).SetCreatedAt(menu.CreatedAt).SetUpdatedAt(menu.UpdatedAt).Exec(ctx)
 	}
-	return r.client.NurseryMenu.Create().SetID(id).SetMenuDate(day).SetLunch(menu.Lunch).SetSnack(menu.Snack).SetCreatedAt(menu.CreatedAt).SetUpdatedAt(menu.UpdatedAt).Exec(ctx)
+	return r.client.NurseryMenu.Create().SetID(id).SetMenuDate(day).SetLunch(menu.Lunch).SetSnack(menu.Snack).
+		SetLunchIngredients(menu.LunchIngredients).SetSnackIngredients(menu.SnackIngredients).SetCreatedAt(menu.CreatedAt).SetUpdatedAt(menu.UpdatedAt).Exec(ctx)
 }
 
 func (r *repository) DeleteNurseryMenu(ctx context.Context, date string) error {

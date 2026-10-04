@@ -255,6 +255,31 @@ func TestNurseryMenuTablesEnforceConstraintsAndAcceptNoticeKind(t *testing.T) {
 	mustExec(t, db, "INSERT INTO output_tasks(channel_id,kind,target_id,payload,destination_key,state,available_at,created_at,updated_at) VALUES('1','nursery_menu_notice','2026-10-02','{}','nursery_menu_notice:2026-10-02','pending',$1,$1,$1)", now)
 }
 
+func TestNurseryMenuIngredientsDefaultEmptyAndRequireTheirDish(t *testing.T) {
+	db := dbtest.Open(t)
+	dbtest.Reset(t, db)
+	if err := (Runner{directory}).Apply(t.Context(), db, ""); err != nil {
+		t.Fatal(err)
+	}
+	now := "2026-10-02T00:00:00Z"
+	mustExec(t, db, "INSERT INTO nursery_menus(menu_date,lunch,snack,created_at,updated_at) VALUES('2026-10-02','ご飯','',$1,$1)", now)
+	var lunchIngredients, snackIngredients string
+	if err := db.QueryRow("SELECT lunch_ingredients,snack_ingredients FROM nursery_menus").Scan(&lunchIngredients, &snackIngredients); err != nil || lunchIngredients != "" || snackIngredients != "" {
+		t.Fatal(lunchIngredients, snackIngredients, err)
+	}
+	mustExec(t, db, "INSERT INTO nursery_menus(menu_date,lunch,snack,lunch_ingredients,snack_ingredients,created_at,updated_at) VALUES('2026-10-03','ご飯','牛乳',repeat('a',500),repeat('b',500),$1,$1)", now)
+	for name, statement := range map[string]string{
+		"long lunch ingredients":  "INSERT INTO nursery_menus(menu_date,lunch,lunch_ingredients,created_at,updated_at) VALUES('2026-10-04','ご飯',repeat('a',501),$1,$1)",
+		"long snack ingredients":  "INSERT INTO nursery_menus(menu_date,snack,snack_ingredients,created_at,updated_at) VALUES('2026-10-05','牛乳',repeat('a',501),$1,$1)",
+		"lunch ingredients alone": "INSERT INTO nursery_menus(menu_date,snack,lunch_ingredients,created_at,updated_at) VALUES('2026-10-06','牛乳','米',$1,$1)",
+		"snack ingredients alone": "INSERT INTO nursery_menus(menu_date,lunch,snack_ingredients,created_at,updated_at) VALUES('2026-10-07','ご飯','米粉',$1,$1)",
+	} {
+		if _, err := db.ExecContext(t.Context(), statement, now); err == nil {
+			t.Fatalf("%s accepted", name)
+		}
+	}
+}
+
 func TestRuntimeRoleCanUseNurseryMenuTables(t *testing.T) {
 	db := dbtest.Open(t)
 	dbtest.Reset(t, db)

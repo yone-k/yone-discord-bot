@@ -10,7 +10,10 @@ import (
 
 const nurseryMenuMaxDays = 62
 
-type NurseryMenuEntry struct{ Date, Lunch, Snack string }
+type NurseryMenuEntry struct {
+	Date, Lunch, Snack                 string
+	LunchIngredients, SnackIngredients string
+}
 
 func validateNurseryDate(date, target string) error {
 	if domain.ValidateDate(date) != nil {
@@ -46,8 +49,8 @@ func (s *Service) ListNurseryMenus(ctx context.Context, from, to string) ([]doma
 	return read(s, ctx, func(r Repository) ([]domain.NurseryMenu, error) { return r.NurseryMenus(ctx, from, to) })
 }
 
-func (s *Service) PutNurseryMenu(ctx context.Context, date, lunch, snack string) (*domain.NurseryMenu, error) {
-	menus, e := s.PutNurseryMenus(ctx, []NurseryMenuEntry{{Date: date, Lunch: lunch, Snack: snack}})
+func (s *Service) PutNurseryMenu(ctx context.Context, entry NurseryMenuEntry) (*domain.NurseryMenu, error) {
+	menus, e := s.PutNurseryMenus(ctx, []NurseryMenuEntry{entry})
 	if e != nil {
 		return nil, e
 	}
@@ -63,7 +66,7 @@ func (s *Service) PutNurseryMenus(ctx context.Context, entries []NurseryMenuEntr
 	menus := make([]domain.NurseryMenu, 0, len(entries))
 	seen := map[string]bool{}
 	for _, entry := range entries {
-		menu, e := domain.NewNurseryMenu(entry.Date, entry.Lunch, entry.Snack)
+		menu, e := domain.NewNurseryMenu(domain.NurseryMenu{Date: entry.Date, Lunch: entry.Lunch, Snack: entry.Snack, LunchIngredients: entry.LunchIngredients, SnackIngredients: entry.SnackIngredients})
 		if e != nil {
 			return nil, e
 		}

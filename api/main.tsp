@@ -98,12 +98,12 @@ model LinkInventoryInput { inventoryChannelId: Id | null; }
 model Shortage { inventoryId: Id; name: string; required: Quantity; available: Quantity; }
 model ShortageResult { shortages: Shortage[]; }
 model TaskDisplay { channel: RemindChannel; task: StoredRemindTask; shortages: Shortage[]; }
-@doc("Blank entries are omitted. At least one entry is required after trimming; each entry is at most 1000 code points.")
-model NurseryMenuInput { lunch?: string; snack?: string; }
+@doc("Blank entries are omitted. At least one of lunch and snack is required after trimming; each dish is at most 1000 code points. Ingredients describe a whole section, are at most 500 code points each, and require that section's dish. Replacing a day clears omitted ingredients.")
+model NurseryMenuInput { lunch?: string; snack?: string; lunchIngredients?: string; snackIngredients?: string; }
 model DatedNurseryMenuInput { date: BusinessDate; ...NurseryMenuInput; }
 @doc("Creates or replaces only the listed dates, atomically. Dates must be unique.")
 model NurseryMenusBatchInput { @minItems(1) @maxItems(62) items: DatedNurseryMenuInput[]; }
-model NurseryMenu { date: BusinessDate; lunch: string | null; snack: string | null; createdAt: Timestamp; updatedAt: Timestamp; }
+model NurseryMenu { date: BusinessDate; lunch: string | null; snack: string | null; lunchIngredients: string | null; snackIngredients: string | null; createdAt: Timestamp; updatedAt: Timestamp; }
 model NurseryMenuChannel { channelId: Id; }
 // Output contracts are connected to routes together with their implementations.
 union OutputTaskState { "pending", "running", "retry_wait", "uncertain", "blocked", "succeeded", "cancelled" }

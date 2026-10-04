@@ -15,7 +15,14 @@ func mapNurseryMenu(menu domain.NurseryMenu) api.NurseryMenu {
 		}
 		return &v
 	}
-	return api.NurseryMenu{Date: menu.Date, Lunch: toNullable(entry(menu.Lunch)), Snack: toNullable(entry(menu.Snack)), CreatedAt: mapTimestamp(menu.CreatedAt), UpdatedAt: mapTimestamp(menu.UpdatedAt)}
+	return api.NurseryMenu{Date: menu.Date, Lunch: toNullable(entry(menu.Lunch)), Snack: toNullable(entry(menu.Snack)),
+		LunchIngredients: toNullable(entry(menu.LunchIngredients)), SnackIngredients: toNullable(entry(menu.SnackIngredients)),
+		CreatedAt: mapTimestamp(menu.CreatedAt), UpdatedAt: mapTimestamp(menu.UpdatedAt)}
+}
+
+func nurseryMenuEntry(date string, input api.NurseryMenuInput) application.NurseryMenuEntry {
+	return application.NurseryMenuEntry{Date: date, Lunch: entryText(input.Lunch), Snack: entryText(input.Snack),
+		LunchIngredients: entryText(input.LunchIngredients), SnackIngredients: entryText(input.SnackIngredients)}
 }
 
 func entryText(v *string) string {
@@ -35,7 +42,7 @@ func (h *Handler) ListNurseryMenus(ctx context.Context, r api.ListNurseryMenusRe
 func (h *Handler) PutNurseryMenusBatch(ctx context.Context, r api.PutNurseryMenusBatchRequestObject) (api.PutNurseryMenusBatchResponseObject, error) {
 	entries := make([]application.NurseryMenuEntry, 0, len(r.Body.Items))
 	for _, item := range r.Body.Items {
-		entries = append(entries, application.NurseryMenuEntry{Date: item.Date, Lunch: entryText(item.Lunch), Snack: entryText(item.Snack)})
+		entries = append(entries, nurseryMenuEntry(item.Date, api.NurseryMenuInput{Lunch: item.Lunch, Snack: item.Snack, LunchIngredients: item.LunchIngredients, SnackIngredients: item.SnackIngredients}))
 	}
 	v, e := h.Service.PutNurseryMenus(ctx, entries)
 	if e != nil {
@@ -51,7 +58,7 @@ func (h *Handler) GetNurseryMenu(ctx context.Context, r api.GetNurseryMenuReques
 	return api.GetNurseryMenu200JSONResponse(mapNurseryMenu(*v)), nil
 }
 func (h *Handler) PutNurseryMenu(ctx context.Context, r api.PutNurseryMenuRequestObject) (api.PutNurseryMenuResponseObject, error) {
-	v, e := h.Service.PutNurseryMenu(ctx, r.Date, entryText(r.Body.Lunch), entryText(r.Body.Snack))
+	v, e := h.Service.PutNurseryMenu(ctx, nurseryMenuEntry(r.Date, *r.Body))
 	if e != nil {
 		return nil, e
 	}

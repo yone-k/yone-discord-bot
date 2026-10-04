@@ -112,6 +112,8 @@ var (
 		{Name: "menu_date", Type: field.TypeTime, Unique: true, SchemaType: map[string]string{"postgres": "date"}},
 		{Name: "lunch", Type: field.TypeString, Default: ""},
 		{Name: "snack", Type: field.TypeString, Default: ""},
+		{Name: "lunch_ingredients", Type: field.TypeString, Default: ""},
+		{Name: "snack_ingredients", Type: field.TypeString, Default: ""},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 	}

@@ -17,6 +17,10 @@ const (
 	FieldLunch = "lunch"
 	// FieldSnack holds the string denoting the snack field in the database.
 	FieldSnack = "snack"
+	// FieldLunchIngredients holds the string denoting the lunch_ingredients field in the database.
+	FieldLunchIngredients = "lunch_ingredients"
+	// FieldSnackIngredients holds the string denoting the snack_ingredients field in the database.
+	FieldSnackIngredients = "snack_ingredients"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -31,6 +35,8 @@ var Columns = []string{
 	FieldMenuDate,
 	FieldLunch,
 	FieldSnack,
+	FieldLunchIngredients,
+	FieldSnackIngredients,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -50,6 +56,10 @@ var (
 	DefaultLunch string
 	// DefaultSnack holds the default value on creation for the "snack" field.
 	DefaultSnack string
+	// DefaultLunchIngredients holds the default value on creation for the "lunch_ingredients" field.
+	DefaultLunchIngredients string
+	// DefaultSnackIngredients holds the default value on creation for the "snack_ingredients" field.
+	DefaultSnackIngredients string
 )
 
 // OrderOption defines the ordering options for the NurseryMenu queries.
@@ -73,6 +83,16 @@ func ByLunch(opts ...sql.OrderTermOption) OrderOption {
 // BySnack orders the results by the snack field.
 func BySnack(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSnack, opts...).ToFunc()
+}
+
+// ByLunchIngredients orders the results by the lunch_ingredients field.
+func ByLunchIngredients(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLunchIngredients, opts...).ToFunc()
+}
+
+// BySnackIngredients orders the results by the snack_ingredients field.
+func BySnackIngredients(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSnackIngredients, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

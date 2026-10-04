@@ -55,6 +55,34 @@ func (_c *NurseryMenuCreate) SetNillableSnack(v *string) *NurseryMenuCreate {
 	return _c
 }
 
+// SetLunchIngredients sets the "lunch_ingredients" field.
+func (_c *NurseryMenuCreate) SetLunchIngredients(v string) *NurseryMenuCreate {
+	_c.mutation.SetLunchIngredients(v)
+	return _c
+}
+
+// SetNillableLunchIngredients sets the "lunch_ingredients" field if the given value is not nil.
+func (_c *NurseryMenuCreate) SetNillableLunchIngredients(v *string) *NurseryMenuCreate {
+	if v != nil {
+		_c.SetLunchIngredients(*v)
+	}
+	return _c
+}
+
+// SetSnackIngredients sets the "snack_ingredients" field.
+func (_c *NurseryMenuCreate) SetSnackIngredients(v string) *NurseryMenuCreate {
+	_c.mutation.SetSnackIngredients(v)
+	return _c
+}
+
+// SetNillableSnackIngredients sets the "snack_ingredients" field if the given value is not nil.
+func (_c *NurseryMenuCreate) SetNillableSnackIngredients(v *string) *NurseryMenuCreate {
+	if v != nil {
+		_c.SetSnackIngredients(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *NurseryMenuCreate) SetCreatedAt(v time.Time) *NurseryMenuCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -116,6 +144,14 @@ func (_c *NurseryMenuCreate) defaults() {
 		v := nurserymenu.DefaultSnack
 		_c.mutation.SetSnack(v)
 	}
+	if _, ok := _c.mutation.LunchIngredients(); !ok {
+		v := nurserymenu.DefaultLunchIngredients
+		_c.mutation.SetLunchIngredients(v)
+	}
+	if _, ok := _c.mutation.SnackIngredients(); !ok {
+		v := nurserymenu.DefaultSnackIngredients
+		_c.mutation.SetSnackIngredients(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -128,6 +164,12 @@ func (_c *NurseryMenuCreate) check() error {
 	}
 	if _, ok := _c.mutation.Snack(); !ok {
 		return &ValidationError{Name: "snack", err: errors.New(`ent: missing required field "NurseryMenu.snack"`)}
+	}
+	if _, ok := _c.mutation.LunchIngredients(); !ok {
+		return &ValidationError{Name: "lunch_ingredients", err: errors.New(`ent: missing required field "NurseryMenu.lunch_ingredients"`)}
+	}
+	if _, ok := _c.mutation.SnackIngredients(); !ok {
+		return &ValidationError{Name: "snack_ingredients", err: errors.New(`ent: missing required field "NurseryMenu.snack_ingredients"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "NurseryMenu.created_at"`)}
@@ -181,6 +223,14 @@ func (_c *NurseryMenuCreate) createSpec() (*NurseryMenu, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Snack(); ok {
 		_spec.SetField(nurserymenu.FieldSnack, field.TypeString, value)
 		_node.Snack = value
+	}
+	if value, ok := _c.mutation.LunchIngredients(); ok {
+		_spec.SetField(nurserymenu.FieldLunchIngredients, field.TypeString, value)
+		_node.LunchIngredients = value
+	}
+	if value, ok := _c.mutation.SnackIngredients(); ok {
+		_spec.SetField(nurserymenu.FieldSnackIngredients, field.TypeString, value)
+		_node.SnackIngredients = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(nurserymenu.FieldCreatedAt, field.TypeTime, value)

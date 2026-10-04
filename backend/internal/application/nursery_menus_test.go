@@ -96,7 +96,7 @@ func failureCode(t *testing.T, err error, want domain.Code) {
 func TestPutNurseryMenuCreatesThenReplacesKeepingCreatedAt(t *testing.T) {
 	repo := newNurseryMenuRepository()
 	created := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
-	menu, err := nurseryService(repo, created).PutNurseryMenu(context.Background(), "2026-10-02", " ご飯 ", "")
+	menu, err := nurseryService(repo, created).PutNurseryMenu(context.Background(), NurseryMenuEntry{Date: "2026-10-02", Lunch: " ご飯 ", Snack: ""})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestPutNurseryMenuCreatesThenReplacesKeepingCreatedAt(t *testing.T) {
 		t.Fatalf("%+v", menu)
 	}
 	updated := created.Add(time.Hour)
-	menu, err = nurseryService(repo, updated).PutNurseryMenu(context.Background(), "2026-10-02", "", "せんべい")
+	menu, err = nurseryService(repo, updated).PutNurseryMenu(context.Background(), NurseryMenuEntry{Date: "2026-10-02", Lunch: "", Snack: "せんべい"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,17 +116,34 @@ func TestPutNurseryMenuCreatesThenReplacesKeepingCreatedAt(t *testing.T) {
 func TestPutNurseryMenuIssuesAnIDOnCreateAndKeepsItOnReplace(t *testing.T) {
 	repo := newNurseryMenuRepository()
 	s := nurseryService(repo, time.Now())
-	first, err := s.PutNurseryMenu(context.Background(), "2026-10-02", "ご飯", "")
+	first, err := s.PutNurseryMenu(context.Background(), NurseryMenuEntry{Date: "2026-10-02", Lunch: "ご飯", Snack: ""})
 	if err != nil || first.ID == "" {
 		t.Fatal(first, err)
 	}
-	second, err := s.PutNurseryMenu(context.Background(), "2026-10-02", "パン", "")
+	second, err := s.PutNurseryMenu(context.Background(), NurseryMenuEntry{Date: "2026-10-02", Lunch: "パン", Snack: ""})
 	if err != nil || second.ID != first.ID || repo.menus["2026-10-02"].ID != first.ID {
 		t.Fatal(first, second, err)
 	}
-	other, err := s.PutNurseryMenu(context.Background(), "2026-10-03", "ご飯", "")
+	other, err := s.PutNurseryMenu(context.Background(), NurseryMenuEntry{Date: "2026-10-03", Lunch: "ご飯", Snack: ""})
 	if err != nil || other.ID == first.ID {
 		t.Fatal("a new date must receive its own ID", other, err)
+	}
+}
+
+func TestPutNurseryMenuStoresIngredientsAndClearsThemWhenOmitted(t *testing.T) {
+	repo := newNurseryMenuRepository()
+	s := nurseryService(repo, time.Now())
+	if _, err := s.PutNurseryMenu(context.Background(), NurseryMenuEntry{Date: "2026-10-02", Lunch: "ご飯", Snack: "牛乳", LunchIngredients: " 米、鮭 ", SnackIngredients: "牛乳"}); err != nil {
+		t.Fatal(err)
+	}
+	if saved := repo.menus["2026-10-02"]; saved.LunchIngredients != "米、鮭" || saved.SnackIngredients != "牛乳" {
+		t.Fatalf("%+v", saved)
+	}
+	if _, err := s.PutNurseryMenu(context.Background(), NurseryMenuEntry{Date: "2026-10-02", Lunch: "パン", Snack: "牛乳"}); err != nil {
+		t.Fatal(err)
+	}
+	if saved := repo.menus["2026-10-02"]; saved.LunchIngredients != "" || saved.SnackIngredients != "" {
+		t.Fatal("replacing a day must clear omitted ingredients", saved)
 	}
 }
 
@@ -137,11 +154,13 @@ func TestPutNurseryMenusSavesNothingWhenAnyEntryIsInvalid(t *testing.T) {
 		tooMany[i] = NurseryMenuEntry{Date: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, i).Format("2006-01-02"), Lunch: "ご飯"}
 	}
 	for name, entries := range map[string][]NurseryMenuEntry{
-		"empty":          nil,
-		"too many":       tooMany,
-		"duplicate date": {valid, {Date: "2026-10-02", Snack: "牛乳"}},
-		"invalid entry":  {valid, {Date: "2026-10-03"}},
-		"invalid date":   {valid, {Date: "2026-02-30", Lunch: "ご飯"}},
+		"empty":              nil,
+		"too many":           tooMany,
+		"duplicate date":     {valid, {Date: "2026-10-02", Snack: "牛乳"}},
+		"invalid entry":      {valid, {Date: "2026-10-03"}},
+		"invalid date":       {valid, {Date: "2026-02-30", Lunch: "ご飯"}},
+		"orphan ingredients": {valid, {Date: "2026-10-03", Lunch: "ご飯", SnackIngredients: "米粉"}},
+		"long ingredients":   {valid, {Date: "2026-10-03", Lunch: "ご飯", LunchIngredients: strings.Repeat("米", 501)}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			repo := newNurseryMenuRepository()
@@ -227,7 +246,7 @@ func TestSetNurseryMenuChannelValidatesAndReplaces(t *testing.T) {
 
 func TestNurseryMenuEntryLimitCountsCodePoints(t *testing.T) {
 	repo := newNurseryMenuRepository()
-	if _, err := nurseryService(repo, time.Now()).PutNurseryMenu(context.Background(), "2026-10-02", strings.Repeat("🍙", 1000), ""); err != nil {
+	if _, err := nurseryService(repo, time.Now()).PutNurseryMenu(context.Background(), NurseryMenuEntry{Date: "2026-10-02", Lunch: strings.Repeat("🍙", 1000)}); err != nil {
 		t.Fatal(err)
 	}
 }

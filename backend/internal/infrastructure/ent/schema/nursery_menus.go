@@ -18,6 +18,7 @@ func (NurseryMenu) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("id", uuid.UUID{}).Immutable(), field.Time("menu_date").SchemaType(map[string]string{dialect.Postgres: "date"}).Unique(),
 		field.String("lunch").Default(""), field.String("snack").Default(""),
+		field.String("lunch_ingredients").Default(""), field.String("snack_ingredients").Default(""),
 		field.Time("created_at").SchemaType(map[string]string{dialect.Postgres: "timestamptz"}), field.Time("updated_at").SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 	}
 }

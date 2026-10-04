@@ -60,6 +60,14 @@ func init() {
 	nurserymenuDescSnack := nurserymenuFields[3].Descriptor()
 	// nurserymenu.DefaultSnack holds the default value on creation for the snack field.
 	nurserymenu.DefaultSnack = nurserymenuDescSnack.Default.(string)
+	// nurserymenuDescLunchIngredients is the schema descriptor for lunch_ingredients field.
+	nurserymenuDescLunchIngredients := nurserymenuFields[4].Descriptor()
+	// nurserymenu.DefaultLunchIngredients holds the default value on creation for the lunch_ingredients field.
+	nurserymenu.DefaultLunchIngredients = nurserymenuDescLunchIngredients.Default.(string)
+	// nurserymenuDescSnackIngredients is the schema descriptor for snack_ingredients field.
+	nurserymenuDescSnackIngredients := nurserymenuFields[5].Descriptor()
+	// nurserymenu.DefaultSnackIngredients holds the default value on creation for the snack_ingredients field.
+	nurserymenu.DefaultSnackIngredients = nurserymenuDescSnackIngredients.Default.(string)
 	outputdispatchFields := schema.OutputDispatch{}.Fields()
 	_ = outputdispatchFields
 	// outputdispatchDescAttempt is the schema descriptor for attempt field.
